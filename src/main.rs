@@ -4,7 +4,9 @@
 mod application;
 mod detector;
 mod entity;
+mod entity_data;
 mod entity_id;
+mod entity_kind;
 mod tracker;
 mod ui;
 

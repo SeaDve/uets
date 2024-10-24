@@ -2,7 +2,7 @@ use std::fmt;
 
 use gtk::{glib, subclass::prelude::*};
 
-use crate::entity_id::EntityId;
+use crate::{entity_data::EntityData, entity_id::EntityId, entity_kind::EntityKind};
 
 mod imp {
     use std::cell::{OnceCell, RefCell};
@@ -12,6 +12,7 @@ mod imp {
     #[derive(Default)]
     pub struct Entity {
         pub(super) id: OnceCell<EntityId>,
+        pub(super) data: RefCell<Option<EntityData>>,
         pub(super) entry_dts: RefCell<Vec<glib::DateTime>>,
         pub(super) exit_dts: RefCell<Vec<glib::DateTime>>,
     }
@@ -47,6 +48,27 @@ impl Entity {
     pub fn is_inside(&self) -> bool {
         let imp = self.imp();
         imp.entry_dts.borrow().len() > imp.exit_dts.borrow().len()
+    }
+
+    pub fn kind(&self) -> EntityKind {
+        let imp = self.imp();
+
+        match imp.data.borrow().as_ref() {
+            None => EntityKind::Generic,
+            Some(data) => match data {
+                EntityData::Inventory(_) => EntityKind::Inventory,
+                EntityData::Refrigerator(_) => EntityKind::Refrigerator,
+                EntityData::Attendance(_) => EntityKind::Attendance,
+            },
+        }
+    }
+
+    pub fn with_data(&self, cb: impl FnOnce(&mut EntityData)) {
+        let imp = self.imp();
+
+        if let Some(data) = imp.data.borrow_mut().as_mut() {
+            cb(data);
+        }
     }
 
     pub fn last_entry_dt(&self) -> Option<glib::DateTime> {
