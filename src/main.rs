@@ -3,7 +3,9 @@
 
 mod application;
 mod detector;
-mod id;
+mod entity;
+mod entity_id;
+mod tracker;
 mod ui;
 
 use gtk::{glib, prelude::*};

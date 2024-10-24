@@ -4,7 +4,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::id::Id;
+use crate::entity_id::EntityId;
 
 mod imp {
     use std::sync::OnceLock;
@@ -28,7 +28,7 @@ mod imp {
 
             SIGNALS.get_or_init(|| {
                 vec![Signal::builder("detected")
-                    .param_types([Id::static_type()])
+                    .param_types([EntityId::static_type()])
                     .build()]
             })
         }
@@ -46,20 +46,20 @@ impl Detector {
 
     pub fn connect_detected<F>(&self, f: F) -> glib::SignalHandlerId
     where
-        F: Fn(&Self, &Id) + 'static,
+        F: Fn(&Self, &EntityId) + 'static,
     {
         self.connect_closure(
             "detected",
             false,
-            closure_local!(|obj: &Self, id: &Id| f(obj, id)),
+            closure_local!(|obj: &Self, id: &EntityId| f(obj, id)),
         )
     }
 
-    pub fn simulate_detected(&self, id: &Id) {
+    pub fn simulate_detected(&self, id: &EntityId) {
         self.emit_detected(id);
     }
 
-    fn emit_detected(&self, id: &Id) {
+    fn emit_detected(&self, id: &EntityId) {
         self.emit_by_name("detected", &[id])
     }
 }

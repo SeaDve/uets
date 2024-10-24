@@ -1,7 +1,10 @@
 use adw::{prelude::*, subclass::prelude::*};
-use gtk::{gio, glib};
+use gtk::{
+    gio,
+    glib::{self, clone},
+};
 
-use crate::{detector::Detector, ui::Window, APP_ID};
+use crate::{detector::Detector, tracker::Tracker, ui::Window, APP_ID};
 
 mod imp {
     use super::*;
@@ -9,6 +12,7 @@ mod imp {
     #[derive(Default)]
     pub struct Application {
         pub(super) detector: Detector,
+        pub(super) tracker: Tracker,
     }
 
     #[glib::object_subclass]
@@ -32,9 +36,16 @@ mod imp {
         fn startup(&self) {
             self.parent_startup();
 
-            self.detector.connect_detected(|_, id| {
-                tracing::info!("detected: {:?}", id);
-            });
+            let obj = self.obj();
+
+            self.detector.connect_detected(clone!(
+                #[weak]
+                obj,
+                move |_, id| {
+                    let imp = obj.imp();
+                    imp.tracker.handle_entity(id);
+                }
+            ));
         }
     }
 

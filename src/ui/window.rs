@@ -1,7 +1,7 @@
 use adw::{prelude::*, subclass::prelude::*};
 use gtk::glib;
 
-use crate::{application::Application, id::Id};
+use crate::{application::Application, entity_id::EntityId};
 
 mod imp {
     use super::*;
@@ -33,7 +33,7 @@ mod imp {
             self.parent_constructed();
 
             self.test_entry.connect_activate(move |entry| {
-                let id = Id::new(entry.text());
+                let id = EntityId::new(entry.text());
                 entry.set_text("");
                 Application::get().detector().simulate_detected(&id);
             });
