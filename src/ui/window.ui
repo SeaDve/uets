@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="UetsWindow" parent="AdwApplicationWindow">
+    <property name="width-request">1024</property>
+    <property name="height-request">600</property>
+    <property name="default-width">1024</property>
+    <property name="default-height">600</property>
+    <property name="content">
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <child type="top">
+          <object class="AdwHeaderBar">
+          </object>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="label">Hello</property>
+          </object>
+        </child>
+      </object>
+    </property>
+  </template>
+</interface>
