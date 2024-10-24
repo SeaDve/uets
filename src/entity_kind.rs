@@ -5,12 +5,11 @@ pub enum EntityKind {
     /// e.g., mall entry counter
     #[default]
     Generic,
-    /// Used for entities that have lifetime and quantity.
+    /// Used for entities that have lifetime, location, and quantity.
     ///
     /// e.g., stock room, department store, medicine storage
     Inventory,
-    /// Used for entities that have lifetime and quantity. This is a special case of inventory
-    /// for recipe suggestions
+    /// Used for entities that have lifetime and quantity.
     ///
     /// e.g., food storage
     Refrigerator,

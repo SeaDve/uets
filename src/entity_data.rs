@@ -5,6 +5,7 @@ use gtk::glib;
 #[derive(Debug)]
 pub struct InventoryEntityData {
     name: String,
+    location: String,
     expiration_date: glib::DateTime,
     quantity: u32,
 }
