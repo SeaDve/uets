@@ -1,13 +1,15 @@
 use adw::{prelude::*, subclass::prelude::*};
 use gtk::{gio, glib};
 
-use crate::{ui::Window, APP_ID};
+use crate::{detector::Detector, ui::Window, APP_ID};
 
 mod imp {
     use super::*;
 
     #[derive(Default)]
-    pub struct Application {}
+    pub struct Application {
+        pub(super) detector: Detector,
+    }
 
     #[glib::object_subclass]
     impl ObjectSubclass for Application {
@@ -25,6 +27,14 @@ mod imp {
             let obj = self.obj();
 
             obj.window().present();
+        }
+
+        fn startup(&self) {
+            self.parent_startup();
+
+            self.detector.connect_detected(|_, id| {
+                tracing::info!("detected: {:?}", id);
+            });
         }
     }
 
@@ -52,6 +62,10 @@ impl Application {
         );
 
         gio::Application::default().unwrap().downcast().unwrap()
+    }
+
+    pub fn detector(&self) -> &Detector {
+        &self.imp().detector
     }
 
     fn window(&self) -> Window {

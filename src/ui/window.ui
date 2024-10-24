@@ -13,8 +13,12 @@
           </object>
         </child>
         <child>
-          <object class="GtkLabel">
-            <property name="label">Hello</property>
+          <object class="GtkBox">
+            <child>
+              <object class="GtkEntry" id="test_entry">
+
+              </object>
+            </child>
           </object>
         </child>
       </object>

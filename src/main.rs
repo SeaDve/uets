@@ -2,6 +2,8 @@
 #![warn(rust_2018_idioms, clippy::unused_async, clippy::dbg_macro)]
 
 mod application;
+mod detector;
+mod id;
 mod ui;
 
 use gtk::{glib, prelude::*};

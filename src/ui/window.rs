@@ -1,14 +1,17 @@
-use adw::subclass::prelude::*;
+use adw::{prelude::*, subclass::prelude::*};
 use gtk::glib;
 
-use crate::application::Application;
+use crate::{application::Application, id::Id};
 
 mod imp {
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
     #[template(file = "window.ui")]
-    pub struct Window {}
+    pub struct Window {
+        #[template_child]
+        pub(super) test_entry: TemplateChild<gtk::Entry>,
+    }
 
     #[glib::object_subclass]
     impl ObjectSubclass for Window {
@@ -25,7 +28,18 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for Window {}
+    impl ObjectImpl for Window {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            self.test_entry.connect_activate(move |entry| {
+                let id = Id::new(entry.text());
+                entry.set_text("");
+                Application::get().detector().simulate_detected(&id);
+            });
+        }
+    }
+
     impl WidgetImpl for Window {}
     impl WindowImpl for Window {}
     impl ApplicationWindowImpl for Window {}
