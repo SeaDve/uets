@@ -3,17 +3,13 @@ use gtk::{glib, subclass::prelude::*};
 use crate::{entity::Entity, entity_id::EntityId};
 
 mod imp {
-    use std::{
-        cell::RefCell,
-        collections::{HashMap, HashSet},
-    };
+    use std::{cell::RefCell, collections::HashMap};
 
     use super::*;
 
     #[derive(Default)]
     pub struct Tracker {
         pub(super) entities: RefCell<HashMap<EntityId, Entity>>,
-        pub(super) inside_entities: RefCell<HashSet<EntityId>>,
     }
 
     #[glib::object_subclass]
@@ -34,18 +30,29 @@ impl Tracker {
         glib::Object::new()
     }
 
-    pub fn handle_entity(&self, id: &EntityId) {
+    pub fn inside_entities(&self) -> Vec<EntityId> {
         let imp = self.imp();
 
         imp.entities
-            .borrow_mut()
-            .entry(id.clone())
-            .or_insert_with_key(Entity::new);
+            .borrow()
+            .iter()
+            .filter(|(_, entity)| entity.is_inside())
+            .map(|(id, _)| id.clone())
+            .collect()
+    }
 
-        if imp.inside_entities.borrow().contains(id) {
-            imp.inside_entities.borrow_mut().remove(id);
+    pub fn handle_entity(&self, id: &EntityId) {
+        let imp = self.imp();
+
+        let mut entities = imp.entities.borrow_mut();
+        let entity = entities.entry(id.clone()).or_insert_with_key(Entity::new);
+
+        let now = glib::DateTime::now_utc().unwrap();
+
+        if entity.is_inside() {
+            entity.add_exit_dt(now);
         } else {
-            imp.inside_entities.borrow_mut().insert(id.clone());
+            entity.add_entry_dt(now);
         }
     }
 }
