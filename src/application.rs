@@ -79,6 +79,10 @@ impl Application {
         &self.imp().detector
     }
 
+    pub fn tracker(&self) -> &Tracker {
+        &self.imp().tracker
+    }
+
     fn window(&self) -> Window {
         self.active_window()
             .map_or_else(|| Window::new(self), |w| w.downcast().unwrap())
