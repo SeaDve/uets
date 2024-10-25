@@ -14,8 +14,10 @@
               <object class="AdwActionRow">
                 <property name="title">Counter</property>
                 <property name="subtitle">Used for counting entities without data attached (e.g., mall entry counter)</property>
+                <property name="activatable-widget">counter_check_button</property>
                 <child type="prefix">
-                  <object class="GtkCheckButton">
+                  <object class="GtkCheckButton" id="counter_check_button">
+                    <property name="valign">center</property>
                     <property name="action-name">settings-view.operation-mode</property>
                     <property name="action-target">"counter"</property>
                   </object>
@@ -26,8 +28,10 @@
               <object class="AdwActionRow">
                 <property name="title">Inventory</property>
                 <property name="subtitle">Used for tracking inventory items with lifetime, location, and quantity (e.g., stock rooms)</property>
+                <property name="activatable-widget">inventory_check_button</property>
                 <child type="prefix">
-                  <object class="GtkCheckButton">
+                  <object class="GtkCheckButton" id="inventory_check_button">
+                    <property name="valign">center</property>
                     <property name="action-name">settings-view.operation-mode</property>
                     <property name="action-target">"inventory"</property>
                   </object>
@@ -38,8 +42,10 @@
               <object class="AdwActionRow">
                 <property name="title">Refrigerator</property>
                 <property name="subtitle">Used for tracking food items with lifetime, quantity, and recipe suggestions</property>
+                <property name="activatable-widget">refrigerator_check_button</property>
                 <child type="prefix">
-                  <object class="GtkCheckButton">
+                  <object class="GtkCheckButton" id="refrigerator_check_button">
+                    <property name="valign">center</property>
                     <property name="action-name">settings-view.operation-mode</property>
                     <property name="action-target">"refrigerator"</property>
                   </object>
@@ -50,8 +56,10 @@
               <object class="AdwActionRow">
                 <property name="title">Attendance</property>
                 <property name="subtitle">Used for tracking attendance, alerting when unathorized entity is detected (e.g., meeting rooms, establishment entry)</property>
+                <property name="activatable-widget">attendance_check_button</property>
                 <child type="prefix">
-                  <object class="GtkCheckButton">
+                  <object class="GtkCheckButton" id="attendance_check_button">
+                    <property name="valign">center</property>
                     <property name="action-name">settings-view.operation-mode</property>
                     <property name="action-target">"attendance"</property>
                   </object>
