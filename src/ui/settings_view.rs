@@ -39,7 +39,7 @@ mod imp {
             let obj = self.obj();
 
             let action_group = gio::SimpleActionGroup::new();
-            action_group.add_action(&Application::get().settings().create_profile_action());
+            action_group.add_action(&Application::get().settings().create_operation_mode_action());
             obj.insert_action_group("settings-view", Some(&action_group));
 
             self.quit_button.connect_clicked(|_| {

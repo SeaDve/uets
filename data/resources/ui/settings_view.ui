@@ -8,15 +8,15 @@
       <object class="AdwPreferencesPage" id="page">
         <child>
           <object class="AdwPreferencesGroup">
-            <property name="title">Profile</property>
-            <property name="description">Set up the purpose of the device</property>
+            <property name="title">Operation Mode</property>
+            <property name="description">Set up the operating mode of the device</property>
             <child>
               <object class="AdwActionRow">
                 <property name="title">Counter</property>
                 <property name="subtitle">Used for counting entities without data attached (e.g., mall entry counter)</property>
                 <child type="prefix">
                   <object class="GtkCheckButton">
-                    <property name="action-name">settings-view.profile</property>
+                    <property name="action-name">settings-view.operation-mode</property>
                     <property name="action-target">"counter"</property>
                   </object>
                 </child>
@@ -28,7 +28,7 @@
                 <property name="subtitle">Used for tracking inventory items with lifetime, location, and quantity (e.g., stock rooms)</property>
                 <child type="prefix">
                   <object class="GtkCheckButton">
-                    <property name="action-name">settings-view.profile</property>
+                    <property name="action-name">settings-view.operation-mode</property>
                     <property name="action-target">"inventory"</property>
                   </object>
                 </child>
@@ -40,7 +40,7 @@
                 <property name="subtitle">Used for tracking food items with lifetime, quantity, and recipe suggestions</property>
                 <child type="prefix">
                   <object class="GtkCheckButton">
-                    <property name="action-name">settings-view.profile</property>
+                    <property name="action-name">settings-view.operation-mode</property>
                     <property name="action-target">"refrigerator"</property>
                   </object>
                 </child>
@@ -52,7 +52,7 @@
                 <property name="subtitle">Used for tracking attendance, alerting when unathorized entity is detected (e.g., meeting rooms, establishment entry)</property>
                 <child type="prefix">
                   <object class="GtkCheckButton">
-                    <property name="action-name">settings-view.profile</property>
+                    <property name="action-name">settings-view.operation-mode</property>
                     <property name="action-target">"attendance"</property>
                   </object>
                 </child>
