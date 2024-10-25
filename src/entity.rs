@@ -62,13 +62,20 @@ impl Entity {
     }
 
     pub fn id(&self) -> &EntityId {
-        let imp = self.imp();
-        imp.id.get().unwrap()
+        self.imp().id.get().unwrap()
     }
 
     pub fn is_inside(&self) -> bool {
         let imp = self.imp();
-        imp.entry_dts.borrow().len() > imp.exit_dts.borrow().len()
+
+        let n_entries = imp.entry_dts.borrow().len();
+        let n_exits = imp.exit_dts.borrow().len();
+
+        match (n_entries).abs_diff(n_exits) {
+            0 => false,
+            1 => true,
+            2.. => unreachable!("diff must always be less than 1"),
+        }
     }
 
     pub fn kind(&self) -> EntityKind {
@@ -101,23 +108,19 @@ impl Entity {
     }
 
     pub fn last_entry_dt(&self) -> Option<DateTime> {
-        let imp = self.imp();
-        imp.entry_dts.borrow().last().cloned()
+        self.imp().entry_dts.borrow().last().cloned()
     }
 
     pub fn last_exit_dt(&self) -> Option<DateTime> {
-        let imp = self.imp();
-        imp.exit_dts.borrow().last().cloned()
+        self.imp().exit_dts.borrow().last().cloned()
     }
 
     pub fn add_entry_dt(&self, dt: DateTime) {
-        let imp = self.imp();
-        imp.entry_dts.borrow_mut().push(dt);
+        self.imp().entry_dts.borrow_mut().push(dt);
     }
 
     pub fn add_exit_dt(&self, dt: DateTime) {
-        let imp = self.imp();
-        imp.exit_dts.borrow_mut().push(dt);
+        self.imp().exit_dts.borrow_mut().push(dt);
     }
 }
 
