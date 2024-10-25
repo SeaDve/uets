@@ -12,6 +12,10 @@ impl DateTime {
         Self(glib::DateTime::now_utc().unwrap())
     }
 
+    pub fn to_local(&self) -> Self {
+        Self(self.0.to_local().unwrap())
+    }
+
     pub fn from_iso8601(string: &str) -> Result<Self> {
         glib::DateTime::from_iso8601(string, None)
             .map(Self)

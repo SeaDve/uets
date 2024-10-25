@@ -62,11 +62,15 @@ impl TimelineView {
                     format!(
                         "{} enters {}",
                         item.entity().id(),
-                        item.dt().fuzzy_display()
+                        item.dt().to_local().fuzzy_display()
                     )
                 }
                 TimelineItemKind::Exit => {
-                    format!("{} exits {}", item.entity().id(), item.dt().fuzzy_display())
+                    format!(
+                        "{} exits {}",
+                        item.entity().id(),
+                        item.dt().to_local().fuzzy_display()
+                    )
                 }
             };
 
