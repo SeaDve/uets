@@ -54,7 +54,14 @@ impl TimelineView {
     pub fn bind_timeline(&self, timeline: &Timeline) {
         let imp = self.imp();
 
-        imp.list_box.bind_model(Some(timeline), |item| {
+        let sorter = gtk::CustomSorter::new(move |a, b| {
+            let a = a.downcast_ref::<TimelineItem>().unwrap();
+            let b = b.downcast_ref::<TimelineItem>().unwrap();
+            a.dt().cmp(b.dt()).into()
+        });
+        let sort_list_model = gtk::SortListModel::new(Some(timeline.clone()), Some(sorter));
+
+        imp.list_box.bind_model(Some(&sort_list_model), |item| {
             let item = item.downcast_ref::<TimelineItem>().unwrap();
 
             let text = match item.kind() {
