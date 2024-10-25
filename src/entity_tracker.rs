@@ -9,6 +9,8 @@ use crate::{
     db::{self, EnvExt},
     entity::Entity,
     entity_id::EntityId,
+    timeline::Timeline,
+    timeline_item::{TimelineItem, TimelineItemKind},
 };
 
 mod imp {
@@ -22,6 +24,7 @@ mod imp {
     pub struct EntityTracker {
         pub(super) entities: RefCell<IndexMap<EntityId, Entity>>,
         pub(super) db: OnceCell<(heed::Env, db::EntitiesDbType)>,
+        pub(super) timeline: OnceCell<Timeline>,
     }
 
     #[glib::object_subclass]
@@ -85,13 +88,34 @@ impl EntityTracker {
             db_load_start_time.elapsed()
         );
 
+        let timeline_items = entities
+            .iter()
+            .flat_map(|(_, e)| {
+                e.entry_dts()
+                    .into_iter()
+                    .map(|dt| TimelineItem::new(TimelineItemKind::Entry, dt, e.clone()))
+            })
+            .chain(entities.iter().flat_map(|(_, e)| {
+                e.exit_dts()
+                    .into_iter()
+                    .map(|dt| TimelineItem::new(TimelineItemKind::Exit, dt, e.clone()))
+            }))
+            .collect::<Vec<_>>();
+
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
         imp.entities.replace(entities);
         imp.db.set((env, db)).unwrap();
+        imp.timeline
+            .set(Timeline::from_iter(timeline_items))
+            .unwrap();
 
         Ok(this)
+    }
+
+    pub fn timeline(&self) -> &Timeline {
+        self.imp().timeline.get().unwrap()
     }
 
     pub fn inside_entities(&self) -> Vec<EntityId> {
@@ -116,11 +140,13 @@ impl EntityTracker {
             .unwrap_or_else(|| Entity::new(id));
 
         let now = DateTime::now_utc();
-        if entity.is_inside() {
-            entity.add_exit_dt(now);
+        let timeline_item_kind = if entity.is_inside() {
+            entity.add_exit_dt(now.clone());
+            TimelineItemKind::Exit
         } else {
-            entity.add_entry_dt(now);
-        }
+            entity.add_entry_dt(now.clone());
+            TimelineItemKind::Entry
+        };
 
         let (env, db) = self.db();
         env.with_write_txn(|wtxn| {
@@ -128,6 +154,9 @@ impl EntityTracker {
                 .context("Failed to put entity to db")?;
             Ok(())
         })?;
+
+        self.timeline()
+            .push(TimelineItem::new(timeline_item_kind, now, entity.clone()));
 
         let (index, removed, added) = match imp.entities.borrow_mut().entry(id.clone()) {
             Entry::Occupied(entry) => (entry.index(), 1, 1),
@@ -143,7 +172,7 @@ impl EntityTracker {
         Ok(())
     }
 
-    pub fn reset(&self) -> Result<()> {
+    pub fn clear(&self) -> Result<()> {
         let imp = self.imp();
 
         let (env, db) = self.db();
@@ -158,6 +187,8 @@ impl EntityTracker {
             imp.entities.borrow_mut().clear();
             self.items_changed(0, prev_len as u32, 0);
         }
+
+        self.timeline().clear();
 
         Ok(())
     }

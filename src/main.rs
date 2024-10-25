@@ -11,6 +11,8 @@ mod entity_id;
 mod entity_kind;
 mod entity_tracker;
 mod settings;
+mod timeline;
+mod timeline_item;
 mod ui;
 
 use std::path::Path;

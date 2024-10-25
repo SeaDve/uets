@@ -87,9 +87,7 @@
                 <property name="title">Timeline</property>
                 <property name="icon-name">view-list-bullet-symbolic</property>
                 <property name="child">
-                  <object class="GtkLabel">
-                    <property name="label">Timeline</property>
-                  </object>
+                  <object class="UetsTimelineView" id="timeline_view"/>
                 </property>
               </object>
             </child>

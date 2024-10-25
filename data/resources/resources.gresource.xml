@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<gresources>
-  <gresource prefix="/io/github/seadve/Uets/">
-    <file compressed="true" preprocess="xml-stripblanks">icons/scalable/actions/go-home-symbolic.svg</file>
-    <file compressed="true" preprocess="xml-stripblanks">icons/scalable/actions/settings-symbolic.svg</file>
-    <file compressed="true" preprocess="xml-stripblanks">icons/scalable/actions/view-list-bullet-symbolic.svg</file>
-    <file compressed="true" preprocess="xml-stripblanks">ui/window.ui</file>
-  </gresource>
-</gresources>

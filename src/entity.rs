@@ -92,6 +92,14 @@ impl Entity {
         }
     }
 
+    pub fn entry_dts(&self) -> Vec<DateTime> {
+        self.imp().entry_dts.borrow().clone()
+    }
+
+    pub fn exit_dts(&self) -> Vec<DateTime> {
+        self.imp().exit_dts.borrow().clone()
+    }
+
     pub fn last_entry_dt(&self) -> Option<DateTime> {
         let imp = self.imp();
         imp.entry_dts.borrow().last().cloned()

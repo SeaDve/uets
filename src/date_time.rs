@@ -21,6 +21,21 @@ impl DateTime {
     pub fn format_iso8601(&self) -> glib::GString {
         self.0.format_iso8601().unwrap()
     }
+
+    pub fn fuzzy_display(&self) -> glib::GString {
+        let now = Self::now_utc();
+
+        if self.0.ymd() == now.0.ymd() {
+            // Translators: `%R` will be replaced with 24-hour formatted datetime (e.g., `13:21`)
+            self.0.format("today at %R")
+        } else if now.0.difference(&self.0).as_hours() <= 30 {
+            // Translators: `%R` will be replaced with 24-hour formatted datetime (e.g., `13:21`)
+            self.0.format("yesterday at %R")
+        } else {
+            self.0.format("%F") // ISO 8601 (e.g., `2001-07-08`)
+        }
+        .expect("format must be correct")
+    }
 }
 
 impl Serialize for DateTime {

@@ -2,7 +2,10 @@ use adw::{prelude::*, subclass::prelude::*};
 use gtk::glib;
 
 use crate::{
-    application::Application, entity::Entity, entity_id::EntityId, ui::settings_view::SettingsView,
+    application::Application,
+    entity::Entity,
+    entity_id::EntityId,
+    ui::{settings_view::SettingsView, timeline_view::TimelineView},
 };
 
 mod imp {
@@ -11,6 +14,8 @@ mod imp {
     #[derive(Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/seadve/Uets/ui/window.ui")]
     pub struct Window {
+        #[template_child]
+        pub(super) timeline_view: TemplateChild<TimelineView>,
         #[template_child]
         pub(super) settings_view: TemplateChild<SettingsView>,
 
@@ -43,13 +48,16 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
+            self.timeline_view
+                .bind_timeline(Application::get().entity_tracker().timeline());
+
             self.test_entry.connect_activate(move |entry| {
                 let id = EntityId::new(entry.text());
                 entry.set_text("");
                 Application::get().detector().simulate_detected(&id);
             });
             self.test_clear_button.connect_clicked(|_button| {
-                if let Err(err) = Application::get().entity_tracker().reset() {
+                if let Err(err) = Application::get().entity_tracker().clear() {
                     eprintln!("Failed to reset entity tracker: {:?}", err);
                 }
             });
