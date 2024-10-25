@@ -58,16 +58,14 @@ impl TimelineView {
             let text = match item.kind() {
                 TimelineItemKind::Entry => {
                     format!(
-                        "{} enters at {}",
+                        "{} enters {}",
                         item.entity().id(),
                         item.dt().fuzzy_display()
                     )
                 }
-                TimelineItemKind::Exit => format!(
-                    "{} exits at {}",
-                    item.entity().id(),
-                    item.dt().fuzzy_display()
-                ),
+                TimelineItemKind::Exit => {
+                    format!("{} exits {}", item.entity().id(), item.dt().fuzzy_display())
+                }
             };
 
             gtk::Label::new(Some(&text)).upcast()
