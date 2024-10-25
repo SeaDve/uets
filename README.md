@@ -1,5 +1,7 @@
 # Universal Entity Tracking System
 
+UETS is a universal system that tracks entities using RFID tags. It is designed to be used in a variety of applications, such as inventory management, establishment access control, and more.
+
 ## 🏗️ Building and Running
 
 1. Set up a toolbox container.
