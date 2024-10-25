@@ -8,62 +8,110 @@
     <property name="content">
       <object class="GtkBox">
         <property name="orientation">vertical</property>
-        <child type="top">
-          <object class="AdwHeaderBar">
+        <child>
+          <object class="AdwViewStack" id="stack">
+            <child>
+              <object class="AdwViewStackPage">
+                <property name="title">Test</property>
+                <property name="child">
+                  <object class="GtkScrolledWindow">
+                    <property name="vexpand">True</property>
+                    <property name="child">
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="margin-start">12</property>
+                        <property name="margin-end">12</property>
+                        <property name="margin-top">12</property>
+                        <property name="margin-bottom">12</property>
+                        <property name="spacing">12</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="spacing">12</property>
+                            <child>
+                              <object class="GtkEntry" id="test_entry">
+                                <property name="hexpand">True</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="test_clear_button">
+                                <property name="label">Reset</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwPreferencesGroup">
+                            <property name="title">All</property>
+                            <child>
+                              <object class="GtkListBox" id="test_all_listbox">
+                                <property name="selection-mode">none</property>
+                                <style>
+                                  <class name="boxed-list"/>
+                                </style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="AdwPreferencesGroup">
+                            <property name="title">Inside</property>
+                            <child>
+                              <object class="GtkListBox" id="test_inside_listbox">
+                                <property name="selection-mode">none</property>
+                                <style>
+                                  <class name="boxed-list"/>
+                                </style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </property>
+                  </object>
+                </property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwViewStackPage">
+                <property name="title">Dashboard</property>
+                <property name="icon-name">go-home-symbolic</property>
+                <property name="child">
+                  <object class="GtkLabel">
+                    <property name="label">Dashboard</property>
+                  </object>
+                </property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwViewStackPage">
+                <property name="title">Timeline</property>
+                <property name="icon-name">view-list-bullet-symbolic</property>
+                <property name="child">
+                  <object class="GtkLabel">
+                    <property name="label">Timeline</property>
+                  </object>
+                </property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwViewStackPage">
+                <property name="title">Settings</property>
+                <property name="icon-name">settings-symbolic</property>
+                <property name="child">
+                  <object class="GtkLabel">
+                    <property name="label">Settings</property>
+                  </object>
+                </property>
+              </object>
+            </child>
           </object>
         </child>
         <child>
-          <object class="GtkScrolledWindow">
-            <property name="vexpand">True</property>
+          <object class="GtkWindowHandle">
             <property name="child">
-              <object class="GtkBox">
-                <property name="orientation">vertical</property>
-                <property name="margin-start">12</property>
-                <property name="margin-end">12</property>
-                <property name="margin-top">12</property>
-                <property name="margin-bottom">12</property>
-                <property name="spacing">12</property>
-                <child>
-                  <object class="GtkBox">
-                    <property name="spacing">12</property>
-                    <child>
-                      <object class="GtkEntry" id="test_entry">
-                        <property name="hexpand">True</property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton" id="test_clear_button">
-                        <property name="label">Reset</property>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwPreferencesGroup">
-                    <property name="title">All</property>
-                    <child>
-                      <object class="GtkListBox" id="test_all_listbox">
-                        <property name="selection-mode">none</property>
-                        <style>
-                          <class name="boxed-list"/>
-                        </style>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwPreferencesGroup">
-                    <property name="title">Inside</property>
-                    <child>
-                      <object class="GtkListBox" id="test_inside_listbox">
-                        <property name="selection-mode">none</property>
-                        <style>
-                          <class name="boxed-list"/>
-                        </style>
-                      </object>
-                    </child>
-                  </object>
-                </child>
+              <object class="AdwViewSwitcherBar">
+                <property name="stack">stack</property>
+                <property name="reveal">True</property>
               </object>
             </property>
           </object>
