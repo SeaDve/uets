@@ -57,6 +57,9 @@ mod imp {
                 }
             }
 
+            obj.setup_actions();
+            obj.setup_accels();
+
             self.detector.connect_detected(clone!(
                 #[weak]
                 obj,
@@ -123,6 +126,20 @@ impl Application {
     fn window(&self) -> Window {
         self.active_window()
             .map_or_else(|| Window::new(self), |w| w.downcast().unwrap())
+    }
+
+    fn setup_actions(&self) {
+        let quit_action = gio::ActionEntry::builder("quit")
+            .activate(|obj: &Self, _, _| {
+                obj.quit();
+            })
+            .build();
+        self.add_action_entries([quit_action]);
+    }
+
+    fn setup_accels(&self) {
+        self.set_accels_for_action("app.quit", &["<Control>q"]);
+        self.set_accels_for_action("window.close", &["<Control>w"]);
     }
 }
 
