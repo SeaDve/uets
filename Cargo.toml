@@ -5,11 +5,11 @@ edition = "2021"
 
 [dependencies]
 adw = { package = "libadwaita", version = "0.7", features = ["v1_2"] }
-# anyhow = "1.0"
+anyhow = "1.0"
 gtk = { package = "gtk4", version = "0.9", features = ["gnome_43"] }
-# heed = "0.20.5"
+heed = "0.20.5"
 indexmap = "2.6"
-# serde = { version = "1.0", features = ["derive"] }
-# serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"

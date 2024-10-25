@@ -2,7 +2,9 @@ use std::fmt;
 
 use gtk::{glib, subclass::prelude::*};
 
-use crate::{entity_data::EntityData, entity_id::EntityId, entity_kind::EntityKind};
+use crate::{
+    date_time::DateTime, db, entity_data::EntityData, entity_id::EntityId, entity_kind::EntityKind,
+};
 
 mod imp {
     use std::cell::{OnceCell, RefCell};
@@ -13,8 +15,8 @@ mod imp {
     pub struct Entity {
         pub(super) id: OnceCell<EntityId>,
         pub(super) data: RefCell<Option<EntityData>>,
-        pub(super) entry_dts: RefCell<Vec<glib::DateTime>>,
-        pub(super) exit_dts: RefCell<Vec<glib::DateTime>>,
+        pub(super) entry_dts: RefCell<Vec<DateTime>>,
+        pub(super) exit_dts: RefCell<Vec<DateTime>>,
     }
 
     #[glib::object_subclass]
@@ -32,12 +34,31 @@ glib::wrapper! {
 
 impl Entity {
     pub fn new(id: &EntityId) -> Self {
-        let obj = glib::Object::new::<Self>();
+        let this = glib::Object::new::<Self>();
 
-        let imp = obj.imp();
+        let imp = this.imp();
         imp.id.set(id.clone()).unwrap();
 
-        obj
+        this
+    }
+
+    pub fn from_db(id: &EntityId, raw: db::RawEntity) -> Self {
+        let this = Self::new(id);
+
+        let imp = this.imp();
+        imp.entry_dts.replace(raw.entry_dts);
+        imp.exit_dts.replace(raw.exit_dts);
+
+        this
+    }
+
+    pub fn to_db(&self) -> db::RawEntity {
+        let imp = self.imp();
+
+        db::RawEntity {
+            entry_dts: imp.entry_dts.borrow().clone(),
+            exit_dts: imp.exit_dts.borrow().clone(),
+        }
     }
 
     pub fn id(&self) -> &EntityId {
@@ -71,22 +92,22 @@ impl Entity {
         }
     }
 
-    pub fn last_entry_dt(&self) -> Option<glib::DateTime> {
+    pub fn last_entry_dt(&self) -> Option<DateTime> {
         let imp = self.imp();
         imp.entry_dts.borrow().last().cloned()
     }
 
-    pub fn last_exit_dt(&self) -> Option<glib::DateTime> {
+    pub fn last_exit_dt(&self) -> Option<DateTime> {
         let imp = self.imp();
         imp.exit_dts.borrow().last().cloned()
     }
 
-    pub fn add_entry_dt(&self, dt: glib::DateTime) {
+    pub fn add_entry_dt(&self, dt: DateTime) {
         let imp = self.imp();
         imp.entry_dts.borrow_mut().push(dt);
     }
 
-    pub fn add_exit_dt(&self, dt: glib::DateTime) {
+    pub fn add_exit_dt(&self, dt: DateTime) {
         let imp = self.imp();
         imp.exit_dts.borrow_mut().push(dt);
     }
@@ -102,12 +123,12 @@ impl fmt::Display for Entity {
             .field("n-entries", &imp.entry_dts.borrow().len())
             .field(
                 "last-entry-dt",
-                &self.last_entry_dt().map(|dt| dt.format_iso8601().unwrap()),
+                &self.last_entry_dt().map(|dt| dt.format_iso8601()),
             )
             .field("n-exits", &imp.exit_dts.borrow().len())
             .field(
                 "last-exit-dt",
-                &self.last_exit_dt().map(|dt| dt.format_iso8601().unwrap()),
+                &self.last_exit_dt().map(|dt| dt.format_iso8601()),
             )
             .finish()
     }

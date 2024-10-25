@@ -12,6 +12,8 @@ mod imp {
         #[template_child]
         pub(super) test_entry: TemplateChild<gtk::Entry>,
         #[template_child]
+        pub(super) test_clear_button: TemplateChild<gtk::Button>,
+        #[template_child]
         pub(super) test_all_listbox: TemplateChild<gtk::ListBox>,
         #[template_child]
         pub(super) test_inside_listbox: TemplateChild<gtk::ListBox>,
@@ -41,9 +43,14 @@ mod imp {
                 entry.set_text("");
                 Application::get().detector().simulate_detected(&id);
             });
+            self.test_clear_button.connect_clicked(|_button| {
+                if let Err(err) = Application::get().entity_tracker().reset() {
+                    eprintln!("Failed to reset entity tracker: {:?}", err);
+                }
+            });
 
             self.test_all_listbox
-                .bind_model(Some(Application::get().tracker()), |entity| {
+                .bind_model(Some(Application::get().entity_tracker()), |entity| {
                     let entity = entity.downcast_ref::<Entity>().unwrap();
 
                     let label = gtk::Label::builder()
@@ -57,14 +64,16 @@ mod imp {
                 let entity = entity.downcast_ref::<Entity>().unwrap();
                 entity.is_inside()
             });
-            let filter_list_model =
-                gtk::FilterListModel::new(Some(Application::get().tracker().clone()), Some(filter));
+            let filter_list_model = gtk::FilterListModel::new(
+                Some(Application::get().entity_tracker().clone()),
+                Some(filter),
+            );
             self.test_inside_listbox
                 .bind_model(Some(&filter_list_model), |entity| {
                     let entity = entity.downcast_ref::<Entity>().unwrap();
 
                     let label = gtk::Label::builder()
-                        .label(entity.to_string())
+                        .label(entity.id().to_string())
                         .wrap(true)
                         .build();
                     label.upcast()

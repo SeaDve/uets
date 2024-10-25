@@ -2,12 +2,14 @@
 #![warn(rust_2018_idioms, clippy::unused_async, clippy::dbg_macro)]
 
 mod application;
+mod date_time;
+mod db;
 mod detector;
 mod entity;
 mod entity_data;
 mod entity_id;
 mod entity_kind;
-mod tracker;
+mod entity_tracker;
 mod ui;
 
 use gtk::{glib, prelude::*};
