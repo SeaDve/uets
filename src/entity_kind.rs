@@ -11,6 +11,8 @@ pub enum EntityKind {
     Inventory,
     /// Used for entities that have lifetime and quantity.
     ///
+    /// This is experimental as it is labour-intensive to tag entities with this kind.
+    ///
     /// e.g., food storage
     Refrigerator,
     /// Used for entities for tracking attendance. Unauthorized entities are not allowed to enter.

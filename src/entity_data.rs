@@ -7,14 +7,12 @@ pub struct InventoryEntityData {
     name: String,
     location: String,
     expiration_date: glib::DateTime,
-    quantity: u32,
 }
 
 #[derive(Debug)]
 pub struct RefrigeratorEntityData {
     name: String,
     expiration_date: glib::DateTime,
-    quantity: u32,
 }
 
 #[derive(Debug)]
