@@ -1,5 +1,5 @@
 #!/bin/sh
 
-glib-compile-schemas data/
+glib-compile-schemas --strict data/
 
 RUST_LOG=uets=debug RUST_BACKTRACE=full RUST_LIB_BACKTRACE=0 cargo run "$@"
