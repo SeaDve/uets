@@ -5,7 +5,9 @@ use gtk::{
     glib::{self, clone},
 };
 
-use crate::{db, detector::Detector, entity_tracker::EntityTracker, ui::Window, APP_ID};
+use crate::{
+    db, detector::Detector, entity_tracker::EntityTracker, ui::Window, APP_ID, GRESOURCE_PREFIX,
+};
 
 mod imp {
     use std::cell::OnceCell;
@@ -93,6 +95,7 @@ impl Application {
     pub fn new() -> Self {
         glib::Object::builder()
             .property("application-id", APP_ID)
+            .property("resource-base-path", GRESOURCE_PREFIX)
             .build()
     }
 

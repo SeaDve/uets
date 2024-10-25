@@ -7,7 +7,7 @@ mod imp {
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
-    #[template(file = "window.ui")]
+    #[template(resource = "/io/github/seadve/Uets/ui/window.ui")]
     pub struct Window {
         #[template_child]
         pub(super) test_entry: TemplateChild<gtk::Entry>,

@@ -12,14 +12,29 @@ mod entity_kind;
 mod entity_tracker;
 mod ui;
 
-use gtk::{glib, prelude::*};
+use std::path::Path;
+
+use gtk::{gio, glib, prelude::*};
 
 use self::application::Application;
 
 const APP_ID: &str = "io.github.seadve.Uets";
+const GRESOURCE_PREFIX: &str = "/io/github/seadve/Uets/";
 
 fn main() -> glib::ExitCode {
     tracing_subscriber::fmt::init();
+
+    let data = gvdb::gresource::BundleBuilder::from_directory(
+        GRESOURCE_PREFIX,
+        Path::new("data/resources/"),
+        true,
+        true,
+    )
+    .unwrap()
+    .build()
+    .unwrap();
+    let resource = gio::Resource::from_data(&glib::Bytes::from_owned(data)).unwrap();
+    gio::resources_register(&resource);
 
     let app = Application::new();
     app.run()
