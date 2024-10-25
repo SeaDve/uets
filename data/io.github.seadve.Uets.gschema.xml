@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<schemalist>
+  <schema path="/io/github/seadve/Uets/" id="io.github.seadve.Uets">
+    <key name="profile" type="s">
+      <choices>
+        <choice value="counter"/>
+        <choice value="inventory"/>
+        <choice value="refrigerator"/>
+        <choice value="attendance"/>
+      </choices>
+      <default>"counter"</default>
+    </key>
+  </schema>
+</schemalist>

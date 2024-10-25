@@ -2,11 +2,13 @@
 name = "uets"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.82"
 
 [dependencies]
 adw = { package = "libadwaita", version = "0.7", features = ["v1_2"] }
 anyhow = "1.0"
 gtk = { package = "gtk4", version = "0.9", features = ["gnome_43"] }
+gsettings-macro = "0.2.1"
 gvdb = { version = "0.7", features = ["gresource"] }
 heed = "0.20.5"
 indexmap = "2.6"

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="UetsSettingsView" parent="GtkWidget">
+    <property name="layout-manager">
+      <object class="GtkBinLayout"/>
+    </property>
+    <child>
+      <object class="AdwPreferencesPage" id="page">
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title">Profile</property>
+            <property name="description">Set up the purpose of the device</property>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title">Counter</property>
+                <property name="subtitle">Used for counting entities without data attached (e.g., mall entry counter)</property>
+                <child type="prefix">
+                  <object class="GtkCheckButton">
+                    <property name="action-name">settings-view.profile</property>
+                    <property name="action-target">"counter"</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title">Inventory</property>
+                <property name="subtitle">Used for tracking inventory items with lifetime, location, and quantity (e.g., stock rooms)</property>
+                <child type="prefix">
+                  <object class="GtkCheckButton">
+                    <property name="action-name">settings-view.profile</property>
+                    <property name="action-target">"inventory"</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title">Refrigerator</property>
+                <property name="subtitle">Used for tracking food items with lifetime, quantity, and recipe suggestions</property>
+                <child type="prefix">
+                  <object class="GtkCheckButton">
+                    <property name="action-name">settings-view.profile</property>
+                    <property name="action-target">"refrigerator"</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title">Attendance</property>
+                <property name="subtitle">Used for tracking attendance, alerting when unathorized entity is detected (e.g., meeting rooms, establishment entry)</property>
+                <child type="prefix">
+                  <object class="GtkCheckButton">
+                    <property name="action-name">settings-view.profile</property>
+                    <property name="action-target">"attendance"</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title">Others</property>
+            <child>
+              <object class="AdwExpanderRow">
+                <property name="title">Developer Options</property>
+                <child>
+                  <object class="AdwActionRow">
+                    <property name="title">Quit Application</property>
+                    <property name="subtitle">Close the application</property>
+                    <child>
+                      <object class="GtkButton" id="quit_button">
+                        <property name="valign">center</property>
+                        <property name="label">Quit</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow">
+                    <property name="title">Shutdown Device</property>
+                    <property name="subtitle">Start shutdown sequence of the device</property>
+                    <child>
+                      <object class="GtkButton" id="shutdown_button">
+                        <property name="valign">center</property>
+                        <property name="label">Shutdown</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

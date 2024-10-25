@@ -1,7 +1,9 @@
 use adw::{prelude::*, subclass::prelude::*};
 use gtk::glib;
 
-use crate::{application::Application, entity::Entity, entity_id::EntityId};
+use crate::{
+    application::Application, entity::Entity, entity_id::EntityId, ui::settings_view::SettingsView,
+};
 
 mod imp {
     use super::*;
@@ -9,6 +11,9 @@ mod imp {
     #[derive(Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/seadve/Uets/ui/window.ui")]
     pub struct Window {
+        #[template_child]
+        pub(super) settings_view: TemplateChild<SettingsView>,
+
         #[template_child]
         pub(super) test_entry: TemplateChild<gtk::Entry>,
         #[template_child]

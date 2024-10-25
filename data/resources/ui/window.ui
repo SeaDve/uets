@@ -98,9 +98,7 @@
                 <property name="title">Settings</property>
                 <property name="icon-name">settings-symbolic</property>
                 <property name="child">
-                  <object class="GtkLabel">
-                    <property name="label">Settings</property>
-                  </object>
+                  <object class="UetsSettingsView" id="settings_view"/>
                 </property>
               </object>
             </child>

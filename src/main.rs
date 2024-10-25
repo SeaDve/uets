@@ -10,6 +10,7 @@ mod entity_data;
 mod entity_id;
 mod entity_kind;
 mod entity_tracker;
+mod settings;
 mod ui;
 
 use std::path::Path;

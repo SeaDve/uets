@@ -6,7 +6,8 @@ use gtk::{
 };
 
 use crate::{
-    db, detector::Detector, entity_tracker::EntityTracker, ui::Window, APP_ID, GRESOURCE_PREFIX,
+    db, detector::Detector, entity_tracker::EntityTracker, settings::Settings, ui::Window, APP_ID,
+    GRESOURCE_PREFIX,
 };
 
 mod imp {
@@ -16,6 +17,7 @@ mod imp {
 
     #[derive(Default)]
     pub struct Application {
+        pub(super) settings: Settings,
         pub(super) detector: Detector,
         pub(super) entity_tracker: OnceCell<EntityTracker>,
         pub(super) env: OnceCell<heed::Env>,
@@ -109,6 +111,10 @@ impl Application {
         );
 
         gio::Application::default().unwrap().downcast().unwrap()
+    }
+
+    pub fn settings(&self) -> &Settings {
+        &self.imp().settings
     }
 
     pub fn detector(&self) -> &Detector {
