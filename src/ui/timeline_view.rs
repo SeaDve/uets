@@ -12,6 +12,8 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/timeline_view.ui")]
     pub struct TimelineView {
         #[template_child]
+        pub(super) scrolled_window: TemplateChild<gtk::ScrolledWindow>, // Unused
+        #[template_child]
         pub(super) list_box: TemplateChild<gtk::ListBox>,
     }
 
