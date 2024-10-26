@@ -127,10 +127,10 @@ impl TimelineRow {
             let (enter_verb, exit_verb, stay_suffix) =
                 match Application::get().settings().operation_mode() {
                     OperationMode::Counter | OperationMode::Attendance => {
-                        ("exits", "enters", "of stay")
+                        ("enters", "exits", "of stay")
                     }
                     OperationMode::Inventory | OperationMode::Refrigerator => {
-                        ("removed", "added", "of being kept")
+                        ("added", "removed", "of being kept")
                     }
                 };
 
