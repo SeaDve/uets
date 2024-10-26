@@ -12,6 +12,8 @@ gsettings-macro = "0.2.1"
 gvdb = { version = "0.7", features = ["gresource"] }
 heed = "0.20.5"
 indexmap = "2.6"
+plotters = "0.3.7"
+plotters-cairo = "0.7.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tracing = "0.1.40"

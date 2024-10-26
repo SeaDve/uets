@@ -1,4 +1,6 @@
 mod dashboard_view;
+mod graph;
+mod information_row;
 mod settings_view;
 mod test_window;
 mod timeline_row;

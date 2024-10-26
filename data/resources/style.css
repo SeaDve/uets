@@ -1,3 +1,10 @@
+/* DashboardView */
+
+label.n-inside  {
+    font-weight: bold;
+    font-size: 4em;
+}
+
 /* TimelineRow */
 
 image.entry {

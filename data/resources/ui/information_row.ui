@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="UetsInformationRow" parent="AdwActionRow">
+    <child type="suffix">
+      <object class="GtkLabel" id="value_label">
+        <property name="xalign">1</property>
+        <property name="ellipsize">end</property>
+        <property name="selectable">True</property>
+        <style>
+          <class name="dim-label"/>
+        </style>
+      </object>
+    </child>
+  </template>
+</interface>
