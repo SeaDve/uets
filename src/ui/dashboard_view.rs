@@ -12,7 +12,7 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/dashboard_view.ui")]
     pub struct DashboardView {
         #[template_child]
-        pub(super) scrolled_window: TemplateChild<gtk::ScrolledWindow>, // Unused
+        pub(super) page: TemplateChild<adw::PreferencesPage>, // Unused
         #[template_child]
         pub(super) n_inside_label: TemplateChild<gtk::Label>,
     }

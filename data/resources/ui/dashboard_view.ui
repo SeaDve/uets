@@ -5,17 +5,16 @@
       <object class="GtkBinLayout"/>
     </property>
     <child>
-      <object class="GtkScrolledWindow" id="scrolled_window">
-        <property name="hscrollbar-policy">never</property>
-        <property name="child">
-          <object class="GtkBox">
+      <object class="AdwPreferencesPage" id="page">
+        <child>
+          <object class="AdwPreferencesGroup">
             <child>
               <object class="GtkLabel" id="n_inside_label">
 
               </object>
             </child>
           </object>
-        </property>
+        </child>
       </object>
     </child>
   </template>
