@@ -1,8 +1,14 @@
-use gtk::{glib, prelude::*, subclass::prelude::*};
+use gtk::{
+    glib::{self, clone},
+    prelude::*,
+    subclass::prelude::*,
+};
 
 use crate::{
     format,
+    settings::OperationMode,
     timeline_item::{TimelineItem, TimelineItemKind},
+    Application,
 };
 
 mod imp {
@@ -42,6 +48,24 @@ mod imp {
 
     #[glib::derived_properties]
     impl ObjectImpl for TimelineRow {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            let obj = self.obj();
+
+            Application::get()
+                .settings()
+                .connect_operation_mode_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_status_label();
+                    }
+                ));
+
+            obj.update_status_label();
+        }
+
         fn dispose(&self) {
             self.dispose_template();
         }
@@ -61,25 +85,6 @@ mod imp {
                 let dt_fuzzy_text = item.dt().to_local().fuzzy_display();
                 self.dt_label.set_label(&dt_fuzzy_text);
 
-                let id = item.entity().id();
-                let text = match item.kind() {
-                    TimelineItemKind::Entry => {
-                        format!("<b>{}</b> enters", id)
-                    }
-                    TimelineItemKind::Exit => {
-                        let duration_of_stay = item
-                            .entity()
-                            .last_duration_of_stay()
-                            .expect("exits must always have a stay of duration");
-                        format!(
-                            "<b>{}</b> exits after <i>{}</i> of stay",
-                            id,
-                            format::duration(duration_of_stay)
-                        )
-                    }
-                };
-                self.status_label.set_label(&text);
-
                 match item.kind() {
                     TimelineItemKind::Entry => {
                         self.image.set_icon_name(Some("arrow4-right-symbolic"));
@@ -91,13 +96,13 @@ mod imp {
                         self.image.remove_css_class("entry");
                         self.image.add_css_class("exit");
                     }
-                };
+                }
             } else {
                 self.dt_label.set_label("");
-                self.status_label.set_label("");
             }
 
             self.item.replace(item);
+            obj.update_status_label();
             obj.notify_item();
         }
     }
@@ -111,5 +116,45 @@ glib::wrapper! {
 impl TimelineRow {
     pub fn new() -> Self {
         glib::Object::new()
+    }
+
+    fn update_status_label(&self) {
+        let imp = self.imp();
+
+        if let Some(ref item) = self.item() {
+            let id = item.entity().id();
+
+            let (enter_verb, exit_verb, stay_suffix) =
+                match Application::get().settings().operation_mode() {
+                    OperationMode::Counter | OperationMode::Attendance => {
+                        ("exits", "enters", "of stay")
+                    }
+                    OperationMode::Inventory | OperationMode::Refrigerator => {
+                        ("removed", "added", "of being kept")
+                    }
+                };
+
+            let text = match item.kind() {
+                TimelineItemKind::Entry => {
+                    format!("<b>{}</b> {}", id, enter_verb)
+                }
+                TimelineItemKind::Exit => {
+                    let duration_of_stay = item
+                        .entity()
+                        .last_duration_of_stay()
+                        .expect("exits must always have a stay of duration");
+                    format!(
+                        "<b>{}</b> {} after <i>{}</i> {}",
+                        id,
+                        exit_verb,
+                        format::duration(duration_of_stay),
+                        stay_suffix
+                    )
+                }
+            };
+            imp.status_label.set_label(&text);
+        } else {
+            imp.status_label.set_label("");
+        }
     }
 }
