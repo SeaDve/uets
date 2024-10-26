@@ -10,6 +10,7 @@ mod entity_data;
 mod entity_id;
 mod entity_kind;
 mod entity_tracker;
+mod format;
 mod settings;
 mod timeline;
 mod timeline_item;

@@ -26,13 +26,17 @@ impl DateTime {
         self.0.format_iso8601().unwrap()
     }
 
+    pub fn difference(&self, other: &Self) -> glib::TimeSpan {
+        self.0.difference(&other.0)
+    }
+
     pub fn fuzzy_display(&self) -> glib::GString {
         let now = Self::now_utc();
 
         if self.0.ymd() == now.0.ymd() {
             // Translators: `%R` will be replaced with 24-hour formatted datetime (e.g., `13:21`)
             self.0.format("today at %R")
-        } else if now.0.difference(&self.0).as_hours() <= 30 {
+        } else if now.difference(self).as_hours() <= 30 {
             // Translators: `%R` will be replaced with 24-hour formatted datetime (e.g., `13:21`)
             self.0.format("yesterday at %R")
         } else {

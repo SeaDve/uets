@@ -122,6 +122,19 @@ impl Entity {
     pub fn add_exit_dt(&self, dt: DateTime) {
         self.imp().exit_dts.borrow_mut().push(dt);
     }
+
+    pub fn last_duration_of_stay(&self) -> Option<glib::TimeSpan> {
+        let imp = self.imp();
+
+        match (self.last_entry_dt(), self.last_exit_dt()) {
+            (Some(entry_dt), Some(exit_dt)) => {
+                debug_assert_eq!(imp.entry_dts.borrow().len(), imp.exit_dts.borrow().len());
+
+                Some(exit_dt.difference(&entry_dt))
+            }
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Display for Entity {

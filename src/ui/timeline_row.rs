@@ -1,6 +1,9 @@
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::timeline_item::{TimelineItem, TimelineItemKind};
+use crate::{
+    format,
+    timeline_item::{TimelineItem, TimelineItemKind},
+};
 
 mod imp {
     use std::cell::RefCell;
@@ -64,7 +67,15 @@ mod imp {
                         format!("<b>{}</b> enters", id)
                     }
                     TimelineItemKind::Exit => {
-                        format!("<b>{}</b> exits", id)
+                        let duration_of_stay = item
+                            .entity()
+                            .last_duration_of_stay()
+                            .expect("exits must always have a stay of duration");
+                        format!(
+                            "<b>{}</b> exits after <i>{}</i> of stay",
+                            id,
+                            format::duration(duration_of_stay)
+                        )
                     }
                 };
                 self.status_label.set_label(&text);
