@@ -6,8 +6,12 @@ use gtk::{
 };
 
 use crate::{
-    db, detector::Detector, entity_tracker::EntityTracker, settings::Settings, ui::Window, APP_ID,
-    GRESOURCE_PREFIX,
+    db,
+    detector::Detector,
+    entity_tracker::EntityTracker,
+    settings::Settings,
+    ui::{TestWindow, Window},
+    APP_ID, GRESOURCE_PREFIX,
 };
 
 mod imp {
@@ -135,16 +139,22 @@ impl Application {
     }
 
     fn setup_actions(&self) {
+        let show_test_window_action = gio::ActionEntry::builder("show-test-window")
+            .activate(|_: &Self, _, _| {
+                TestWindow::new().present();
+            })
+            .build();
         let quit_action = gio::ActionEntry::builder("quit")
             .activate(|obj: &Self, _, _| {
                 obj.quit();
             })
             .build();
-        self.add_action_entries([quit_action]);
+        self.add_action_entries([show_test_window_action, quit_action]);
     }
 
     fn setup_accels(&self) {
         self.set_accels_for_action("app.quit", &["<Control>q"]);
+        self.set_accels_for_action("app.show-test-window", &["<Control><Shift>r"]);
         self.set_accels_for_action("window.close", &["<Control>w"]);
     }
 }

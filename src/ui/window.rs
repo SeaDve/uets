@@ -1,10 +1,8 @@
-use adw::{prelude::*, subclass::prelude::*};
-use gtk::{glib, pango};
+use adw::subclass::prelude::*;
+use gtk::glib;
 
 use crate::{
     application::Application,
-    entity::Entity,
-    entity_id::EntityId,
     ui::{dashboard_view::DashboardView, settings_view::SettingsView, timeline_view::TimelineView},
 };
 
@@ -20,15 +18,6 @@ mod imp {
         pub(super) timeline_view: TemplateChild<TimelineView>,
         #[template_child]
         pub(super) settings_view: TemplateChild<SettingsView>,
-
-        #[template_child]
-        pub(super) test_entry: TemplateChild<gtk::Entry>,
-        #[template_child]
-        pub(super) test_clear_button: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub(super) test_all_listbox: TemplateChild<gtk::ListBox>,
-        #[template_child]
-        pub(super) test_inside_listbox: TemplateChild<gtk::ListBox>,
     }
 
     #[glib::object_subclass]
@@ -52,55 +41,6 @@ mod imp {
 
             self.timeline_view
                 .bind_timeline(Application::get().entity_tracker().timeline());
-
-            self.test_entry.connect_activate(move |entry| {
-                let id = EntityId::new(entry.text());
-                entry.set_text("");
-                Application::get().detector().simulate_detected(&id);
-            });
-            self.test_clear_button.connect_clicked(|_button| {
-                if let Err(err) = Application::get().entity_tracker().clear() {
-                    eprintln!("Failed to reset entity tracker: {:?}", err);
-                }
-            });
-
-            self.test_all_listbox
-                .bind_model(Some(Application::get().entity_tracker()), |entity| {
-                    let entity = entity.downcast_ref::<Entity>().unwrap();
-
-                    let label = gtk::Label::builder()
-                        .margin_start(3)
-                        .margin_end(3)
-                        .xalign(0.0)
-                        .label(entity.to_string())
-                        .wrap(true)
-                        .wrap_mode(pango::WrapMode::WordChar)
-                        .build();
-                    label.upcast()
-                });
-
-            let filter = gtk::CustomFilter::new(|entity| {
-                let entity = entity.downcast_ref::<Entity>().unwrap();
-                entity.is_inside()
-            });
-            let filter_list_model = gtk::FilterListModel::new(
-                Some(Application::get().entity_tracker().clone()),
-                Some(filter),
-            );
-            self.test_inside_listbox
-                .bind_model(Some(&filter_list_model), |entity| {
-                    let entity = entity.downcast_ref::<Entity>().unwrap();
-
-                    let label = gtk::Label::builder()
-                        .margin_start(3)
-                        .margin_end(3)
-                        .xalign(0.0)
-                        .label(entity.id().to_string())
-                        .wrap(true)
-                        .wrap_mode(pango::WrapMode::WordChar)
-                        .build();
-                    label.upcast()
-                });
         }
     }
 
