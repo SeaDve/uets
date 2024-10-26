@@ -22,3 +22,10 @@ sudo apt install libgtk-4-dev libadwaita-1-dev
 ```sh
 rsync --filter=':- .gitignore' --exclude \".*/\" -aP ./ $REMOTE_DIR
 ```
+
+## 📝 TODO
+
+### Timeline
+
+1. Search by date, id, name, location, etc.
+2. Filter date range.
