@@ -1,5 +1,5 @@
 use adw::{prelude::*, subclass::prelude::*};
-use gtk::glib;
+use gtk::{glib, pango};
 
 use crate::{
     application::Application,
@@ -67,8 +67,12 @@ mod imp {
                     let entity = entity.downcast_ref::<Entity>().unwrap();
 
                     let label = gtk::Label::builder()
+                        .margin_start(3)
+                        .margin_end(3)
+                        .xalign(0.0)
                         .label(entity.to_string())
                         .wrap(true)
+                        .wrap_mode(pango::WrapMode::WordChar)
                         .build();
                     label.upcast()
                 });
@@ -86,8 +90,12 @@ mod imp {
                     let entity = entity.downcast_ref::<Entity>().unwrap();
 
                     let label = gtk::Label::builder()
+                        .margin_start(3)
+                        .margin_end(3)
+                        .xalign(0.0)
                         .label(entity.id().to_string())
                         .wrap(true)
+                        .wrap_mode(pango::WrapMode::WordChar)
                         .build();
                     label.upcast()
                 });

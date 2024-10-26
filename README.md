@@ -30,3 +30,4 @@ rsync --filter=':- .gitignore' --exclude \".*/\" -aP ./ $REMOTE_DIR
 1. Search by date, id, name, location, etc.
 2. Filter date range.
 3. Use name when it exists.
+4. Implement auto scroll to the bottom.
