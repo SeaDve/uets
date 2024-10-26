@@ -1,9 +1,6 @@
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{
-    timeline::Timeline,
-    timeline_item::{TimelineItem, TimelineItemKind},
-};
+use crate::{timeline::Timeline, timeline_item::TimelineItem, ui::timeline_row::TimelineRow};
 
 mod imp {
     use super::*;
@@ -14,7 +11,7 @@ mod imp {
         #[template_child]
         pub(super) scrolled_window: TemplateChild<gtk::ScrolledWindow>, // Unused
         #[template_child]
-        pub(super) list_box: TemplateChild<gtk::ListBox>,
+        pub(super) list_view: TemplateChild<gtk::ListView>,
     }
 
     #[glib::object_subclass]
@@ -24,6 +21,8 @@ mod imp {
         type ParentType = gtk::Widget;
 
         fn class_init(klass: &mut Self::Class) {
+            TimelineRow::ensure_type();
+
             klass.bind_template();
         }
 
@@ -61,27 +60,7 @@ impl TimelineView {
         });
         let sort_list_model = gtk::SortListModel::new(Some(timeline.clone()), Some(sorter));
 
-        imp.list_box.bind_model(Some(&sort_list_model), |item| {
-            let item = item.downcast_ref::<TimelineItem>().unwrap();
-
-            let text = match item.kind() {
-                TimelineItemKind::Entry => {
-                    format!(
-                        "{} enters {}",
-                        item.entity().id(),
-                        item.dt().to_local().fuzzy_display()
-                    )
-                }
-                TimelineItemKind::Exit => {
-                    format!(
-                        "{} exits {}",
-                        item.entity().id(),
-                        item.dt().to_local().fuzzy_display()
-                    )
-                }
-            };
-
-            gtk::Label::new(Some(&text)).upcast()
-        });
+        let selection_model = gtk::NoSelection::new(Some(sort_list_model));
+        imp.list_view.set_model(Some(&selection_model));
     }
 }

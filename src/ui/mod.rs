@@ -1,4 +1,5 @@
 mod settings_view;
+mod timeline_row;
 mod timeline_view;
 mod window;
 

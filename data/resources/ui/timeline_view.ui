@@ -7,8 +7,31 @@
     <child>
       <object class="GtkScrolledWindow" id="scrolled_window">
         <property name="child">
-          <object class="GtkListBox" id="list_box">
-
+          <object class="GtkListView" id="list_view">
+            <property name="factory">
+              <object class="GtkBuilderListItemFactory">
+                <property name="bytes"><![CDATA[
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="GtkListItem">
+    <property name="activatable">False</property>
+    <property name="selectable">False</property>
+    <property name="child">
+      <object class="UetsTimelineRow">
+        <binding name="item">
+          <lookup name="item">GtkListItem</lookup>
+        </binding>
+      </object>
+    </property>
+  </template>
+</interface>
+]]>
+                </property>
+              </object>
+            </property>
+            <style>
+              <class name="timeline-list-view"/>
+            </style>
           </object>
         </property>
       </object>

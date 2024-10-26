@@ -1,0 +1,22 @@
+/* TimelineRow */
+
+image.entry {
+    background-color: alpha(@accent_color, 0.25);
+    color: @accent_color;
+    border-radius: 9999px;
+    padding: 6px;
+}
+
+image.exit {
+    background-color: alpha(@destructive_color, 0.25);
+    color: @destructive_color;
+    border-radius: 9999px;
+    padding: 6px;
+}
+
+
+/* TimelineView */
+
+.timeline-list-view {
+    padding: 6px;
+}
