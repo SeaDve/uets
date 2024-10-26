@@ -17,8 +17,13 @@ pub const ENTITIES_DB_NAME: &str = "entities";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RawEntity {
-    pub entry_dts: Vec<DateTime>,
-    pub exit_dts: Vec<DateTime>,
+    pub dt_pairs: Vec<RawDateTimePair>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RawDateTimePair {
+    pub entry: DateTime,
+    pub exit: Option<DateTime>,
 }
 
 pub fn new_env() -> Result<heed::Env> {

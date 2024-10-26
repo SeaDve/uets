@@ -93,7 +93,7 @@ mod imp {
                         self.image.remove_css_class("exit");
                         self.image.add_css_class("entry");
                     }
-                    TimelineItemKind::Exit => {
+                    TimelineItemKind::Exit { .. } => {
                         self.image.set_icon_name(Some("arrow4-left-symbolic"));
                         self.image.remove_css_class("entry");
                         self.image.add_css_class("exit");
@@ -140,16 +140,12 @@ impl TimelineRow {
                 TimelineItemKind::Entry => {
                     format!("<b>{}</b> {}", id, enter_verb)
                 }
-                TimelineItemKind::Exit => {
-                    let duration_of_stay = item
-                        .entity()
-                        .last_duration_of_stay()
-                        .expect("exits must always have a stay of duration");
+                TimelineItemKind::Exit { inside_duration } => {
                     format!(
                         "<b>{}</b> {} after <i>{}</i> {}",
                         id,
                         exit_verb,
-                        format::duration(duration_of_stay),
+                        format::duration(inside_duration),
                         stay_suffix
                     )
                 }

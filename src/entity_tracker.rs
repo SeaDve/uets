@@ -97,19 +97,34 @@ impl EntityTracker {
             .values()
             .filter(|entity| entity.is_inside())
             .count() as u32;
+
         let timeline_items = entities
             .iter()
             .flat_map(|(_, e)| {
-                e.entry_dts()
-                    .into_iter()
-                    .map(|dt| TimelineItem::new(TimelineItemKind::Entry, dt, e.clone()))
+                e.dt_pairs().into_iter().map(|dt_pair| {
+                    [
+                        dt_pair.exit.as_ref().map(|exit_dt| {
+                            TimelineItem::new(
+                                TimelineItemKind::Exit {
+                                    inside_duration: dt_pair
+                                        .inside_duration()
+                                        .expect("a complete dt pair"),
+                                },
+                                exit_dt.clone(),
+                                e.clone(),
+                            )
+                        }),
+                        Some(TimelineItem::new(
+                            TimelineItemKind::Entry,
+                            dt_pair.entry,
+                            e.clone(),
+                        )),
+                    ]
+                })
             })
-            .chain(entities.iter().flat_map(|(_, e)| {
-                e.exit_dts()
-                    .into_iter()
-                    .map(|dt| TimelineItem::new(TimelineItemKind::Exit, dt, e.clone()))
-            }))
-            .collect::<Vec<_>>();
+            .flatten()
+            .flatten();
+        let timeline = Timeline::from_iter(timeline_items);
 
         let this = glib::Object::new::<Self>();
 
@@ -117,9 +132,7 @@ impl EntityTracker {
         imp.n_inside.set(n_inside);
         imp.entities.replace(entities);
         imp.db.set((env, db)).unwrap();
-        imp.timeline
-            .set(Timeline::from_iter(timeline_items))
-            .unwrap();
+        imp.timeline.set(timeline).unwrap();
 
         Ok(this)
     }
@@ -152,7 +165,13 @@ impl EntityTracker {
         let now = DateTime::now_utc();
         let timeline_item_kind = if entity.is_inside() {
             entity.add_exit_dt(now.clone());
-            TimelineItemKind::Exit
+            TimelineItemKind::Exit {
+                inside_duration: entity
+                    .last_dt_pair()
+                    .expect("added exit dt and thus a dt pair")
+                    .inside_duration()
+                    .expect("a complete dt pair"),
+            }
         } else {
             entity.add_entry_dt(now.clone());
             TimelineItemKind::Entry
@@ -178,7 +197,7 @@ impl EntityTracker {
             TimelineItemKind::Entry => {
                 self.set_n_inside(self.n_inside() + 1);
             }
-            TimelineItemKind::Exit => {
+            TimelineItemKind::Exit { .. } => {
                 self.set_n_inside(self.n_inside() - 1);
             }
         }

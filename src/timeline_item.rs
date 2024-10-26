@@ -2,10 +2,10 @@ use gtk::{glib, subclass::prelude::*};
 
 use crate::{date_time::DateTime, entity::Entity};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimelineItemKind {
     Entry,
-    Exit,
+    Exit { inside_duration: glib::TimeSpan },
 }
 
 mod imp {

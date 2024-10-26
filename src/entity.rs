@@ -3,7 +3,8 @@ use std::fmt;
 use gtk::{glib, subclass::prelude::*};
 
 use crate::{
-    date_time::DateTime, db, entity_data::EntityData, entity_id::EntityId, entity_kind::EntityKind,
+    date_time::DateTime, date_time_pair::DateTimePair, db, entity_data::EntityData,
+    entity_id::EntityId, entity_kind::EntityKind,
 };
 
 mod imp {
@@ -15,8 +16,7 @@ mod imp {
     pub struct Entity {
         pub(super) id: OnceCell<EntityId>,
         pub(super) data: RefCell<Option<EntityData>>,
-        pub(super) entry_dts: RefCell<Vec<DateTime>>,
-        pub(super) exit_dts: RefCell<Vec<DateTime>>,
+        pub(super) dt_pairs: RefCell<Vec<DateTimePair>>,
     }
 
     #[glib::object_subclass]
@@ -46,8 +46,9 @@ impl Entity {
         let this = Self::new(id);
 
         let imp = this.imp();
-        imp.entry_dts.replace(raw.entry_dts);
-        imp.exit_dts.replace(raw.exit_dts);
+        imp.dt_pairs
+            .borrow_mut()
+            .extend(raw.dt_pairs.into_iter().map(DateTimePair::from_db));
 
         this
     }
@@ -56,8 +57,12 @@ impl Entity {
         let imp = self.imp();
 
         db::RawEntity {
-            entry_dts: imp.entry_dts.borrow().clone(),
-            exit_dts: imp.exit_dts.borrow().clone(),
+            dt_pairs: imp
+                .dt_pairs
+                .borrow()
+                .iter()
+                .map(|dt_pair| dt_pair.to_db())
+                .collect(),
         }
     }
 
@@ -65,17 +70,12 @@ impl Entity {
         self.imp().id.get().unwrap()
     }
 
-    pub fn is_inside(&self) -> bool {
-        let imp = self.imp();
+    pub fn dt_pairs(&self) -> Vec<DateTimePair> {
+        self.imp().dt_pairs.borrow().clone()
+    }
 
-        let n_entries = imp.entry_dts.borrow().len();
-        let n_exits = imp.exit_dts.borrow().len();
-
-        match (n_entries).abs_diff(n_exits) {
-            0 => false,
-            1 => true,
-            2.. => unreachable!("diff must always be less than 1"),
-        }
+    pub fn last_dt_pair(&self) -> Option<DateTimePair> {
+        self.imp().dt_pairs.borrow().last().cloned()
     }
 
     pub fn kind(&self) -> EntityKind {
@@ -99,40 +99,38 @@ impl Entity {
         }
     }
 
-    pub fn entry_dts(&self) -> Vec<DateTime> {
-        self.imp().entry_dts.borrow().clone()
-    }
+    pub fn is_inside(&self) -> bool {
+        let imp = self.imp();
 
-    pub fn exit_dts(&self) -> Vec<DateTime> {
-        self.imp().exit_dts.borrow().clone()
-    }
-
-    pub fn last_entry_dt(&self) -> Option<DateTime> {
-        self.imp().entry_dts.borrow().last().cloned()
-    }
-
-    pub fn last_exit_dt(&self) -> Option<DateTime> {
-        self.imp().exit_dts.borrow().last().cloned()
+        imp.dt_pairs
+            .borrow()
+            .last()
+            .is_some_and(|last_dt_pair| last_dt_pair.exit.is_none())
     }
 
     pub fn add_entry_dt(&self, dt: DateTime) {
-        self.imp().entry_dts.borrow_mut().push(dt);
+        let imp = self.imp();
+
+        if let Some(last_dt_pair) = imp.dt_pairs.borrow().last() {
+            debug_assert!(last_dt_pair.exit.is_some(), "double entry");
+        }
+
+        imp.dt_pairs.borrow_mut().push(DateTimePair {
+            entry: dt,
+            exit: None,
+        });
     }
 
     pub fn add_exit_dt(&self, dt: DateTime) {
-        self.imp().exit_dts.borrow_mut().push(dt);
-    }
-
-    pub fn last_duration_of_stay(&self) -> Option<glib::TimeSpan> {
         let imp = self.imp();
 
-        match (self.last_entry_dt(), self.last_exit_dt()) {
-            (Some(entry_dt), Some(exit_dt)) => {
-                debug_assert_eq!(imp.entry_dts.borrow().len(), imp.exit_dts.borrow().len());
+        let mut dt_pairs = imp.dt_pairs.borrow_mut();
 
-                Some(exit_dt.difference(&entry_dt))
-            }
-            _ => None,
+        if let Some(pair) = dt_pairs.last_mut() {
+            let prev_exit = pair.exit.replace(dt);
+            debug_assert_eq!(prev_exit, None, "double exit");
+        } else {
+            unreachable!("exit without entry");
         }
     }
 }
@@ -144,16 +142,7 @@ impl fmt::Display for Entity {
         f.debug_struct("Entity")
             .field("id", self.id())
             .field("is-inside", &self.is_inside())
-            .field("n-entries", &imp.entry_dts.borrow().len())
-            .field(
-                "last-entry-dt",
-                &self.last_entry_dt().map(|dt| dt.format_iso8601()),
-            )
-            .field("n-exits", &imp.exit_dts.borrow().len())
-            .field(
-                "last-exit-dt",
-                &self.last_exit_dt().map(|dt| dt.format_iso8601()),
-            )
+            .field("dt-pairs", &imp.dt_pairs.borrow())
             .finish()
     }
 }

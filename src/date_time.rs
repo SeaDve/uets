@@ -1,9 +1,11 @@
+use std::fmt;
+
 use anyhow::{Context, Result};
 use gtk::glib;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 /// A [`glib::DateTime`] that implements [`Serialize`] and [`Deserialize`]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, glib::ValueDelegate)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, glib::ValueDelegate)]
 #[value_delegate(nullable)]
 pub struct DateTime(glib::DateTime);
 
@@ -43,6 +45,14 @@ impl DateTime {
             self.0.format("%F") // ISO 8601 (e.g., `2001-07-08`)
         }
         .expect("format must be correct")
+    }
+}
+
+impl fmt::Debug for DateTime {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("DateTime")
+            .field(&self.format_iso8601())
+            .finish()
     }
 }
 
