@@ -82,7 +82,7 @@ impl Entity {
         let imp = self.imp();
 
         match imp.data.borrow().as_ref() {
-            None => EntityKind::Generic,
+            None => EntityKind::Counter,
             Some(data) => match data {
                 EntityData::Inventory(_) => EntityKind::Inventory,
                 EntityData::Refrigerator(_) => EntityKind::Refrigerator,

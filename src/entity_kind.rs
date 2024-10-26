@@ -4,7 +4,7 @@ pub enum EntityKind {
     ///
     /// e.g., mall entry counter
     #[default]
-    Generic,
+    Counter,
     /// Used for entities that have lifetime, location, and quantity.
     ///
     /// e.g., stock room, department store, medicine storage
