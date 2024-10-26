@@ -64,6 +64,10 @@ impl Timeline {
         imp.list.borrow_mut().clear();
         self.items_changed(0, n_items as u32, 0);
     }
+
+    pub fn len(&self) -> usize {
+        self.imp().list.borrow().len()
+    }
 }
 
 impl FromIterator<TimelineItem> for Timeline {

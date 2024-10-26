@@ -165,9 +165,6 @@ impl EntityTracker {
             Ok(())
         })?;
 
-        self.timeline()
-            .push(TimelineItem::new(timeline_item_kind, now, entity.clone()));
-
         let (index, removed, added) = match imp.entities.borrow_mut().entry(id.clone()) {
             Entry::Occupied(entry) => (entry.index(), 1, 1),
             Entry::Vacant(entry) => {
@@ -188,11 +185,30 @@ impl EntityTracker {
 
         self.items_changed(index as u32, removed, added);
 
+        self.timeline()
+            .push(TimelineItem::new(timeline_item_kind, now, entity.clone()));
+
         Ok(())
     }
 
     pub fn clear(&self) -> Result<()> {
         let imp = self.imp();
+
+        let prev_len = imp.entities.borrow().len();
+
+        if prev_len == 0 {
+            debug_assert_eq!(self.n_inside(), 0);
+            debug_assert_eq!(self.timeline().len(), 0);
+
+            if cfg!(debug_assertions) {
+                let (env, db) = self.db();
+                let n_entities = env
+                    .with_read_txn(|rtxn| db.len(rtxn).context("Failed to get entities db len"))?;
+                debug_assert_eq!(n_entities, 0);
+            }
+
+            return Ok(());
+        }
 
         let (env, db) = self.db();
         env.with_write_txn(|wtxn| {
@@ -200,14 +216,11 @@ impl EntityTracker {
             Ok(())
         })?;
 
-        let prev_len = imp.entities.borrow().len();
-
-        if prev_len != 0 {
-            imp.entities.borrow_mut().clear();
-            self.items_changed(0, prev_len as u32, 0);
-        }
+        imp.entities.borrow_mut().clear();
 
         self.set_n_inside(0);
+
+        self.items_changed(0, prev_len as u32, 0);
 
         self.timeline().clear();
 

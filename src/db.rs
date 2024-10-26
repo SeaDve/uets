@@ -47,6 +47,9 @@ pub fn new_env() -> Result<heed::Env> {
 pub trait EnvExt {
     /// Run a func with a write txn and commit it.
     fn with_write_txn<T>(&self, func: impl FnOnce(&mut heed::RwTxn<'_>) -> Result<T>) -> Result<T>;
+
+    /// Run a func with a read txn.
+    fn with_read_txn<T>(&self, func: impl FnOnce(&heed::RoTxn<'_>) -> Result<T>) -> Result<T>;
 }
 
 impl EnvExt for heed::Env {
@@ -63,6 +66,24 @@ impl EnvExt for heed::Env {
             tracing::warn!("Database write txn took {:?}", start_time.elapsed());
         } else {
             tracing::trace!("Database write txn took {:?}", start_time.elapsed());
+        }
+
+        Ok(ret)
+    }
+
+    fn with_read_txn<T>(&self, func: impl FnOnce(&heed::RoTxn<'_>) -> Result<T>) -> Result<T> {
+        let start_time = Instant::now();
+
+        let rtxn = self.read_txn().context("Failed to create read txn")?;
+        let ret = func(&rtxn)?;
+        drop(rtxn);
+
+        // There are 16.67 ms in a 60 Hz frame, so warn if the read txn
+        // takes longer than that.
+        if start_time.elapsed() > Duration::from_millis(15) {
+            tracing::warn!("Database read txn took {:?}", start_time.elapsed());
+        } else {
+            tracing::trace!("Database read txn took {:?}", start_time.elapsed());
         }
 
         Ok(ret)
