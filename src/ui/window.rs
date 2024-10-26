@@ -5,7 +5,7 @@ use crate::{
     application::Application,
     entity::Entity,
     entity_id::EntityId,
-    ui::{settings_view::SettingsView, timeline_view::TimelineView},
+    ui::{dashboard_view::DashboardView, settings_view::SettingsView, timeline_view::TimelineView},
 };
 
 mod imp {
@@ -14,6 +14,8 @@ mod imp {
     #[derive(Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/seadve/Uets/ui/window.ui")]
     pub struct Window {
+        #[template_child]
+        pub(super) dashboard_view: TemplateChild<DashboardView>,
         #[template_child]
         pub(super) timeline_view: TemplateChild<TimelineView>,
         #[template_child]

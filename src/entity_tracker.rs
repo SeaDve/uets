@@ -14,14 +14,18 @@ use crate::{
 };
 
 mod imp {
-    use std::cell::{OnceCell, RefCell};
+    use std::cell::{Cell, OnceCell, RefCell};
 
     use indexmap::IndexMap;
 
     use super::*;
 
-    #[derive(Default)]
+    #[derive(Default, glib::Properties)]
+    #[properties(wrapper_type = super::EntityTracker)]
     pub struct EntityTracker {
+        #[property(get)]
+        pub(super) n_inside: Cell<u32>,
+
         pub(super) entities: RefCell<IndexMap<EntityId, Entity>>,
         pub(super) db: OnceCell<(heed::Env, db::EntitiesDbType)>,
         pub(super) timeline: OnceCell<Timeline>,
@@ -34,6 +38,7 @@ mod imp {
         type Interfaces = (gio::ListModel,);
     }
 
+    #[glib::derived_properties]
     impl ObjectImpl for EntityTracker {}
 
     impl ListModelImpl for EntityTracker {
@@ -88,6 +93,10 @@ impl EntityTracker {
             db_load_start_time.elapsed()
         );
 
+        let n_inside = entities
+            .values()
+            .filter(|entity| entity.is_inside())
+            .count() as u32;
         let timeline_items = entities
             .iter()
             .flat_map(|(_, e)| {
@@ -105,6 +114,7 @@ impl EntityTracker {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
+        imp.n_inside.set(n_inside);
         imp.entities.replace(entities);
         imp.db.set((env, db)).unwrap();
         imp.timeline
@@ -167,6 +177,15 @@ impl EntityTracker {
             }
         };
 
+        match timeline_item_kind {
+            TimelineItemKind::Entry => {
+                self.set_n_inside(self.n_inside() + 1);
+            }
+            TimelineItemKind::Exit => {
+                self.set_n_inside(self.n_inside() - 1);
+            }
+        }
+
         self.items_changed(index as u32, removed, added);
 
         Ok(())
@@ -188,9 +207,24 @@ impl EntityTracker {
             self.items_changed(0, prev_len as u32, 0);
         }
 
+        self.set_n_inside(0);
+
         self.timeline().clear();
 
         Ok(())
+    }
+
+    fn set_n_inside(&self, n_inside: u32) {
+        let imp = self.imp();
+
+        if n_inside == self.n_inside() {
+            return;
+        }
+
+        debug_assert_eq!(n_inside, self.inside_entities().len() as u32,);
+
+        imp.n_inside.set(n_inside);
+        self.notify_n_inside();
     }
 
     fn db(&self) -> &(heed::Env, db::EntitiesDbType) {
