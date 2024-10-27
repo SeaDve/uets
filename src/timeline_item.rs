@@ -45,6 +45,10 @@ impl TimelineItem {
         this
     }
 
+    pub fn sort_key(&self) -> DateTime {
+        self.dt().clone()
+    }
+
     pub fn kind(&self) -> TimelineItemKind {
         *self.imp().kind.get().unwrap()
     }

@@ -68,7 +68,7 @@ impl Timeline {
         let insert_at = match imp
             .list
             .borrow()
-            .binary_search_by_key(item.dt(), timeline_item_sort_key)
+            .binary_search_by_key(item.dt(), TimelineItem::sort_key)
         {
             Ok(insert_at) | Err(insert_at) => insert_at,
         };
@@ -96,7 +96,7 @@ impl Timeline {
         imp.list.borrow_mut().insert(insert_at, item);
         self.items_changed(insert_at as u32, 0, 1);
 
-        debug_assert!(imp.list.borrow().is_sorted_by_key(timeline_item_sort_key));
+        debug_assert!(imp.list.borrow().is_sorted_by_key(TimelineItem::sort_key));
     }
 
     pub fn clear(&self) {
@@ -106,7 +106,7 @@ impl Timeline {
         imp.list.borrow_mut().clear();
         self.items_changed(0, n_items as u32, 0);
 
-        debug_assert!(imp.list.borrow().is_sorted_by_key(timeline_item_sort_key));
+        debug_assert!(imp.list.borrow().is_sorted_by_key(TimelineItem::sort_key));
     }
 
     pub fn len(&self) -> usize {
@@ -141,7 +141,7 @@ impl FromIterator<TimelineItem> for Timeline {
         let this = Self::new();
 
         let mut items = iter.into_iter().collect::<Vec<_>>();
-        items.sort_by_key(timeline_item_sort_key);
+        items.sort_by_key(TimelineItem::sort_key);
 
         let last_entry_dt = {
             let mut last_entry_dt = None;
@@ -169,12 +169,8 @@ impl FromIterator<TimelineItem> for Timeline {
         imp.last_entry_dt.replace(last_entry_dt);
         imp.last_exit_dt.replace(last_exit_dt);
 
-        debug_assert!(imp.list.borrow().is_sorted_by_key(timeline_item_sort_key));
+        debug_assert!(imp.list.borrow().is_sorted_by_key(TimelineItem::sort_key));
 
         this
     }
-}
-
-fn timeline_item_sort_key(item: &TimelineItem) -> DateTime {
-    item.dt().clone()
 }
