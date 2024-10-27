@@ -32,8 +32,18 @@
           <object class="AdwPreferencesGroup">
             <property name="title">Statistics</property>
             <child>
-              <object class="UetsInformationRow" id="max_n_inside_label">
+              <object class="UetsInformationRow" id="max_n_inside_row">
                 <property name="title">Max Inside Count</property>
+              </object>
+            </child>
+            <child>
+              <object class="UetsInformationRow" id="n_entries_row">
+                <property name="title">Total Entries</property>
+              </object>
+            </child>
+            <child>
+              <object class="UetsInformationRow" id="n_exits_row">
+                <property name="title">Total Exits</property>
               </object>
             </child>
             <child>

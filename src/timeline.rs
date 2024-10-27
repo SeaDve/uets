@@ -29,6 +29,10 @@ mod imp {
         #[property(get)]
         pub(super) max_n_inside: Cell<u32>,
         #[property(get)]
+        pub(super) n_entries: Cell<u32>,
+        #[property(get)]
+        pub(super) n_exits: Cell<u32>,
+        #[property(get)]
         pub(super) last_entry_dt: Cell<Option<DateTime>>,
         #[property(get)]
         pub(super) last_exit_dt: Cell<Option<DateTime>>,
@@ -133,6 +137,14 @@ impl Timeline {
             .map(|item| item.n_inside())
             .max()
             .unwrap_or(0);
+        let n_entries = items
+            .values()
+            .filter(|item| matches!(item.kind(), TimelineItemKind::Entry))
+            .count();
+        let n_exits = items
+            .values()
+            .filter(|item| matches!(item.kind(), TimelineItemKind::Exit { .. }))
+            .count();
 
         let last_entry_dt = {
             let mut last_entry_dt = None;
@@ -177,6 +189,8 @@ impl Timeline {
         imp.db.set((env, tdb, edb)).unwrap();
         imp.entity_list.set(EntityList::from_raw(entities)).unwrap();
         imp.max_n_inside.set(max_n_inside);
+        imp.n_entries.set(n_entries as u32);
+        imp.n_exits.set(n_exits as u32);
         imp.last_entry_dt.set(last_entry_dt);
         imp.last_exit_dt.set(last_exit_dt);
 
@@ -238,8 +252,10 @@ impl Timeline {
         })?;
 
         if was_inside {
+            self.set_n_exits(self.n_exits() + 1);
             self.set_last_exit_dt(Some(now_dt));
         } else {
+            self.set_n_entries(self.n_entries() + 1);
             self.set_last_entry_dt(Some(now_dt));
         }
 
@@ -268,6 +284,8 @@ impl Timeline {
         if prev_len == 0 {
             debug_assert_eq!(self.n_inside(), 0);
             debug_assert_eq!(self.max_n_inside(), 0);
+            debug_assert_eq!(self.n_entries(), 0);
+            debug_assert_eq!(self.n_exits(), 0);
             debug_assert_eq!(self.last_entry_dt(), None);
             debug_assert_eq!(self.last_exit_dt(), None);
             debug_assert_eq!(self.entity_list().len(), 0);
@@ -296,6 +314,8 @@ impl Timeline {
         imp.list.borrow_mut().clear();
 
         self.set_max_n_inside(0);
+        self.set_n_entries(0);
+        self.set_n_exits(0);
         self.set_last_entry_dt(None);
         self.set_last_exit_dt(None);
 
@@ -346,6 +366,28 @@ impl Timeline {
 
         imp.max_n_inside.set(max_n_inside);
         self.notify_max_n_inside();
+    }
+
+    fn set_n_entries(&self, n_entries: u32) {
+        let imp = self.imp();
+
+        if n_entries == self.n_entries() {
+            return;
+        }
+
+        imp.n_entries.set(n_entries);
+        self.notify_n_entries();
+    }
+
+    fn set_n_exits(&self, n_exits: u32) {
+        let imp = self.imp();
+
+        if n_exits == self.n_exits() {
+            return;
+        }
+
+        imp.n_exits.set(n_exits);
+        self.notify_n_exits();
     }
 
     fn set_last_entry_dt(&self, dt: Option<DateTime>) {

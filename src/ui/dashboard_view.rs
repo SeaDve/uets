@@ -19,7 +19,11 @@ mod imp {
         #[template_child]
         pub(super) n_inside_label: TemplateChild<gtk::Label>,
         #[template_child]
-        pub(super) max_n_inside_label: TemplateChild<InformationRow>,
+        pub(super) max_n_inside_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) n_entries_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) n_exits_row: TemplateChild<InformationRow>,
         #[template_child]
         pub(super) last_entry_dt_row: TemplateChild<InformationRow>,
         #[template_child]
@@ -50,31 +54,46 @@ mod imp {
             let obj = self.obj();
 
             let app = Application::get();
+            let timeline = app.timeline();
 
-            self.graph.bind_timeline(app.timeline());
+            self.graph.bind_timeline(timeline);
 
-            app.timeline().connect_n_inside_notify(clone!(
+            timeline.connect_n_inside_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
                     obj.update_n_inside_label();
                 }
             ));
-            app.timeline().connect_max_n_inside_notify(clone!(
+            timeline.connect_max_n_inside_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
-                    obj.update_max_n_inside_label();
+                    obj.update_max_n_inside_row();
                 }
             ));
-            app.timeline().connect_last_entry_dt_notify(clone!(
+            timeline.connect_n_entries_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_n_entries_label();
+                }
+            ));
+            timeline.connect_n_exits_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_n_exits_label();
+                }
+            ));
+            timeline.connect_last_entry_dt_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
                     obj.update_last_entry_dt_row();
                 }
             ));
-            app.timeline().connect_last_exit_dt_notify(clone!(
+            timeline.connect_last_exit_dt_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
@@ -83,7 +102,9 @@ mod imp {
             ));
 
             obj.update_n_inside_label();
-            obj.update_max_n_inside_label();
+            obj.update_max_n_inside_row();
+            obj.update_n_entries_label();
+            obj.update_n_exits_label();
             obj.update_last_entry_dt_row();
             obj.update_last_exit_dt_row();
         }
@@ -113,11 +134,25 @@ impl DashboardView {
         imp.n_inside_label.set_text(&n_inside.to_string());
     }
 
-    fn update_max_n_inside_label(&self) {
+    fn update_max_n_inside_row(&self) {
         let imp = self.imp();
 
         let max_n_inside = Application::get().timeline().max_n_inside();
-        imp.max_n_inside_label.set_value(max_n_inside.to_string());
+        imp.max_n_inside_row.set_value(max_n_inside.to_string());
+    }
+
+    fn update_n_entries_label(&self) {
+        let imp = self.imp();
+
+        let n_entries = Application::get().timeline().n_entries();
+        imp.n_entries_row.set_value(n_entries.to_string());
+    }
+
+    fn update_n_exits_label(&self) {
+        let imp = self.imp();
+
+        let n_exits = Application::get().timeline().n_exits();
+        imp.n_exits_row.set_value(n_exits.to_string());
     }
 
     fn update_last_entry_dt_row(&self) {
