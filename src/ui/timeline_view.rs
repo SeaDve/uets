@@ -1,6 +1,6 @@
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{timeline::Timeline, timeline_item::TimelineItem, ui::timeline_row::TimelineRow};
+use crate::{timeline::Timeline, ui::timeline_row::TimelineRow};
 
 mod imp {
     use super::*;
@@ -53,14 +53,7 @@ impl TimelineView {
     pub fn bind_timeline(&self, timeline: &Timeline) {
         let imp = self.imp();
 
-        let sorter = gtk::CustomSorter::new(move |a, b| {
-            let a = a.downcast_ref::<TimelineItem>().unwrap();
-            let b = b.downcast_ref::<TimelineItem>().unwrap();
-            a.dt().cmp(b.dt()).into()
-        });
-        let sort_list_model = gtk::SortListModel::new(Some(timeline.clone()), Some(sorter));
-
-        let selection_model = gtk::NoSelection::new(Some(sort_list_model));
+        let selection_model = gtk::NoSelection::new(Some(timeline.clone()));
         imp.list_view.set_model(Some(&selection_model));
     }
 }

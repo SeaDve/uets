@@ -205,7 +205,7 @@ impl EntityTracker {
         self.items_changed(index as u32, removed, added);
 
         self.timeline()
-            .push(TimelineItem::new(timeline_item_kind, now, entity.clone()));
+            .insert(TimelineItem::new(timeline_item_kind, now, entity.clone()));
 
         Ok(())
     }

@@ -50,6 +50,7 @@ mod imp {
 }
 
 glib::wrapper! {
+    /// A timeline with sorted items by date-time.
     pub struct Timeline(ObjectSubclass<imp::Timeline>)
         @implements gio::ListModel;
 }
@@ -59,32 +60,43 @@ impl Timeline {
         glib::Object::new()
     }
 
-    pub fn push(&self, item: TimelineItem) {
+    pub fn insert(&self, item: TimelineItem) {
         let imp = self.imp();
 
-        let dt = item.dt().clone();
-        match item.kind() {
-            TimelineItemKind::Entry => {
-                if self
-                    .last_entry_dt()
-                    .map_or(true, |last_entry_dt| dt > last_entry_dt)
-                {
-                    self.set_last_entry_dt(Some(dt));
+        let last_index = imp.list.borrow().len() - 1;
+
+        let insert_at = match imp
+            .list
+            .borrow()
+            .binary_search_by_key(item.dt(), timeline_item_sort_key)
+        {
+            Ok(insert_at) | Err(insert_at) => insert_at,
+        };
+
+        // Check if it is the latest item.
+        if insert_at == last_index + 1 {
+            match item.kind() {
+                TimelineItemKind::Entry => {
+                    debug_assert!(self
+                        .last_entry_dt()
+                        .map_or(true, |last_entry_dt| item.dt() > &last_entry_dt));
+
+                    self.set_last_entry_dt(Some(item.dt().clone()));
                 }
-            }
-            TimelineItemKind::Exit { .. } => {
-                if self
-                    .last_exit_dt()
-                    .map_or(true, |last_exit_dt| dt > last_exit_dt)
-                {
-                    self.set_last_exit_dt(Some(dt));
+                TimelineItemKind::Exit { .. } => {
+                    debug_assert!(self
+                        .last_exit_dt()
+                        .map_or(true, |last_exit_dt| item.dt() > &last_exit_dt));
+
+                    self.set_last_exit_dt(Some(item.dt().clone()));
                 }
             }
         }
 
-        let index = imp.list.borrow().len();
-        imp.list.borrow_mut().push(item);
-        self.items_changed(index as u32, 0, 1);
+        imp.list.borrow_mut().insert(insert_at, item);
+        self.items_changed(insert_at as u32, 0, 1);
+
+        debug_assert!(imp.list.borrow().is_sorted_by_key(timeline_item_sort_key));
     }
 
     pub fn clear(&self) {
@@ -93,6 +105,8 @@ impl Timeline {
         let n_items = imp.list.borrow().len();
         imp.list.borrow_mut().clear();
         self.items_changed(0, n_items as u32, 0);
+
+        debug_assert!(imp.list.borrow().is_sorted_by_key(timeline_item_sort_key));
     }
 
     pub fn len(&self) -> usize {
@@ -127,7 +141,7 @@ impl FromIterator<TimelineItem> for Timeline {
         let this = Self::new();
 
         let mut items = iter.into_iter().collect::<Vec<_>>();
-        items.sort_by(|a, b| a.dt().cmp(b.dt()));
+        items.sort_by_key(timeline_item_sort_key);
 
         let last_entry_dt = {
             let mut last_entry_dt = None;
@@ -155,6 +169,12 @@ impl FromIterator<TimelineItem> for Timeline {
         imp.last_entry_dt.replace(last_entry_dt);
         imp.last_exit_dt.replace(last_exit_dt);
 
+        debug_assert!(imp.list.borrow().is_sorted_by_key(timeline_item_sort_key));
+
         this
     }
+}
+
+fn timeline_item_sort_key(item: &TimelineItem) -> DateTime {
+    item.dt().clone()
 }
