@@ -32,6 +32,11 @@
           <object class="AdwPreferencesGroup">
             <property name="title">Statistics</property>
             <child>
+              <object class="UetsInformationRow" id="max_n_inside_label">
+                <property name="title">Max Inside Count</property>
+              </object>
+            </child>
+            <child>
               <object class="UetsInformationRow" id="last_entry_dt_row">
                 <property name="title">Last Entry Time</property>
               </object>

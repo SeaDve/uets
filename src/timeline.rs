@@ -27,6 +27,8 @@ mod imp {
         #[property(get = Self::n_inside)]
         pub(super) n_inside: PhantomData<u32>,
         #[property(get)]
+        pub(super) max_n_inside: Cell<u32>,
+        #[property(get)]
         pub(super) last_entry_dt: Cell<Option<DateTime>>,
         #[property(get)]
         pub(super) last_exit_dt: Cell<Option<DateTime>>,
@@ -126,6 +128,12 @@ impl Timeline {
             db_load_start_time.elapsed()
         );
 
+        let max_n_inside = items
+            .values()
+            .map(|item| item.n_inside())
+            .max()
+            .unwrap_or(0);
+
         let last_entry_dt = {
             let mut last_entry_dt = None;
             for (_, item) in items.iter().rev() {
@@ -168,6 +176,7 @@ impl Timeline {
         imp.list.replace(items);
         imp.db.set((env, tdb, edb)).unwrap();
         imp.entity_list.set(EntityList::from_raw(entities)).unwrap();
+        imp.max_n_inside.set(max_n_inside);
         imp.last_entry_dt.set(last_entry_dt);
         imp.last_exit_dt.set(last_exit_dt);
 
@@ -234,6 +243,10 @@ impl Timeline {
             self.set_last_entry_dt(Some(now_dt));
         }
 
+        if new_n_inside > self.max_n_inside() {
+            self.set_max_n_inside(new_n_inside);
+        }
+
         let (index, prev_value) = imp.list.borrow_mut().insert_full(now_dt, item);
         debug_assert_eq!(prev_value, None);
 
@@ -247,13 +260,14 @@ impl Timeline {
         Ok(())
     }
 
-    pub fn clear(&self) -> Result<()> {
+    pub fn reset(&self) -> Result<()> {
         let imp = self.imp();
 
         let prev_len = imp.list.borrow().len();
 
         if prev_len == 0 {
             debug_assert_eq!(self.n_inside(), 0);
+            debug_assert_eq!(self.max_n_inside(), 0);
             debug_assert_eq!(self.last_entry_dt(), None);
             debug_assert_eq!(self.last_exit_dt(), None);
             debug_assert_eq!(self.entity_list().len(), 0);
@@ -281,6 +295,7 @@ impl Timeline {
 
         imp.list.borrow_mut().clear();
 
+        self.set_max_n_inside(0);
         self.set_last_entry_dt(None);
         self.set_last_exit_dt(None);
 
@@ -320,6 +335,17 @@ impl Timeline {
 
     pub fn iter(&self) -> impl Iterator<Item = TimelineItem> + '_ {
         ListModelExtManual::iter(self).map(|item| item.unwrap())
+    }
+
+    fn set_max_n_inside(&self, max_n_inside: u32) {
+        let imp = self.imp();
+
+        if max_n_inside == self.max_n_inside() {
+            return;
+        }
+
+        imp.max_n_inside.set(max_n_inside);
+        self.notify_max_n_inside();
     }
 
     fn set_last_entry_dt(&self, dt: Option<DateTime>) {

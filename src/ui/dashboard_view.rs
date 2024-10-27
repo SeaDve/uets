@@ -19,6 +19,8 @@ mod imp {
         #[template_child]
         pub(super) n_inside_label: TemplateChild<gtk::Label>,
         #[template_child]
+        pub(super) max_n_inside_label: TemplateChild<InformationRow>,
+        #[template_child]
         pub(super) last_entry_dt_row: TemplateChild<InformationRow>,
         #[template_child]
         pub(super) last_exit_dt_row: TemplateChild<InformationRow>,
@@ -58,6 +60,13 @@ mod imp {
                     obj.update_n_inside_label();
                 }
             ));
+            app.timeline().connect_max_n_inside_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_max_n_inside_label();
+                }
+            ));
             app.timeline().connect_last_entry_dt_notify(clone!(
                 #[weak]
                 obj,
@@ -74,6 +83,7 @@ mod imp {
             ));
 
             obj.update_n_inside_label();
+            obj.update_max_n_inside_label();
             obj.update_last_entry_dt_row();
             obj.update_last_exit_dt_row();
         }
@@ -103,6 +113,13 @@ impl DashboardView {
         imp.n_inside_label.set_text(&n_inside.to_string());
     }
 
+    fn update_max_n_inside_label(&self) {
+        let imp = self.imp();
+
+        let max_n_inside = Application::get().timeline().max_n_inside();
+        imp.max_n_inside_label.set_value(max_n_inside.to_string());
+    }
+
     fn update_last_entry_dt_row(&self) {
         let imp = self.imp();
 
@@ -110,7 +127,7 @@ impl DashboardView {
         imp.last_entry_dt_row.set_value(
             last_entry_dt
                 .map(|dt| dt.local_fuzzy_display())
-                .unwrap_or_else(|| "None".to_string()),
+                .unwrap_or_default(),
         );
     }
 
@@ -121,7 +138,7 @@ impl DashboardView {
         imp.last_exit_dt_row.set_value(
             last_exit_dt
                 .map(|dt| dt.local_fuzzy_display())
-                .unwrap_or_else(|| "None".to_string()),
+                .unwrap_or_default(),
         );
     }
 }

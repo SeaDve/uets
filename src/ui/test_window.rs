@@ -46,7 +46,7 @@ mod imp {
                 Application::get().detector().simulate_detected(&id);
             });
             self.clear_button.connect_clicked(|_button| {
-                if let Err(err) = Application::get().timeline().clear() {
+                if let Err(err) = Application::get().timeline().reset() {
                     eprintln!("Failed to reset timeline: {:?}", err);
                 }
             });
