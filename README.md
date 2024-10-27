@@ -25,6 +25,10 @@ rsync --filter=':- .gitignore' --exclude \".*/\" -aP ./ $REMOTE_DIR
 
 ## 📝 TODO
 
+### Dashboard
+
+1. Filter date range.
+
 ### Timeline
 
 1. Search by date, id, name, location, etc.

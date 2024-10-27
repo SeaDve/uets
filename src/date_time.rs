@@ -1,6 +1,6 @@
 use std::fmt;
 
-use chrono::{Datelike, Local, TimeDelta, Utc};
+use chrono::{Datelike, Local, Utc};
 use gtk::glib;
 use serde::{Deserialize, Serialize};
 
@@ -17,8 +17,8 @@ impl DateTime {
         Self(Utc::now())
     }
 
-    pub fn difference(&self, other: &Self) -> TimeDelta {
-        self.0 - other.0
+    pub fn inner(&self) -> chrono::DateTime<Utc> {
+        self.0
     }
 
     pub fn local_fuzzy_display(&self) -> String {

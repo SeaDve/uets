@@ -10,6 +10,8 @@ pub struct DateTimePair {
 
 impl DateTimePair {
     pub fn inside_duration(&self) -> Option<TimeDelta> {
-        self.exit.as_ref().map(|exit| exit.difference(&self.entry))
+        self.exit
+            .as_ref()
+            .map(|exit| exit.inner() - self.entry.inner())
     }
 }

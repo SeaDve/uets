@@ -3,7 +3,10 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::{ui::information_row::InformationRow, Application};
+use crate::{
+    ui::{graph::Graph, information_row::InformationRow},
+    Application,
+};
 
 mod imp {
     use super::*;
@@ -19,6 +22,8 @@ mod imp {
         pub(super) last_entry_dt_row: TemplateChild<InformationRow>,
         #[template_child]
         pub(super) last_exit_dt_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) graph: TemplateChild<Graph>,
     }
 
     #[glib::object_subclass]
@@ -43,6 +48,8 @@ mod imp {
             let obj = self.obj();
 
             let app = Application::get();
+
+            self.graph.bind_timeline(app.timeline());
 
             app.timeline().connect_n_inside_notify(clone!(
                 #[weak]
@@ -103,7 +110,7 @@ impl DashboardView {
         imp.last_entry_dt_row.set_value(
             last_entry_dt
                 .map(|dt| dt.local_fuzzy_display())
-                .unwrap_or_default(),
+                .unwrap_or_else(|| "None".to_string()),
         );
     }
 
@@ -114,7 +121,7 @@ impl DashboardView {
         imp.last_exit_dt_row.set_value(
             last_exit_dt
                 .map(|dt| dt.local_fuzzy_display())
-                .unwrap_or_default(),
+                .unwrap_or_else(|| "None".to_string()),
         );
     }
 }

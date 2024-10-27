@@ -298,6 +298,30 @@ impl Timeline {
         self.imp().list.borrow().len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.imp().list.borrow().is_empty()
+    }
+
+    pub fn first(&self) -> Option<TimelineItem> {
+        self.imp()
+            .list
+            .borrow()
+            .first()
+            .map(|(_, item)| item.clone())
+    }
+
+    pub fn last(&self) -> Option<TimelineItem> {
+        self.imp()
+            .list
+            .borrow()
+            .last()
+            .map(|(_, item)| item.clone())
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = TimelineItem> + '_ {
+        ListModelExtManual::iter(self).map(|item| item.unwrap())
+    }
+
     fn set_last_entry_dt(&self, dt: Option<DateTime>) {
         let imp = self.imp();
 

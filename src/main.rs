@@ -2,6 +2,7 @@
 #![warn(rust_2018_idioms, clippy::unused_async, clippy::dbg_macro)]
 
 mod application;
+mod colors;
 mod date_time;
 mod date_time_pair;
 mod db;

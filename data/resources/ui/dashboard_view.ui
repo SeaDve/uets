@@ -43,6 +43,19 @@
             </child>
           </object>
         </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title">Inside Count Over Time</property>
+            <child>
+              <object class="UetsGraph" id="graph">
+                <property name="height-request">240</property>
+                <style>
+                  <class name="card"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
       </object>
     </child>
   </template>
