@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, glib::Boxed,
 )]
+#[serde(transparent)]
 #[boxed_type(name = "UetsEntityId")]
 pub struct EntityId(Box<str>);
 
