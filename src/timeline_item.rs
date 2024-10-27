@@ -42,7 +42,7 @@ mod imp {
         pub(super) kind: OnceCell<TimelineItemKind>,
         /// Id of the entity associated with this item.
         pub(super) entity_id: OnceCell<EntityId>,
-        /// Number of entity inside for this dt point.
+        /// Number of entity inside at this dt point.
         pub(super) n_inside: OnceCell<u32>,
     }
 
