@@ -167,9 +167,9 @@ impl Timeline {
         let imp = this.imp();
         imp.list.replace(items);
         imp.db.set((env, tdb, edb)).unwrap();
+        imp.entity_list.set(EntityList::from_raw(entities)).unwrap();
         imp.last_entry_dt.set(last_entry_dt);
         imp.last_exit_dt.set(last_exit_dt);
-        imp.entity_list.set(EntityList::from_raw(entities)).unwrap();
 
         Ok(this)
     }
