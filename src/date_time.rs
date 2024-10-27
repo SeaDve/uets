@@ -1,6 +1,6 @@
 use std::fmt;
 
-use chrono::{Datelike, Local, SecondsFormat, TimeDelta, Utc};
+use chrono::{Datelike, Local, TimeDelta, Utc};
 use gtk::glib;
 use serde::{Deserialize, Serialize};
 
@@ -40,8 +40,6 @@ impl DateTime {
 
 impl fmt::Debug for DateTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("DateTime")
-            .field(&self.0.to_rfc3339_opts(SecondsFormat::Secs, true))
-            .finish()
+        fmt::Debug::fmt(&self.0, f)
     }
 }
