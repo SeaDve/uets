@@ -2,8 +2,8 @@ use adw::subclass::prelude::*;
 use gtk::glib;
 
 use crate::{
-    application::Application,
     ui::{dashboard_view::DashboardView, settings_view::SettingsView, timeline_view::TimelineView},
+    Application,
 };
 
 mod imp {
