@@ -8,8 +8,8 @@ use gtk::{
 use crate::{
     db,
     detector::Detector,
-    entity_tracker::EntityTracker,
     settings::Settings,
+    timeline::Timeline,
     ui::{TestWindow, Window},
     APP_ID, GRESOURCE_PREFIX,
 };
@@ -23,7 +23,7 @@ mod imp {
     pub struct Application {
         pub(super) settings: Settings,
         pub(super) detector: Detector,
-        pub(super) entity_tracker: OnceCell<EntityTracker>,
+        pub(super) timeline: OnceCell<Timeline>,
         pub(super) env: OnceCell<heed::Env>,
     }
 
@@ -53,9 +53,9 @@ mod imp {
             let obj = self.obj();
 
             match init_env() {
-                Ok((env, entity_tracker)) => {
+                Ok((env, timeline)) => {
                     self.env.set(env).unwrap();
-                    self.entity_tracker.set(entity_tracker).unwrap();
+                    self.timeline.set(timeline).unwrap();
                 }
                 Err(err) => {
                     tracing::debug!("Failed to init env: {:?}", err);
@@ -70,7 +70,7 @@ mod imp {
                 #[weak]
                 obj,
                 move |_, id| {
-                    if let Err(err) = obj.entity_tracker().handle_entity(id) {
+                    if let Err(err) = obj.timeline().handle_detected(id) {
                         tracing::error!("Failed to handle entity: {:?}", err);
                     }
                 }
@@ -125,8 +125,8 @@ impl Application {
         &self.imp().detector
     }
 
-    pub fn entity_tracker(&self) -> &EntityTracker {
-        self.imp().entity_tracker.get().unwrap()
+    pub fn timeline(&self) -> &Timeline {
+        self.imp().timeline.get().unwrap()
     }
 
     pub fn env(&self) -> &heed::Env {
@@ -159,10 +159,10 @@ impl Application {
     }
 }
 
-fn init_env() -> Result<(heed::Env, EntityTracker)> {
+fn init_env() -> Result<(heed::Env, Timeline)> {
     let env = db::new_env()?;
 
-    let entity_tracker = EntityTracker::load_from_env(env.clone())?;
+    let timeline = Timeline::load_from_env(env.clone())?;
 
-    Ok((env, entity_tracker))
+    Ok((env, timeline))
 }

@@ -124,7 +124,7 @@ impl TimelineRow {
         let imp = self.imp();
 
         if let Some(ref item) = self.item() {
-            let id = item.entity().id();
+            let entity_id = item.entity_id();
 
             let (enter_verb, exit_verb, stay_suffix) =
                 match Application::get().settings().operation_mode() {
@@ -138,12 +138,12 @@ impl TimelineRow {
 
             let text = match item.kind() {
                 TimelineItemKind::Entry => {
-                    format!("<b>{}</b> {}", id, enter_verb)
+                    format!("<b>{}</b> {}", entity_id, enter_verb)
                 }
                 TimelineItemKind::Exit { inside_duration } => {
                     format!(
                         "<b>{}</b> {} after <i>{}</i> {}",
-                        id,
+                        entity_id,
                         exit_verb,
                         format::duration(inside_duration),
                         stay_suffix

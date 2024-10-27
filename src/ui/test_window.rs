@@ -46,13 +46,14 @@ mod imp {
                 Application::get().detector().simulate_detected(&id);
             });
             self.clear_button.connect_clicked(|_button| {
-                if let Err(err) = Application::get().entity_tracker().clear() {
-                    eprintln!("Failed to reset entity tracker: {:?}", err);
+                if let Err(err) = Application::get().timeline().clear() {
+                    eprintln!("Failed to reset timeline: {:?}", err);
                 }
             });
 
-            self.all_listbox
-                .bind_model(Some(Application::get().entity_tracker()), |entity| {
+            self.all_listbox.bind_model(
+                Some(Application::get().timeline().entity_list()),
+                |entity| {
                     let entity = entity.downcast_ref::<Entity>().unwrap();
 
                     let label = gtk::Label::builder()
@@ -64,14 +65,15 @@ mod imp {
                         .wrap_mode(pango::WrapMode::WordChar)
                         .build();
                     label.upcast()
-                });
+                },
+            );
 
             let filter = gtk::CustomFilter::new(|entity| {
                 let entity = entity.downcast_ref::<Entity>().unwrap();
                 entity.is_inside()
             });
             let filter_list_model = gtk::FilterListModel::new(
-                Some(Application::get().entity_tracker().clone()),
+                Some(Application::get().timeline().entity_list().clone()),
                 Some(filter),
             );
             self.inside_listbox

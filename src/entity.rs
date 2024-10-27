@@ -16,6 +16,7 @@ mod imp {
     pub struct Entity {
         pub(super) id: OnceCell<EntityId>,
         pub(super) data: RefCell<Option<EntityData>>,
+
         pub(super) dt_pairs: RefCell<Vec<DateTimePair>>,
     }
 
@@ -42,28 +43,12 @@ impl Entity {
         this
     }
 
-    pub fn from_db(id: &EntityId, raw: db::RawEntity) -> Self {
-        let this = Self::new(id);
-
-        let imp = this.imp();
-        imp.dt_pairs
-            .borrow_mut()
-            .extend(raw.dt_pairs.into_iter().map(DateTimePair::from_db));
-
-        this
+    pub fn from_db(id: &EntityId, _raw: db::RawEntity) -> Self {
+        Self::new(id)
     }
 
     pub fn to_db(&self) -> db::RawEntity {
-        let imp = self.imp();
-
-        db::RawEntity {
-            dt_pairs: imp
-                .dt_pairs
-                .borrow()
-                .iter()
-                .map(|dt_pair| dt_pair.to_db())
-                .collect(),
-        }
+        db::RawEntity {}
     }
 
     pub fn id(&self) -> &EntityId {

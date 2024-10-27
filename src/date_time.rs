@@ -5,7 +5,9 @@ use gtk::glib;
 use serde::{Deserialize, Serialize};
 
 /// A date time in UTC.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, glib::Boxed)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, glib::Boxed,
+)]
 #[serde(transparent)]
 #[boxed_type(name = "UetsDateTime", nullable)]
 pub struct DateTime(chrono::DateTime<Utc>);

@@ -44,32 +44,27 @@ mod imp {
 
             let app = Application::get();
 
-            app.entity_tracker().connect_n_inside_notify(clone!(
+            app.timeline().connect_n_inside_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
                     obj.update_n_inside_label();
                 }
             ));
-
-            app.entity_tracker()
-                .timeline()
-                .connect_last_entry_dt_notify(clone!(
-                    #[weak]
-                    obj,
-                    move |_| {
-                        obj.update_last_entry_dt_row();
-                    }
-                ));
-            app.entity_tracker()
-                .timeline()
-                .connect_last_exit_dt_notify(clone!(
-                    #[weak]
-                    obj,
-                    move |_| {
-                        obj.update_last_exit_dt_row();
-                    }
-                ));
+            app.timeline().connect_last_entry_dt_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_last_entry_dt_row();
+                }
+            ));
+            app.timeline().connect_last_exit_dt_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_last_exit_dt_row();
+                }
+            ));
 
             obj.update_n_inside_label();
             obj.update_last_entry_dt_row();
@@ -97,17 +92,14 @@ impl DashboardView {
     fn update_n_inside_label(&self) {
         let imp = self.imp();
 
-        let n_inside = Application::get().entity_tracker().n_inside();
+        let n_inside = Application::get().timeline().n_inside();
         imp.n_inside_label.set_text(&n_inside.to_string());
     }
 
     fn update_last_entry_dt_row(&self) {
         let imp = self.imp();
 
-        let last_entry_dt = Application::get()
-            .entity_tracker()
-            .timeline()
-            .last_entry_dt();
+        let last_entry_dt = Application::get().timeline().last_entry_dt();
         imp.last_entry_dt_row.set_value(
             last_entry_dt
                 .map(|dt| dt.local_fuzzy_display())
@@ -118,10 +110,7 @@ impl DashboardView {
     fn update_last_exit_dt_row(&self) {
         let imp = self.imp();
 
-        let last_exit_dt = Application::get()
-            .entity_tracker()
-            .timeline()
-            .last_exit_dt();
+        let last_exit_dt = Application::get().timeline().last_exit_dt();
         imp.last_exit_dt_row.set_value(
             last_exit_dt
                 .map(|dt| dt.local_fuzzy_display())

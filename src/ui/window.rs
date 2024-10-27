@@ -40,7 +40,7 @@ mod imp {
             self.parent_constructed();
 
             self.timeline_view
-                .bind_timeline(Application::get().entity_tracker().timeline());
+                .bind_timeline(Application::get().timeline());
         }
     }
 

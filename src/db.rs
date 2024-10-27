@@ -8,23 +8,31 @@ use gtk::glib;
 use heed::types::SerdeJson;
 use serde::{Deserialize, Serialize};
 
-use crate::{date_time::DateTime, entity_id::EntityIdCodec, APP_ID};
+use crate::{date_time::DateTime, entity_id::EntityId, APP_ID};
 
-const N_NAMED_DBS: u32 = 1;
+const N_NAMED_DBS: u32 = 2;
 
-pub type EntitiesDbType = heed::Database<EntityIdCodec, SerdeJson<RawEntity>>;
+pub type EntitiesDbType = heed::Database<SerdeJson<EntityId>, SerdeJson<RawEntity>>;
 pub const ENTITIES_DB_NAME: &str = "entities";
 
+pub type TimelineDbType = heed::Database<SerdeJson<DateTime>, SerdeJson<RawTimelineItem>>;
+pub const TIMELINE_DB_NAME: &str = "timeline";
+
 #[derive(Debug, Serialize, Deserialize)]
-pub struct RawEntity {
-    pub dt_pairs: Vec<RawDateTimePair>,
+pub struct RawTimelineItem {
+    pub kind: RawTimelineItemKind,
+    pub entity_id: EntityId,
+    pub n_inside: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct RawDateTimePair {
-    pub entry: DateTime,
-    pub exit: Option<DateTime>,
+pub enum RawTimelineItemKind {
+    Entry,
+    Exit { inside_duration: Duration }, // FIXME chrono::TimeDelta should support serde
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RawEntity {}
 
 pub fn new_env() -> Result<heed::Env> {
     let path = glib::user_data_dir().join(format!("{}/db", APP_ID));
