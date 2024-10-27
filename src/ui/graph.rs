@@ -17,8 +17,12 @@ mod imp {
 
     use super::*;
 
-    #[derive(Default)]
+    #[derive(Default, gtk::CompositeTemplate)]
+    #[template(resource = "/io/github/seadve/Uets/ui/graph.ui")]
     pub struct Graph {
+        #[template_child]
+        pub(super) no_data_revealer: TemplateChild<gtk::Revealer>,
+
         pub(super) timeline: OnceCell<Timeline>,
     }
 
@@ -27,6 +31,14 @@ mod imp {
         const NAME: &'static str = "UetsGraph";
         type Type = super::Graph;
         type ParentType = gtk::Widget;
+
+        fn class_init(klass: &mut Self::Class) {
+            klass.bind_template();
+        }
+
+        fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
+            obj.init_template();
+        }
     }
 
     impl ObjectImpl for Graph {}
@@ -49,6 +61,8 @@ mod imp {
             if let Err(err) = obj.draw_graph(backend) {
                 tracing::error!("Failed to draw graph: {:?}", err);
             }
+
+            self.parent_snapshot(snapshot);
         }
     }
 }
@@ -71,10 +85,20 @@ impl Graph {
             self,
             move |_, _, _, _| {
                 obj.queue_draw();
+                obj.update_no_data_revealer();
             }
         ));
 
         imp.timeline.set(timeline.clone()).unwrap();
+
+        self.update_no_data_revealer();
+    }
+
+    fn update_no_data_revealer(&self) {
+        let imp = self.imp();
+
+        imp.no_data_revealer
+            .set_reveal_child(imp.timeline.get().unwrap().is_empty());
     }
 
     fn draw_graph(&self, backend: CairoBackend<'_>) -> Result<()> {
