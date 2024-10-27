@@ -60,12 +60,12 @@ glib::wrapper! {
 }
 
 impl TimelineItem {
-    pub fn new(kind: TimelineItemKind, dt: DateTime, entity_id: EntityId, n_inside: u32) -> Self {
+    pub fn new(dt: DateTime, kind: TimelineItemKind, entity_id: EntityId, n_inside: u32) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
-        imp.kind.set(kind).unwrap();
         imp.dt.set(dt).unwrap();
+        imp.kind.set(kind).unwrap();
         imp.entity_id.set(entity_id).unwrap();
         imp.n_inside.set(n_inside).unwrap();
 
@@ -74,8 +74,8 @@ impl TimelineItem {
 
     pub fn from_db(dt: DateTime, raw: &db::RawTimelineItem) -> Self {
         Self::new(
-            TimelineItemKind::from_db(&raw.kind),
             dt,
+            TimelineItemKind::from_db(&raw.kind),
             raw.entity_id.clone(),
             raw.n_inside,
         )

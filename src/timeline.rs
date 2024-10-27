@@ -217,7 +217,7 @@ impl Timeline {
         } else {
             self.n_inside() + 1
         };
-        let item = TimelineItem::new(item_kind, now_dt, entity_id.clone(), new_n_inside);
+        let item = TimelineItem::new(now_dt, item_kind, entity_id.clone(), new_n_inside);
 
         let (env, tdb, edb) = self.db();
         env.with_write_txn(|wtxn| {
