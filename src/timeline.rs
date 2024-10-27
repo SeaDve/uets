@@ -68,7 +68,7 @@ impl Timeline {
         let insert_at = match imp
             .list
             .borrow()
-            .binary_search_by_key(item.dt(), TimelineItem::sort_key)
+            .binary_search_by_key(&item.dt(), TimelineItem::sort_key)
         {
             Ok(insert_at) | Err(insert_at) => insert_at,
         };
@@ -79,16 +79,16 @@ impl Timeline {
                 TimelineItemKind::Entry => {
                     debug_assert!(self
                         .last_entry_dt()
-                        .map_or(true, |last_entry_dt| item.dt() > &last_entry_dt));
+                        .map_or(true, |last_entry_dt| item.dt() > last_entry_dt));
 
-                    self.set_last_entry_dt(Some(item.dt().clone()));
+                    self.set_last_entry_dt(Some(item.dt()));
                 }
                 TimelineItemKind::Exit { .. } => {
                     debug_assert!(self
                         .last_exit_dt()
-                        .map_or(true, |last_exit_dt| item.dt() > &last_exit_dt));
+                        .map_or(true, |last_exit_dt| item.dt() > last_exit_dt));
 
-                    self.set_last_exit_dt(Some(item.dt().clone()));
+                    self.set_last_exit_dt(Some(item.dt()));
                 }
             }
         }
@@ -147,7 +147,7 @@ impl FromIterator<TimelineItem> for Timeline {
             let mut last_entry_dt = None;
             for item in items.iter().rev() {
                 if item.kind() == TimelineItemKind::Entry {
-                    last_entry_dt = Some(item.dt().clone());
+                    last_entry_dt = Some(item.dt());
                     break;
                 }
             }
@@ -157,7 +157,7 @@ impl FromIterator<TimelineItem> for Timeline {
             let mut last_exit_dt = None;
             for item in items.iter().rev() {
                 if let TimelineItemKind::Exit { .. } = item.kind() {
-                    last_exit_dt = Some(item.dt().clone());
+                    last_exit_dt = Some(item.dt());
                     break;
                 }
             }

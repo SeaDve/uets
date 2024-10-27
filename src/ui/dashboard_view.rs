@@ -110,7 +110,7 @@ impl DashboardView {
             .last_entry_dt();
         imp.last_entry_dt_row.set_value(
             last_entry_dt
-                .map(|dt| dt.to_local().fuzzy_display())
+                .map(|dt| dt.local_fuzzy_display())
                 .unwrap_or_default(),
         );
     }
@@ -124,7 +124,7 @@ impl DashboardView {
             .last_exit_dt();
         imp.last_exit_dt_row.set_value(
             last_exit_dt
-                .map(|dt| dt.to_local().fuzzy_display())
+                .map(|dt| dt.local_fuzzy_display())
                 .unwrap_or_default(),
         );
     }

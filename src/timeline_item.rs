@@ -1,3 +1,4 @@
+use chrono::TimeDelta;
 use gtk::{glib, subclass::prelude::*};
 
 use crate::{date_time::DateTime, entity::Entity};
@@ -5,7 +6,7 @@ use crate::{date_time::DateTime, entity::Entity};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimelineItemKind {
     Entry,
-    Exit { inside_duration: glib::TimeSpan },
+    Exit { inside_duration: TimeDelta },
 }
 
 mod imp {
@@ -46,15 +47,15 @@ impl TimelineItem {
     }
 
     pub fn sort_key(&self) -> DateTime {
-        self.dt().clone()
+        self.dt()
     }
 
     pub fn kind(&self) -> TimelineItemKind {
         *self.imp().kind.get().unwrap()
     }
 
-    pub fn dt(&self) -> &DateTime {
-        self.imp().dt.get().unwrap()
+    pub fn dt(&self) -> DateTime {
+        *self.imp().dt.get().unwrap()
     }
 
     pub fn entity(&self) -> &Entity {

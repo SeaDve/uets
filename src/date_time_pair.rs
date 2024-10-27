@@ -1,4 +1,4 @@
-use gtk::glib;
+use chrono::TimeDelta;
 
 use crate::{date_time::DateTime, db};
 
@@ -18,12 +18,12 @@ impl DateTimePair {
 
     pub fn to_db(&self) -> db::RawDateTimePair {
         db::RawDateTimePair {
-            entry: self.entry.clone(),
-            exit: self.exit.clone(),
+            entry: self.entry,
+            exit: self.exit,
         }
     }
 
-    pub fn inside_duration(&self) -> Option<glib::TimeSpan> {
+    pub fn inside_duration(&self) -> Option<TimeDelta> {
         self.exit.as_ref().map(|exit| exit.difference(&self.entry))
     }
 }

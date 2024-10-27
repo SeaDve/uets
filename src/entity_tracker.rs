@@ -110,7 +110,7 @@ impl EntityTracker {
                                         .inside_duration()
                                         .expect("a complete dt pair"),
                                 },
-                                exit_dt.clone(),
+                                *exit_dt,
                                 e.clone(),
                             )
                         }),
@@ -162,9 +162,9 @@ impl EntityTracker {
             .cloned()
             .unwrap_or_else(|| Entity::new(id));
 
-        let now = DateTime::now_utc();
+        let now = DateTime::now();
         let timeline_item_kind = if entity.is_inside() {
-            entity.add_exit_dt(now.clone());
+            entity.add_exit_dt(now);
             TimelineItemKind::Exit {
                 inside_duration: entity
                     .last_dt_pair()
@@ -173,7 +173,7 @@ impl EntityTracker {
                     .expect("a complete dt pair"),
             }
         } else {
-            entity.add_entry_dt(now.clone());
+            entity.add_entry_dt(now);
             TimelineItemKind::Entry
         };
 

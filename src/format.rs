@@ -1,8 +1,8 @@
-use gtk::glib;
+use chrono::TimeDelta;
 
 /// Formats time as duration.
-pub fn duration(time_span: glib::TimeSpan) -> String {
-    let secs = time_span.as_seconds();
+pub fn duration(time_span: TimeDelta) -> String {
+    let secs = time_span.num_seconds();
 
     let days_display = secs / 86400;
     let hours_display = secs / 3600;

@@ -1,97 +1,45 @@
 use std::fmt;
 
-use anyhow::{Context, Result};
+use chrono::{Datelike, Local, SecondsFormat, TimeDelta, Utc};
 use gtk::glib;
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
-/// A [`glib::DateTime`] that implements [`Serialize`] and [`Deserialize`]
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, glib::ValueDelegate)]
-#[value_delegate(nullable)]
-pub struct DateTime(glib::DateTime);
+/// A date time in UTC.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, glib::Boxed)]
+#[serde(transparent)]
+#[boxed_type(name = "UetsDateTime", nullable)]
+pub struct DateTime(chrono::DateTime<Utc>);
 
 impl DateTime {
-    pub fn now_utc() -> Self {
-        Self(glib::DateTime::now_utc().unwrap())
+    pub fn now() -> Self {
+        Self(Utc::now())
     }
 
-    pub fn to_local(&self) -> Self {
-        Self(self.0.to_local().unwrap())
+    pub fn difference(&self, other: &Self) -> TimeDelta {
+        self.0 - other.0
     }
 
-    pub fn from_iso8601(string: &str) -> Result<Self> {
-        glib::DateTime::from_iso8601(string, None)
-            .map(Self)
-            .with_context(|| format!("Invalid iso8601 datetime `{}`", string))
-    }
+    pub fn local_fuzzy_display(&self) -> String {
+        let now = Self::now();
+        let this_local = self.0.with_timezone(&Local);
 
-    pub fn format_iso8601(&self) -> glib::GString {
-        self.0.format_iso8601().unwrap()
-    }
-
-    pub fn difference(&self, other: &Self) -> glib::TimeSpan {
-        self.0.difference(&other.0)
-    }
-
-    pub fn fuzzy_display(&self) -> glib::GString {
-        let now = Self::now_utc();
-
-        if self.0.ymd() == now.0.ymd() {
-            // Translators: `%R` will be replaced with 24-hour formatted datetime (e.g., `13:21`)
-            self.0.format("today at %R")
-        } else if now.difference(self).as_hours() <= 30 {
-            // Translators: `%R` will be replaced with 24-hour formatted datetime (e.g., `13:21`)
-            self.0.format("yesterday at %R")
+        if self.0.year() == now.0.year()
+            && self.0.month() == self.0.month()
+            && self.0.day() == self.0.day()
+        {
+            this_local.format("today at %R").to_string()
+        } else if (now.0 - self.0).num_hours() <= 30 {
+            this_local.format("yesterday at %R").to_string()
         } else {
-            self.0.format("%F") // ISO 8601 (e.g., `2001-07-08`)
+            this_local.format("%F").to_string() // ISO 8601 (e.g., `2001-07-08`)
         }
-        .expect("format must be correct")
     }
 }
 
 impl fmt::Debug for DateTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("DateTime")
-            .field(&self.format_iso8601())
+            .field(&self.0.to_rfc3339_opts(SecondsFormat::Secs, true))
             .finish()
-    }
-}
-
-impl Serialize for DateTime {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.format_iso8601().serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for DateTime {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let string = <&str>::deserialize(deserializer)?;
-        DateTime::from_iso8601(string).map_err(de::Error::custom)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn serialize() {
-        let dt = DateTime::from_iso8601("2022-07-28T08:23:28.623259+08").unwrap();
-        assert_eq!(
-            serde_json::to_string(&dt).unwrap(),
-            "\"2022-07-28T08:23:28.623259+08\"",
-        );
-
-        assert_eq!(dt.format_iso8601(), "2022-07-28T08:23:28.623259+08");
-    }
-
-    #[test]
-    fn deserialize() {
-        assert_eq!(
-            DateTime::from_iso8601("2022-07-28T08:23:28.623259+08").unwrap(),
-            serde_json::from_str("\"2022-07-28T08:23:28.623259+08\"").unwrap()
-        );
-
-        assert!(DateTime::from_iso8601("2022").is_err());
-        assert!(serde_json::from_str::<DateTime>("\"2022\"").is_err());
     }
 }
