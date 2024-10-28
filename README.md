@@ -39,6 +39,7 @@ rsync --filter=':- .gitignore' --exclude \".*/\" -aP ./ $REMOTE_DIR
 2. Adapt on operation mode change:
    - Attendance and Counter displays based on ID
    - Refrigerator and Inventory displays based on name
+3. Implement search or filter by ID, name, location, etc.
 
 ### Timeline View
 
