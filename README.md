@@ -25,13 +25,24 @@ rsync --filter=':- .gitignore' --exclude \".*/\" -aP ./ $REMOTE_DIR
 
 ## 📝 TODO
 
-### Dashboard
+### Dashboard View
 
-1. Filter date range.
+1. Filter date range
 
-### Timeline
+### Entities View
 
-1. Search by date, id, name, location, etc.
-2. Filter date range.
-3. Use name when it exists.
-4. Implement auto scroll to the bottom.
+1. Add details pane showing:
+   - N entries and exits
+   - Last action (whether entered or exited)
+   - Timeline of actions
+   - Other data
+2. Adapt on operation mode change:
+   - Attendance and Counter displays based on ID
+   - Refrigerator and Inventory displays based on name
+
+### Timeline View
+
+1. Search by date, id, name, location, etc
+2. Filter date range
+3. Use name when it exists
+4. Implement auto scroll to the bottom
