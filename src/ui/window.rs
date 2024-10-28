@@ -1,8 +1,12 @@
 use adw::subclass::prelude::*;
-use gtk::glib;
+use gtk::glib::{self, clone};
 
 use crate::{
-    ui::{dashboard_view::DashboardView, settings_view::SettingsView, timeline_view::TimelineView},
+    settings::OperationMode,
+    ui::{
+        dashboard_view::DashboardView, entities_view::EntitiesView, settings_view::SettingsView,
+        timeline_view::TimelineView,
+    },
     Application,
 };
 
@@ -14,6 +18,10 @@ mod imp {
     pub struct Window {
         #[template_child]
         pub(super) dashboard_view: TemplateChild<DashboardView>,
+        #[template_child]
+        pub(super) entities_stack_page: TemplateChild<adw::ViewStackPage>,
+        #[template_child]
+        pub(super) entities_view: TemplateChild<EntitiesView>,
         #[template_child]
         pub(super) timeline_view: TemplateChild<TimelineView>,
         #[template_child]
@@ -39,8 +47,23 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
-            self.timeline_view
-                .bind_timeline(Application::get().timeline());
+            let obj = self.obj();
+
+            let app = Application::get();
+
+            app.settings().connect_operation_mode_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_entities_stack_page_icon_name();
+                }
+            ));
+
+            self.entities_view
+                .bind_entity_list(app.timeline().entity_list());
+            self.timeline_view.bind_timeline(app.timeline());
+
+            obj.update_entities_stack_page_icon_name();
         }
     }
 
@@ -60,5 +83,16 @@ impl Window {
         glib::Object::builder()
             .property("application", application)
             .build()
+    }
+
+    fn update_entities_stack_page_icon_name(&self) {
+        let imp = self.imp();
+
+        let icon_name = match Application::get().settings().operation_mode() {
+            OperationMode::Counter | OperationMode::Attendance => "people-symbolic",
+            OperationMode::Inventory => "preferences-desktop-apps-symbolic",
+            OperationMode::Refrigerator => "egg-symbolic",
+        };
+        imp.entities_stack_page.set_icon_name(Some(icon_name));
     }
 }

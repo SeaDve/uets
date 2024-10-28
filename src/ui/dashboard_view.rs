@@ -131,7 +131,7 @@ impl DashboardView {
         let imp = self.imp();
 
         let n_inside = Application::get().timeline().n_inside();
-        imp.n_inside_label.set_text(&n_inside.to_string());
+        imp.n_inside_label.set_label(&n_inside.to_string());
     }
 
     fn update_max_n_inside_row(&self) {

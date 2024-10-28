@@ -41,7 +41,11 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for Graph {}
+    impl ObjectImpl for Graph {
+        fn dispose(&self) {
+            self.dispose_template();
+        }
+    }
 
     impl WidgetImpl for Graph {
         fn snapshot(&self, snapshot: &gtk::Snapshot) {

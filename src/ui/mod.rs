@@ -1,4 +1,6 @@
 mod dashboard_view;
+mod entities_view;
+mod entity_row;
 mod graph;
 mod information_row;
 mod settings_view;

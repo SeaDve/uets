@@ -21,6 +21,14 @@
               </object>
             </child>
             <child>
+              <object class="AdwViewStackPage" id="entities_stack_page">
+                <property name="title">Entities</property>
+                <property name="child">
+                  <object class="UetsEntitiesView" id="entities_view"/>
+                </property>
+              </object>
+            </child>
+            <child>
               <object class="AdwViewStackPage">
                 <property name="title">Timeline</property>
                 <property name="icon-name">view-list-bullet-symbolic</property>

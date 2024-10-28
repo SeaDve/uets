@@ -90,13 +90,13 @@ mod imp {
                 match item.kind() {
                     TimelineItemKind::Entry => {
                         self.image.set_icon_name(Some("arrow4-right-symbolic"));
-                        self.image.remove_css_class("exit");
-                        self.image.add_css_class("entry");
+                        self.image.remove_css_class("exit-icon");
+                        self.image.add_css_class("entry-icon");
                     }
                     TimelineItemKind::Exit { .. } => {
                         self.image.set_icon_name(Some("arrow4-left-symbolic"));
-                        self.image.remove_css_class("entry");
-                        self.image.add_css_class("exit");
+                        self.image.remove_css_class("entry-icon");
+                        self.image.add_css_class("exit-icon");
                     }
                 }
             } else {

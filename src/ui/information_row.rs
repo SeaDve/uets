@@ -77,6 +77,6 @@ impl InformationRow {
     fn update_ui(&self) {
         let value = self.value();
         self.set_visible(!value.trim().is_empty());
-        self.imp().value_label.set_text(&value);
+        self.imp().value_label.set_label(&value);
     }
 }
