@@ -1,7 +1,7 @@
 use adw::{prelude::*, subclass::prelude::*};
 use gtk::{gdk, glib, pango};
 
-use crate::{entity::Entity, entity_id::EntityId, Application};
+use crate::{entity::Entity, entity_id::EntityId, stock_id::StockId, Application};
 
 mod imp {
     use super::*;
@@ -10,9 +10,11 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/test_window.ui")]
     pub struct TestWindow {
         #[template_child]
-        pub(super) entry: TemplateChild<gtk::Entry>,
+        pub(super) entity_id_entry: TemplateChild<gtk::Entry>,
         #[template_child]
-        pub(super) clear_button: TemplateChild<gtk::Button>,
+        pub(super) stock_id_entry: TemplateChild<gtk::Entry>,
+        #[template_child]
+        pub(super) reset_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub(super) all_listbox: TemplateChild<gtk::ListBox>,
         #[template_child]
@@ -23,7 +25,7 @@ mod imp {
     impl ObjectSubclass for TestWindow {
         const NAME: &'static str = "UetsTestWindow";
         type Type = super::TestWindow;
-        type ParentType = adw::Window;
+        type ParentType = adw::ApplicationWindow;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
@@ -40,12 +42,12 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
-            self.entry.connect_activate(move |entry| {
+            self.entity_id_entry.connect_activate(move |entry| {
                 let id = EntityId::new(entry.text());
                 entry.set_text("");
                 Application::get().detector().simulate_detected(&id);
             });
-            self.clear_button.connect_clicked(|_button| {
+            self.reset_button.connect_clicked(|_button| {
                 if let Err(err) = Application::get().timeline().reset() {
                     eprintln!("Failed to reset timeline: {:?}", err);
                 }
@@ -95,16 +97,29 @@ mod imp {
 
     impl WidgetImpl for TestWindow {}
     impl WindowImpl for TestWindow {}
-    impl AdwWindowImpl for TestWindow {}
+    impl ApplicationWindowImpl for TestWindow {}
+    impl AdwApplicationWindowImpl for TestWindow {}
 }
 
 glib::wrapper! {
     pub struct TestWindow(ObjectSubclass<imp::TestWindow>)
-        @extends gtk::Widget, gtk::Window, adw::Window;
+        @extends gtk::Widget, gtk::Window, adw::Window, adw::ApplicationWindow;
 }
 
 impl TestWindow {
-    pub fn new() -> Self {
-        glib::Object::new()
+    pub fn new(application: &Application) -> Self {
+        glib::Object::builder()
+            .property("application", application)
+            .build()
+    }
+
+    pub fn stock_id(&self) -> Option<StockId> {
+        let text = self.imp().stock_id_entry.text();
+
+        if text.is_empty() {
+            return None;
+        }
+
+        Some(StockId::new(text))
     }
 }

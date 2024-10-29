@@ -1,7 +1,7 @@
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
 use indexmap::{map::Entry, IndexMap};
 
-use crate::{entity::Entity, entity_id::EntityId};
+use crate::{stock::Stock, stock_id::StockId};
 
 mod imp {
     use std::cell::RefCell;
@@ -9,22 +9,22 @@ mod imp {
     use super::*;
 
     #[derive(Default)]
-    pub struct EntityList {
-        pub(super) list: RefCell<IndexMap<EntityId, Entity>>,
+    pub struct StockList {
+        pub(super) list: RefCell<IndexMap<StockId, Stock>>,
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for EntityList {
-        const NAME: &'static str = "UetsEntityList";
-        type Type = super::EntityList;
+    impl ObjectSubclass for StockList {
+        const NAME: &'static str = "UetsStockList";
+        type Type = super::StockList;
         type Interfaces = (gio::ListModel,);
     }
 
-    impl ObjectImpl for EntityList {}
+    impl ObjectImpl for StockList {}
 
-    impl ListModelImpl for EntityList {
+    impl ListModelImpl for StockList {
         fn item_type(&self) -> glib::Type {
-            Entity::static_type()
+            Stock::static_type()
         }
 
         fn n_items(&self) -> u32 {
@@ -42,12 +42,12 @@ mod imp {
 }
 
 glib::wrapper! {
-    pub struct EntityList(ObjectSubclass<imp::EntityList>)
+    pub struct StockList(ObjectSubclass<imp::StockList>)
         @implements gio::ListModel;
 }
 
-impl EntityList {
-    pub fn from_raw(value: IndexMap<EntityId, Entity>) -> Self {
+impl StockList {
+    pub fn from_raw(value: IndexMap<StockId, Stock>) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
@@ -60,23 +60,19 @@ impl EntityList {
         self.imp().list.borrow().len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.imp().list.borrow().is_empty()
-    }
-
-    pub fn get(&self, id: &EntityId) -> Option<Entity> {
+    pub fn get(&self, id: &StockId) -> Option<Stock> {
         self.imp().list.borrow().get(id).cloned()
     }
 
-    pub fn insert(&self, entity: Entity) {
+    pub fn insert(&self, stock: Stock) {
         let imp = self.imp();
 
-        let id = entity.id();
+        let id = stock.id();
         let (index, removed, added) = match imp.list.borrow_mut().entry(id.clone()) {
             Entry::Occupied(entry) => (entry.index(), 1, 1),
             Entry::Vacant(entry) => {
                 let index = entry.index();
-                entry.insert(entity);
+                entry.insert(stock);
                 (index, 0, 1)
             }
         };

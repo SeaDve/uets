@@ -70,7 +70,15 @@ mod imp {
                 #[weak]
                 obj,
                 move |_, id| {
-                    if let Err(err) = obj.timeline().handle_detected(id) {
+                    let window = obj
+                        .windows()
+                        .into_iter()
+                        .find_map(|w| w.downcast::<TestWindow>().ok())
+                        .unwrap();
+                    if let Err(err) = obj
+                        .timeline()
+                        .handle_detected(id, window.stock_id().as_ref())
+                    {
                         tracing::error!("Failed to handle entity: {:?}", err);
                     }
                 }
@@ -140,8 +148,8 @@ impl Application {
 
     fn setup_actions(&self) {
         let show_test_window_action = gio::ActionEntry::builder("show-test-window")
-            .activate(|_: &Self, _, _| {
-                TestWindow::new().present();
+            .activate(|obj: &Self, _, _| {
+                TestWindow::new(obj).present();
             })
             .build();
         let quit_action = gio::ActionEntry::builder("quit")

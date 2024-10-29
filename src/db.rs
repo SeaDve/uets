@@ -8,20 +8,24 @@ use gtk::glib;
 use heed::types::SerdeJson;
 use serde::{Deserialize, Serialize};
 
-use crate::{date_time::DateTime, entity_id::EntityId, APP_ID};
+use crate::{date_time::DateTime, entity_id::EntityId, stock_id::StockId, APP_ID};
 
-const N_NAMED_DBS: u32 = 2;
+const N_NAMED_DBS: u32 = 3;
+
+pub type TimelineDbType = heed::Database<SerdeJson<DateTime>, SerdeJson<RawTimelineItem>>;
+pub const TIMELINE_DB_NAME: &str = "timeline";
 
 pub type EntitiesDbType = heed::Database<SerdeJson<EntityId>, SerdeJson<RawEntity>>;
 pub const ENTITIES_DB_NAME: &str = "entities";
 
-pub type TimelineDbType = heed::Database<SerdeJson<DateTime>, SerdeJson<RawTimelineItem>>;
-pub const TIMELINE_DB_NAME: &str = "timeline";
+pub type StocksDbType = heed::Database<SerdeJson<StockId>, SerdeJson<RawStock>>;
+pub const STOCKS_DB_NAME: &str = "stocks";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RawTimelineItem {
     pub kind: RawTimelineItemKind,
     pub entity_id: EntityId,
+    pub stock_id: Option<StockId>,
     pub n_inside: u32,
 }
 
@@ -32,7 +36,12 @@ pub enum RawTimelineItemKind {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct RawEntity {}
+pub struct RawEntity {
+    pub stock_id: Option<StockId>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RawStock {}
 
 pub fn new_env() -> Result<heed::Env> {
     let path = glib::user_data_dir().join(format!("{}/db", APP_ID));

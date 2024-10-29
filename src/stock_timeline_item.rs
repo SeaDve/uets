@@ -1,7 +1,7 @@
 use gtk::{glib, subclass::prelude::*};
 
 use crate::{
-    date_time::DateTime, db, entity_id::EntityId, stock_id::StockId,
+    date_time::DateTime, entity_id::EntityId, stock_id::StockId,
     timeline_item_kind::TimelineItemKind,
 };
 
@@ -11,36 +11,36 @@ mod imp {
     use super::*;
 
     #[derive(Default)]
-    pub struct TimelineItem {
+    pub struct StockTimelineItem {
         pub(super) dt: OnceCell<DateTime>,
         pub(super) kind: OnceCell<TimelineItemKind>,
         /// Id of the entity associated with this item.
         pub(super) entity_id: OnceCell<EntityId>,
         /// Id of the stock associated with this item.
-        pub(super) stock_id: OnceCell<Option<StockId>>,
+        pub(super) stock_id: OnceCell<StockId>,
         /// Number of entity inside at this dt point.
         pub(super) n_inside: OnceCell<u32>,
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for TimelineItem {
-        const NAME: &'static str = "UetsTimelineItem";
-        type Type = super::TimelineItem;
+    impl ObjectSubclass for StockTimelineItem {
+        const NAME: &'static str = "UetsStockTimelineItem";
+        type Type = super::StockTimelineItem;
     }
 
-    impl ObjectImpl for TimelineItem {}
+    impl ObjectImpl for StockTimelineItem {}
 }
 
 glib::wrapper! {
-    pub struct TimelineItem(ObjectSubclass<imp::TimelineItem>);
+    pub struct StockTimelineItem(ObjectSubclass<imp::StockTimelineItem>);
 }
 
-impl TimelineItem {
+impl StockTimelineItem {
     pub fn new(
         dt: DateTime,
         kind: TimelineItemKind,
         entity_id: EntityId,
-        stock_id: Option<StockId>,
+        stock_id: StockId,
         n_inside: u32,
     ) -> Self {
         let this = glib::Object::new::<Self>();
@@ -55,25 +55,6 @@ impl TimelineItem {
         this
     }
 
-    pub fn from_db(dt: DateTime, raw: db::RawTimelineItem) -> Self {
-        Self::new(
-            dt,
-            TimelineItemKind::from_db(raw.kind),
-            raw.entity_id,
-            raw.stock_id,
-            raw.n_inside,
-        )
-    }
-
-    pub fn to_db(&self) -> db::RawTimelineItem {
-        db::RawTimelineItem {
-            kind: self.kind().to_db(),
-            entity_id: self.entity_id().clone(),
-            stock_id: self.stock_id().cloned(),
-            n_inside: self.n_inside(),
-        }
-    }
-
     pub fn dt(&self) -> DateTime {
         *self.imp().dt.get().unwrap()
     }
@@ -86,8 +67,8 @@ impl TimelineItem {
         self.imp().entity_id.get().unwrap()
     }
 
-    pub fn stock_id(&self) -> Option<&StockId> {
-        self.imp().stock_id.get().unwrap().as_ref()
+    pub fn stock_id(&self) -> &StockId {
+        self.imp().stock_id.get().unwrap()
     }
 
     pub fn n_inside(&self) -> u32 {

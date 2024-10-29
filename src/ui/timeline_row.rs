@@ -5,10 +5,8 @@ use gtk::{
 };
 
 use crate::{
-    format,
-    settings::OperationMode,
-    timeline_item::{TimelineItem, TimelineItemKind},
-    Application,
+    format, settings::OperationMode, timeline_item::TimelineItem,
+    timeline_item_kind::TimelineItemKind, Application,
 };
 
 mod imp {

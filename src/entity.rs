@@ -3,8 +3,7 @@ use std::fmt;
 use gtk::{glib, subclass::prelude::*};
 
 use crate::{
-    date_time::DateTime, date_time_pair::DateTimePair, db, entity_data::EntityData,
-    entity_id::EntityId, entity_kind::EntityKind,
+    date_time::DateTime, date_time_pair::DateTimePair, db, entity_id::EntityId, stock_id::StockId,
 };
 
 mod imp {
@@ -15,8 +14,7 @@ mod imp {
     #[derive(Default)]
     pub struct Entity {
         pub(super) id: OnceCell<EntityId>,
-        pub(super) data: RefCell<Option<EntityData>>,
-
+        pub(super) stock_id: OnceCell<Option<StockId>>,
         pub(super) dt_pairs: RefCell<Vec<DateTimePair>>,
     }
 
@@ -34,25 +32,38 @@ glib::wrapper! {
 }
 
 impl Entity {
-    pub fn new(id: &EntityId) -> Self {
+    pub fn new(id: EntityId, stock_id: Option<StockId>) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
-        imp.id.set(id.clone()).unwrap();
+        imp.id.set(id).unwrap();
+        imp.stock_id.set(stock_id).unwrap();
 
         this
     }
 
-    pub fn from_db(id: &EntityId, _raw: db::RawEntity) -> Self {
-        Self::new(id)
+    pub fn from_db(id: EntityId, raw: db::RawEntity) -> Self {
+        let this = glib::Object::new::<Self>();
+
+        let imp = this.imp();
+        imp.id.set(id).unwrap();
+        imp.stock_id.set(raw.stock_id).unwrap();
+
+        this
     }
 
     pub fn to_db(&self) -> db::RawEntity {
-        db::RawEntity {}
+        db::RawEntity {
+            stock_id: self.stock_id().cloned(),
+        }
     }
 
     pub fn id(&self) -> &EntityId {
         self.imp().id.get().unwrap()
+    }
+
+    pub fn stock_id(&self) -> Option<&StockId> {
+        self.imp().stock_id.get().unwrap().as_ref()
     }
 
     pub fn dt_pairs(&self) -> Vec<DateTimePair> {
@@ -61,27 +72,6 @@ impl Entity {
 
     pub fn last_dt_pair(&self) -> Option<DateTimePair> {
         self.imp().dt_pairs.borrow().last().cloned()
-    }
-
-    pub fn kind(&self) -> EntityKind {
-        let imp = self.imp();
-
-        match imp.data.borrow().as_ref() {
-            None => EntityKind::Counter,
-            Some(data) => match data {
-                EntityData::Inventory(_) => EntityKind::Inventory,
-                EntityData::Refrigerator(_) => EntityKind::Refrigerator,
-                EntityData::Attendance(_) => EntityKind::Attendance,
-            },
-        }
-    }
-
-    pub fn with_data(&self, cb: impl FnOnce(&mut EntityData)) {
-        let imp = self.imp();
-
-        if let Some(data) = imp.data.borrow_mut().as_mut() {
-            cb(data);
-        }
     }
 
     pub fn is_inside(&self) -> bool {
@@ -126,6 +116,7 @@ impl fmt::Display for Entity {
 
         f.debug_struct("Entity")
             .field("id", self.id())
+            .field("stock-id", &self.stock_id())
             .field("is-inside", &self.is_inside())
             .field("dt-pairs", &imp.dt_pairs.borrow())
             .finish()

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <template class="UetsTestWindow" parent="AdwWindow">
+  <template class="UetsTestWindow" parent="AdwApplicationWindow">
     <property name="default-width">480</property>
     <property name="default-height">816</property>
     <property name="content">
@@ -28,15 +28,21 @@
                 <property name="spacing">12</property>
                 <child>
                   <object class="GtkBox">
-                    <property name="spacing">12</property>
+                    <property name="spacing">6</property>
+                    <property name="orientation">vertical</property>
                     <child>
-                      <object class="GtkEntry" id="entry">
+                      <object class="GtkButton" id="reset_button">
+                        <property name="label">Reset</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkEntry" id="entity_id_entry">
                         <property name="hexpand">True</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkButton" id="clear_button">
-                        <property name="label">Reset</property>
+                      <object class="GtkEntry" id="stock_id_entry">
+                        <property name="hexpand">True</property>
                       </object>
                     </child>
                   </object>
