@@ -40,7 +40,7 @@
             </child>
             <child>
               <object class="AdwActionRow">
-                <property name="title">Refrigerator</property>
+                <property name="title">Refrigerator (Experimental)</property>
                 <property name="subtitle">Used for tracking food items with lifetime, quantity, and recipe suggestions</property>
                 <property name="activatable-widget">refrigerator_check_button</property>
                 <child type="prefix">
