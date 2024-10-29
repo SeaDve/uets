@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Instant};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
 use indexmap::IndexMap;
 
@@ -277,6 +277,14 @@ impl Timeline {
             .get(entity_id)
             .unwrap_or_else(|| Entity::new(entity_id.clone(), stock_id.cloned()));
 
+        if stock_id.is_some() && stock_id != entity.stock_id() {
+            // FIXME Properly reduce old stock n_inside and increase new stock n_inside.
+            bail!(
+                "Entity {} already handled with different stock id",
+                entity_id
+            );
+        }
+
         let now_dt = DateTime::now();
         debug_assert!(imp
             .list
@@ -316,6 +324,7 @@ impl Timeline {
             new_n_inside,
         );
 
+        // Use entity stock id from entity if no stock id is provided.
         let stock = if let Some(stock_id) = stock_id.or_else(|| entity.stock_id()) {
             let stock = self
                 .stock_list()
