@@ -123,6 +123,10 @@ impl TimelineRow {
 
         if let Some(ref item) = self.item() {
             let entity_id = item.entity_id();
+            let title = item.stock_id().map_or_else(
+                || item.entity_id().to_string(),
+                |stock_id| format!("{} ({})", stock_id, entity_id),
+            );
 
             let (enter_verb, exit_verb, stay_suffix) =
                 match Application::get().settings().operation_mode() {
@@ -136,12 +140,12 @@ impl TimelineRow {
 
             let text = match item.kind() {
                 TimelineItemKind::Entry => {
-                    format!("<b>{}</b> {}", entity_id, enter_verb)
+                    format!("<b>{}</b> {}", title, enter_verb)
                 }
                 TimelineItemKind::Exit { inside_duration } => {
                     format!(
                         "<b>{}</b> {} after <i>{}</i> {}",
-                        entity_id,
+                        title,
                         exit_verb,
                         format::duration(inside_duration),
                         stay_suffix

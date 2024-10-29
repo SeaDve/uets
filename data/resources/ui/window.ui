@@ -32,8 +32,7 @@
               </object>
             </child>
             <child>
-              <object class="AdwViewStackPage" id="entities_stack_page">
-                <property name="title">Entities</property>
+              <object class="AdwViewStackPage" id="assets_stack_page">
                 <property name="child">
                   <object class="UetsEntitiesView" id="entities_view"/>
                 </property>

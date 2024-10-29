@@ -19,7 +19,7 @@ mod imp {
         #[template_child]
         pub(super) dashboard_view: TemplateChild<DashboardView>,
         #[template_child]
-        pub(super) entities_stack_page: TemplateChild<adw::ViewStackPage>,
+        pub(super) assets_stack_page: TemplateChild<adw::ViewStackPage>,
         #[template_child]
         pub(super) entities_view: TemplateChild<EntitiesView>,
         #[template_child]
@@ -55,7 +55,7 @@ mod imp {
                 #[weak]
                 obj,
                 move |_| {
-                    obj.update_entities_stack_page_icon_name();
+                    obj.update_entities_stack_page_display();
                 }
             ));
 
@@ -63,7 +63,7 @@ mod imp {
                 .bind_entity_list(app.timeline().entity_list());
             self.timeline_view.bind_timeline(app.timeline());
 
-            obj.update_entities_stack_page_icon_name();
+            obj.update_entities_stack_page_display();
         }
     }
 
@@ -85,14 +85,20 @@ impl Window {
             .build()
     }
 
-    fn update_entities_stack_page_icon_name(&self) {
+    fn update_entities_stack_page_display(&self) {
         let imp = self.imp();
+
+        let title = match Application::get().settings().operation_mode() {
+            OperationMode::Counter | OperationMode::Attendance => "Entities",
+            OperationMode::Inventory | OperationMode::Refrigerator => "Stocks",
+        };
+        imp.assets_stack_page.set_title(Some(title));
 
         let icon_name = match Application::get().settings().operation_mode() {
             OperationMode::Counter | OperationMode::Attendance => "people-symbolic",
             OperationMode::Inventory => "preferences-desktop-apps-symbolic",
             OperationMode::Refrigerator => "egg-symbolic",
         };
-        imp.entities_stack_page.set_icon_name(Some(icon_name));
+        imp.assets_stack_page.set_icon_name(Some(icon_name));
     }
 }
