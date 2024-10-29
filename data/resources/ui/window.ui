@@ -34,7 +34,14 @@
             <child>
               <object class="AdwViewStackPage" id="assets_stack_page">
                 <property name="child">
-                  <object class="UetsEntitiesView" id="entities_view"/>
+                  <object class="GtkStack" id="assets_view_stack">
+                    <child>
+                      <object class="UetsStocksView" id="stocks_view"/>
+                    </child>
+                    <child>
+                      <object class="UetsEntitiesView" id="entities_view"/>
+                    </child>
+                  </object>
                 </property>
               </object>
             </child>

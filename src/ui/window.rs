@@ -5,7 +5,7 @@ use crate::{
     settings::OperationMode,
     ui::{
         dashboard_view::DashboardView, entities_view::EntitiesView, settings_view::SettingsView,
-        timeline_view::TimelineView,
+        stocks_view::StocksView, timeline_view::TimelineView,
     },
     Application,
 };
@@ -21,7 +21,11 @@ mod imp {
         #[template_child]
         pub(super) assets_stack_page: TemplateChild<adw::ViewStackPage>,
         #[template_child]
+        pub(super) assets_view_stack: TemplateChild<gtk::Stack>,
+        #[template_child]
         pub(super) entities_view: TemplateChild<EntitiesView>,
+        #[template_child]
+        pub(super) stocks_view: TemplateChild<StocksView>,
         #[template_child]
         pub(super) timeline_view: TemplateChild<TimelineView>,
         #[template_child]
@@ -50,20 +54,23 @@ mod imp {
             let obj = self.obj();
 
             let app = Application::get();
+            let timeline = app.timeline();
 
             app.settings().connect_operation_mode_changed(clone!(
                 #[weak]
                 obj,
                 move |_| {
                     obj.update_entities_stack_page_display();
+                    obj.update_assets_view_stack();
                 }
             ));
 
-            self.entities_view
-                .bind_entity_list(app.timeline().entity_list());
-            self.timeline_view.bind_timeline(app.timeline());
+            self.entities_view.bind_entity_list(timeline.entity_list());
+            self.stocks_view.bind_stock_list(timeline.stock_list());
+            self.timeline_view.bind_timeline(timeline);
 
             obj.update_entities_stack_page_display();
+            obj.update_assets_view_stack();
         }
     }
 
@@ -100,5 +107,18 @@ impl Window {
             OperationMode::Refrigerator => "egg-symbolic",
         };
         imp.assets_stack_page.set_icon_name(Some(icon_name));
+    }
+
+    fn update_assets_view_stack(&self) {
+        let imp = self.imp();
+
+        match Application::get().settings().operation_mode() {
+            OperationMode::Counter | OperationMode::Attendance => {
+                imp.assets_view_stack.set_visible_child(&*imp.entities_view);
+            }
+            OperationMode::Inventory | OperationMode::Refrigerator => {
+                imp.assets_view_stack.set_visible_child(&*imp.stocks_view);
+            }
+        }
     }
 }

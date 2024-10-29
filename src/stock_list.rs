@@ -60,6 +60,10 @@ impl StockList {
         self.imp().list.borrow().len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.imp().list.borrow().is_empty()
+    }
+
     pub fn get(&self, id: &StockId) -> Option<Stock> {
         self.imp().list.borrow().get(id).cloned()
     }

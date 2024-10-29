@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="UetsStockRow">
+    <property name="layout-manager">
+      <object class="GtkBinLayout"/>
+    </property>
+    <child>
+      <object class="GtkBox" id="hbox">
+        <property name="margin-top">6</property>
+        <property name="margin-bottom">6</property>
+        <property name="spacing">12</property>
+        <child>
+          <object class="GtkImage" id="image">
+            <property name="valign">center</property>
+            <property name="icon-name">egg-symbolic</property>
+            <style>
+              <class name="stock-icon"/>
+            </style>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="valign">center</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkLabel" id="title_label">
+                <property name="xalign">0</property>
+                <property name="use-markup">True</property>
+                <property name="wrap">True</property>
+                <property name="wrap-mode">char</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel" id="n_inside_label">
+                <property name="xalign">0</property>
+                <property name="use-markup">True</property>
+                <property name="wrap">True</property>
+                <property name="wrap-mode">char</property>
+                <style>
+                  <class name="caption"/>
+                  <class name="dim-label"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

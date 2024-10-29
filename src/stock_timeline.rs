@@ -80,6 +80,7 @@ impl StockTimeline {
         let (index, prev_value) = imp.list.borrow_mut().insert_full(item.dt(), item);
         debug_assert_eq!(prev_value, None);
 
+        self.notify_n_inside();
         self.items_changed(index as u32, 0, 1);
 
         debug_assert!(imp.list.borrow().keys().is_sorted());
@@ -95,6 +96,8 @@ impl StockTimeline {
         }
 
         imp.list.borrow_mut().clear();
+
+        self.notify_n_inside();
         self.items_changed(0, prev_len as u32, 0);
 
         debug_assert!(imp.list.borrow().keys().is_sorted());

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <template class="UetsTimelineView">
+  <template class="UetsStocksView">
     <property name="layout-manager">
       <object class="GtkBinLayout"/>
     </property>
@@ -8,8 +8,8 @@
       <object class="GtkStack" id="stack">
         <property name="transition-type">crossfade</property>
         <child>
-          <object class="AdwStatusPage" id="no_data_page">
-            <property name="title">No Data</property>
+          <object class="AdwStatusPage" id="empty_page">
+            <property name="title">No Stocks</property>
           </object>
         </child>
         <child>
@@ -23,11 +23,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template class="GtkListItem">
-    <property name="activatable">False</property>
     <property name="selectable">False</property>
     <property name="child">
-      <object class="UetsTimelineRow">
-        <binding name="item">
+      <object class="UetsStockRow">
+        <binding name="stock">
           <lookup name="item">GtkListItem</lookup>
         </binding>
       </object>
@@ -39,7 +38,7 @@
                   </object>
                 </property>
                 <style>
-                  <class name="timeline-list-view"/>
+                  <class name="navigation-sidebar"/>
                 </style>
               </object>
             </property>
