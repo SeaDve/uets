@@ -19,7 +19,7 @@ mod imp {
         pub(super) stock: RefCell<Option<Stock>>,
 
         #[template_child]
-        pub(super) hbox: TemplateChild<gtk::Box>,
+        pub(super) hbox: TemplateChild<gtk::Box>, // Unused
         #[template_child]
         pub(super) image: TemplateChild<gtk::Image>,
         #[template_child]

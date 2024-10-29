@@ -15,6 +15,8 @@ mod imp {
         pub(super) entity: RefCell<Option<Entity>>,
 
         #[template_child]
+        pub(super) hbox: TemplateChild<gtk::Box>, // Unused
+        #[template_child]
         pub(super) image: TemplateChild<gtk::Image>,
         #[template_child]
         pub(super) title_label: TemplateChild<gtk::Label>,
