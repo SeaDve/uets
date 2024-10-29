@@ -316,7 +316,7 @@ impl Timeline {
             new_n_inside,
         );
 
-        let stock = if let Some(stock_id) = stock_id {
+        let stock = if let Some(stock_id) = stock_id.or_else(|| entity.stock_id()) {
             let stock = self
                 .stock_list()
                 .get(stock_id)
