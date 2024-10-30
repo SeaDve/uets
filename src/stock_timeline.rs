@@ -68,6 +68,8 @@ impl StockTimeline {
     pub fn from_raw(raw: IndexMap<DateTime, StockTimelineItem>) -> Self {
         let this = glib::Object::new::<Self>();
 
+        debug_assert!(raw.keys().is_sorted());
+
         let imp = this.imp();
         imp.list.replace(raw);
 
