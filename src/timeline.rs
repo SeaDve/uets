@@ -292,15 +292,15 @@ impl Timeline {
             .last()
             .map_or(true, |(dt, _)| &now_dt > dt));
 
-        let was_inside = entity.is_inside();
+        let is_exit = entity.is_inside();
 
-        if was_inside {
+        if is_exit {
             entity.add_exit_dt(now_dt);
         } else {
             entity.add_entry_dt(now_dt);
         }
 
-        let item_kind = if was_inside {
+        let item_kind = if is_exit {
             TimelineItemKind::Exit {
                 inside_duration: entity
                     .last_dt_pair()
@@ -311,7 +311,7 @@ impl Timeline {
         } else {
             TimelineItemKind::Entry
         };
-        let new_n_inside = if was_inside {
+        let new_n_inside = if is_exit {
             self.n_inside() - 1
         } else {
             self.n_inside() + 1
@@ -332,7 +332,7 @@ impl Timeline {
                 .unwrap_or_else(|| Stock::new(stock_id.clone()));
             let stock_timeline = stock.timeline();
 
-            let stock_new_n_inside = if was_inside {
+            let stock_new_n_inside = if is_exit {
                 stock_timeline.n_inside() - 1
             } else {
                 stock_timeline.n_inside() + 1
@@ -363,7 +363,7 @@ impl Timeline {
             Ok(())
         })?;
 
-        if was_inside {
+        if is_exit {
             self.set_n_exits(self.n_exits() + 1);
             self.set_last_exit_dt(Some(now_dt));
         } else {
