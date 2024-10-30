@@ -277,8 +277,13 @@ impl Timeline {
             .get(entity_id)
             .unwrap_or_else(|| Entity::new(entity_id.clone(), stock_id.cloned()));
 
+        // TODO Should this be allowed instead?
+        //
+        // When exiting, this should not be allowed as an asset cannot enter then exit
+        // with different stock id. But if the same entity enters with a different stock id,
+        // the id may have been reused on the a different item, I think this should be allowed,
+        // or can it even happen?
         if stock_id.is_some() && stock_id != entity.stock_id() {
-            // FIXME Properly reduce old stock n_inside and increase new stock n_inside.
             bail!(
                 "Entity {} already handled with different stock id",
                 entity_id
