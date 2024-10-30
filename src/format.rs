@@ -9,29 +9,25 @@ pub fn duration(time_span: TimeDelta) -> String {
     let minutes_display = (secs % 3600) / 60;
     let seconds_display = secs % 60;
 
-    let days_display_str = n_f(
-        "{time} day",
-        "{time} days",
-        days_display as u32,
-        &[("time", &days_display.to_string())],
+    let days_display_str = format!(
+        "{} {}",
+        days_display,
+        pluralize("day", "days", days_display as u32)
     );
-    let hours_display_str = n_f(
-        "{time} hour",
-        "{time} hours",
-        hours_display as u32,
-        &[("time", &hours_display.to_string())],
+    let hours_display_str = format!(
+        "{} {}",
+        hours_display,
+        pluralize("hour", "hours", hours_display as u32)
     );
-    let minutes_display_str = n_f(
-        "{time} minute",
-        "{time} minutes",
-        minutes_display as u32,
-        &[("time", &minutes_display.to_string())],
+    let minutes_display_str = format!(
+        "{} {}",
+        minutes_display,
+        pluralize("minute", "minutes", minutes_display as u32)
     );
-    let seconds_display_str = n_f(
-        "{time} second",
-        "{time} seconds",
-        seconds_display as u32,
-        &[("time", &seconds_display.to_string())],
+    let seconds_display_str = format!(
+        "{} {}",
+        seconds_display,
+        pluralize("second", "seconds", seconds_display as u32)
     );
 
     if days_display > 0 {
@@ -55,39 +51,10 @@ pub fn duration(time_span: TimeDelta) -> String {
     }
 }
 
-fn n_f(singular: &str, plural: &str, n: u32, args: &[(&str, &str)]) -> String {
-    let s = match n {
+fn pluralize<'a>(singular: &'a str, plural: &'a str, n: u32) -> &'a str {
+    match n {
         0 => plural,
         1 => singular,
         2.. => plural,
-    };
-    freplace(s.to_string(), args)
-}
-
-/// Replace variables in the given string using the given key-value tuples.
-///
-/// The expected format to replace is `{name}`, where `name` is the first string
-/// in a key-value tuple.
-fn freplace(s: String, args: &[(&str, &str)]) -> String {
-    // This function is useless if there are no arguments
-    debug_assert!(!args.is_empty(), "atleast one key-value pair must be given");
-
-    // We could check here if all keys were used, but some translations might
-    // not use all variables, so we don't do that.
-
-    let mut s = s;
-    for (key, val) in args {
-        s = s.replace(&format!("{{{key}}}"), val);
     }
-
-    debug_assert!(!s.contains('{'), "all format variables must be replaced");
-
-    if tracing::enabled!(tracing::Level::WARN) && s.contains('{') {
-        tracing::warn!(
-            "all format variables must be replaced, but some were not: {}",
-            s
-        );
-    }
-
-    s
 }
