@@ -9,8 +9,7 @@
         <property name="orientation">vertical</property>
         <child>
           <object class="GtkImage" id="close_image">
-            <!-- FIXME -->
-            <property name="icon-name">open-menu-symbolic</property>
+            <property name="icon-name">go-down-symbolic</property>
             <style>
               <class name="close-icon"/>
             </style>
