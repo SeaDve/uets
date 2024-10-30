@@ -29,21 +29,17 @@ rsync --filter=':- .gitignore' --exclude \".*/\" -aP ./ $REMOTE_DIR
 
 1. Filter date range
 
-### Entities View
+### Assets View
 
 1. Add details pane showing:
    - N entries and exits
    - Last action (whether entered or exited)
    - Timeline of actions
    - Other data
-2. Adapt on operation mode change:
-   - Attendance and Counter displays based on ID
-   - Refrigerator and Inventory displays based on name
-3. Implement search or filter by inside or outside, ID, name, location, etc.
+2. Implement search or filter by inside or outside, ID, name, location, etc.
 
 ### Timeline View
 
 1. Search by date, id, name, location, etc
 2. Filter date range
-3. Use name when it exists
-4. Implement auto scroll to the bottom
+3. Implement auto scroll to the bottom
