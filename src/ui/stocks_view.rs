@@ -120,6 +120,10 @@ impl StocksView {
             .expect("stock must exist") as u32;
 
         imp.selection_model.set_selected(position);
+
+        imp.list_view
+            .activate_action("list.scroll-to-item", Some(&position.to_variant()))
+            .unwrap();
     }
 
     fn stock_list(&self) -> StockList {
