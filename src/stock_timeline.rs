@@ -76,6 +76,30 @@ impl StockTimeline {
         this
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.imp().list.borrow().is_empty()
+    }
+
+    pub fn first(&self) -> Option<StockTimelineItem> {
+        self.imp()
+            .list
+            .borrow()
+            .first()
+            .map(|(_, item)| item.clone())
+    }
+
+    pub fn last(&self) -> Option<StockTimelineItem> {
+        self.imp()
+            .list
+            .borrow()
+            .last()
+            .map(|(_, item)| item.clone())
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = StockTimelineItem> + '_ {
+        ListModelExtManual::iter(self).map(|item| item.unwrap())
+    }
+
     pub fn insert(&self, item: StockTimelineItem) {
         let imp = self.imp();
 

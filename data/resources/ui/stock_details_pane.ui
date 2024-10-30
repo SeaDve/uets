@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="UetsStockDetailsPane">
+    <property name="layout-manager">
+      <object class="GtkBinLayout"/>
+    </property>
+    <child>
+      <object class="GtkBox" id="vbox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkImage" id="close_image">
+            <!-- FIXME -->
+            <property name="icon-name">open-menu-symbolic</property>
+            <style>
+              <class name="close-icon"/>
+            </style>
+          </object>
+        </child>
+        <child>
+          <object class="GtkSeparator"/>
+        </child>
+        <child>
+          <object class="AdwPreferencesPage">
+            <child>
+              <object class="AdwPreferencesGroup">
+                <property name="title">Information</property>
+                <child>
+                  <object class="UetsInformationRow" id="id_row">
+                    <property name="title">Name</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="UetsInformationRow" id="n_inside_row">
+                    <property name="title">Count</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup">
+                <property name="title">Count Over Time</property>
+                <child>
+                  <object class="UetsStockGraph" id="graph">
+                    <property name="height-request">240</property>
+                    <style>
+                      <class name="card"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

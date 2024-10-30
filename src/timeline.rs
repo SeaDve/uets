@@ -285,7 +285,7 @@ impl Timeline {
         // or can it even happen?
         if stock_id.is_some() && stock_id != entity.stock_id() {
             bail!(
-                "Entity {} already handled with different stock id",
+                "Entity `{}` already handled with different stock id",
                 entity_id
             );
         }

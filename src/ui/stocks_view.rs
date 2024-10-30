@@ -4,7 +4,11 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::{stock_list::StockList, ui::stock_row::StockRow};
+use crate::{
+    stock::Stock,
+    stock_list::StockList,
+    ui::{stock_details_pane::StockDetailsPane, stock_row::StockRow},
+};
 
 mod imp {
     use super::*;
@@ -13,13 +17,17 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/stocks_view.ui")]
     pub struct StocksView {
         #[template_child]
+        pub(super) flap: TemplateChild<adw::Flap>,
+        #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
         pub(super) empty_page: TemplateChild<adw::StatusPage>,
         #[template_child]
         pub(super) main_page: TemplateChild<gtk::ScrolledWindow>,
         #[template_child]
-        pub(super) list_view: TemplateChild<gtk::ListView>,
+        pub(super) selection_model: TemplateChild<gtk::SingleSelection>,
+        #[template_child]
+        pub(super) details_pane: TemplateChild<StockDetailsPane>,
     }
 
     #[glib::object_subclass]
@@ -40,6 +48,32 @@ mod imp {
     }
 
     impl ObjectImpl for StocksView {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            let obj = self.obj();
+
+            self.selection_model
+                .bind_property("selected-item", &*self.flap, "reveal-flap")
+                .transform_to(|_, stock: Option<Stock>| Some(stock.is_some()))
+                .sync_create()
+                .build();
+            self.selection_model
+                .bind_property("selected-item", &*self.details_pane, "stock")
+                .sync_create()
+                .build();
+
+            self.details_pane.connect_close_request(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.imp()
+                        .selection_model
+                        .set_selected(gtk::INVALID_LIST_POSITION);
+                }
+            ));
+        }
+
         fn dispose(&self) {
             self.dispose_template();
         }
@@ -69,8 +103,7 @@ impl StocksView {
             }
         ));
 
-        let selection_model = gtk::NoSelection::new(Some(stock_list.clone()));
-        imp.list_view.set_model(Some(&selection_model));
+        imp.selection_model.set_model(Some(stock_list));
 
         self.update_stack();
     }
@@ -78,13 +111,8 @@ impl StocksView {
     fn update_stack(&self) {
         let imp = self.imp();
 
-        let selection_model = imp
-            .list_view
-            .model()
-            .unwrap()
-            .downcast::<gtk::NoSelection>()
-            .unwrap();
-        let stock_list = selection_model
+        let stock_list = imp
+            .selection_model
             .model()
             .unwrap()
             .downcast::<StockList>()

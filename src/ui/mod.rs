@@ -4,6 +4,8 @@ mod entity_row;
 mod graph;
 mod information_row;
 mod settings_view;
+mod stock_details_pane;
+mod stock_graph;
 mod stock_row;
 mod stocks_view;
 mod test_window;

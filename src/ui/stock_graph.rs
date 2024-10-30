@@ -9,27 +9,28 @@ use plotters_cairo::CairoBackend;
 
 use crate::{
     colors::{self, ColorExt},
-    timeline::Timeline,
+    stock_timeline::StockTimeline,
 };
 
 mod imp {
-    use std::cell::OnceCell;
+    use std::cell::{OnceCell, RefCell};
 
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/seadve/Uets/ui/graph.ui")]
-    pub struct Graph {
+    #[template(resource = "/io/github/seadve/Uets/ui/stock_graph.ui")]
+    pub struct StockGraph {
         #[template_child]
         pub(super) no_data_revealer: TemplateChild<gtk::Revealer>,
 
-        pub(super) timeline: OnceCell<Timeline>,
+        pub(super) timeline: RefCell<Option<StockTimeline>>,
+        pub(super) timeline_signals: OnceCell<glib::SignalGroup>,
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for Graph {
-        const NAME: &'static str = "UetsGraph";
-        type Type = super::Graph;
+    impl ObjectSubclass for StockGraph {
+        const NAME: &'static str = "UetsStockGraph";
+        type Type = super::StockGraph;
         type ParentType = gtk::Widget;
 
         fn class_init(klass: &mut Self::Class) {
@@ -41,13 +42,38 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for Graph {
+    impl ObjectImpl for StockGraph {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            let obj = self.obj();
+
+            let timeline_signals = glib::SignalGroup::new::<StockTimeline>();
+            timeline_signals.connect_local(
+                "items-changed",
+                false,
+                clone!(
+                    #[weak]
+                    obj,
+                    #[upgrade_or_panic]
+                    move |_| {
+                        obj.queue_draw();
+                        obj.update_no_data_revealer();
+                        None
+                    }
+                ),
+            );
+            self.timeline_signals.set(timeline_signals).unwrap();
+
+            obj.update_no_data_revealer();
+        }
+
         fn dispose(&self) {
             self.dispose_template();
         }
     }
 
-    impl WidgetImpl for Graph {
+    impl WidgetImpl for StockGraph {
         fn snapshot(&self, snapshot: &gtk::Snapshot) {
             let obj = self.obj();
 
@@ -72,45 +98,46 @@ mod imp {
 }
 
 glib::wrapper! {
-    pub struct Graph(ObjectSubclass<imp::Graph>)
+    pub struct StockGraph(ObjectSubclass<imp::StockGraph>)
         @extends gtk::Widget;
 }
 
-impl Graph {
+impl StockGraph {
     pub fn new() -> Self {
         glib::Object::new()
     }
 
-    pub fn bind_timeline(&self, timeline: &Timeline) {
+    pub fn set_timeline(&self, timeline: Option<StockTimeline>) {
         let imp = self.imp();
 
-        timeline.connect_items_changed(clone!(
-            #[weak(rename_to = obj)]
-            self,
-            move |_, _, _, _| {
-                obj.queue_draw();
-                obj.update_no_data_revealer();
-            }
-        ));
-
-        imp.timeline.set(timeline.clone()).unwrap();
+        imp.timeline_signals
+            .get()
+            .unwrap()
+            .set_target(timeline.as_ref());
+        imp.timeline.replace(timeline);
 
         self.queue_draw();
         self.update_no_data_revealer();
     }
 
+    pub fn timeline(&self) -> Option<StockTimeline> {
+        self.imp().timeline.borrow().clone()
+    }
+
     fn update_no_data_revealer(&self) {
         let imp = self.imp();
 
-        imp.no_data_revealer
-            .set_reveal_child(imp.timeline.get().unwrap().is_empty());
+        imp.no_data_revealer.set_reveal_child(
+            self.timeline().is_none() || self.timeline().is_some_and(|t| t.is_empty()),
+        );
     }
 
     fn draw_graph(&self, backend: CairoBackend<'_>) -> Result<()> {
         use plotters::prelude::*;
 
-        let imp = self.imp();
-        let timeline = imp.timeline.get().unwrap();
+        let Some(timeline) = self.timeline() else {
+            return Ok(());
+        };
 
         if timeline.is_empty() {
             return Ok(());

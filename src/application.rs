@@ -75,6 +75,9 @@ mod imp {
                         .into_iter()
                         .find_map(|w| w.downcast::<TestWindow>().ok())
                         .unwrap();
+
+                    // TODO If the mode is inventory or refrigerator, don't handle the detected entity
+                    // if it doesn't have a stock id.
                     if let Err(err) = obj
                         .timeline()
                         .handle_detected(id, window.stock_id().as_ref())
