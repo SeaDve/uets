@@ -28,8 +28,6 @@ mod imp {
         pub(super) id_row: TemplateChild<InformationRow>,
         #[template_child]
         pub(super) is_inside_row: TemplateChild<InformationRow>,
-        #[template_child]
-        pub(super) last_action_row: TemplateChild<InformationRow>,
 
         pub(super) entity_bindings: glib::BindingGroup,
     }
