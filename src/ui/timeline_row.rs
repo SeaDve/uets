@@ -1,16 +1,18 @@
 use gtk::{
-    glib::{self, clone},
+    glib::{self, clone, closure_local},
     prelude::*,
     subclass::prelude::*,
 };
 
 use crate::{
-    format, settings::OperationMode, timeline_item::TimelineItem,
-    timeline_item_kind::TimelineItemKind, Application,
+    entity_id::EntityId, format, settings::OperationMode, stock_id::StockId,
+    timeline_item::TimelineItem, timeline_item_kind::TimelineItemKind, Application,
 };
 
 mod imp {
-    use std::cell::RefCell;
+    use std::{cell::RefCell, sync::OnceLock};
+
+    use glib::subclass::Signal;
 
     use super::*;
 
@@ -63,11 +65,48 @@ mod imp {
                     }
                 ));
 
+            self.status_label.connect_activate_link(clone!(
+                #[weak]
+                obj,
+                #[upgrade_or_panic]
+                move |_, uri| {
+                    if let Some((scheme, id)) = uri.split_once(":") {
+                        match scheme {
+                            "entity" => {
+                                let entity_id = EntityId::new(id);
+                                obj.emit_by_name::<()>("show-entity", &[&entity_id]);
+                            }
+                            "stock" => {
+                                let stock_id = StockId::new(id);
+                                obj.emit_by_name::<()>("show-stock", &[&stock_id]);
+                            }
+                            _ => unreachable!("invalid scheme `{scheme}`"),
+                        }
+                    }
+                    glib::Propagation::Stop
+                }
+            ));
+
             obj.update_status_label();
         }
 
         fn dispose(&self) {
             self.dispose_template();
+        }
+
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
+
+            SIGNALS.get_or_init(|| {
+                vec![
+                    Signal::builder("show-entity")
+                        .param_types([EntityId::static_type()])
+                        .build(),
+                    Signal::builder("show-stock")
+                        .param_types([StockId::static_type()])
+                        .build(),
+                ]
+            })
         }
     }
 
@@ -118,14 +157,41 @@ impl TimelineRow {
         glib::Object::new()
     }
 
+    pub fn connect_show_entity<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &EntityId) + 'static,
+    {
+        self.connect_closure(
+            "show-entity",
+            false,
+            closure_local!(|obj: &Self, id: &EntityId| f(obj, id)),
+        )
+    }
+
+    pub fn connect_show_stock<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &StockId) + 'static,
+    {
+        self.connect_closure(
+            "show-stock",
+            false,
+            closure_local!(|obj: &Self, id: &StockId| f(obj, id)),
+        )
+    }
+
     fn update_status_label(&self) {
         let imp = self.imp();
 
         if let Some(ref item) = self.item() {
             let entity_id = item.entity_id();
+
+            let entity_uri = format!("entity:{}", entity_id);
             let title = item.stock_id().map_or_else(
-                || item.entity_id().to_string(),
-                |stock_id| format!("{} ({})", stock_id, entity_id),
+                || entity_uri.clone(),
+                |stock_id| {
+                    let stock_uri = format!("stock:{}", stock_id);
+                    format!("<a href=\"{stock_uri}\">{stock_id}</a> (<a href=\"{entity_uri}\">{entity_id}</a>)")
+                },
             );
 
             let (enter_verb, exit_verb, stay_suffix) =

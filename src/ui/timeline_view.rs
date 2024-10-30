@@ -1,12 +1,18 @@
 use gtk::{
-    glib::{self, clone},
+    glib::{self, clone, closure_local},
     prelude::*,
     subclass::prelude::*,
 };
 
-use crate::{timeline::Timeline, ui::timeline_row::TimelineRow};
+use crate::{
+    entity_id::EntityId, stock_id::StockId, timeline::Timeline, ui::timeline_row::TimelineRow,
+};
 
 mod imp {
+    use std::sync::OnceLock;
+
+    use glib::subclass::Signal;
+
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
@@ -29,8 +35,6 @@ mod imp {
         type ParentType = gtk::Widget;
 
         fn class_init(klass: &mut Self::Class) {
-            TimelineRow::ensure_type();
-
             klass.bind_template();
         }
 
@@ -40,8 +44,63 @@ mod imp {
     }
 
     impl ObjectImpl for TimelineView {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            let obj = self.obj();
+
+            let factory = gtk::SignalListItemFactory::new();
+            factory.connect_setup(clone!(
+                #[weak]
+                obj,
+                move |_, list_item| {
+                    let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
+                    list_item.set_selectable(false);
+                    list_item.set_activatable(false);
+
+                    let row = TimelineRow::new();
+                    row.connect_show_entity(clone!(
+                        #[weak]
+                        obj,
+                        move |_, id| {
+                            obj.emit_by_name::<()>("show-entity", &[&id]);
+                        }
+                    ));
+                    row.connect_show_stock(clone!(
+                        #[weak]
+                        obj,
+                        move |_, id| {
+                            obj.emit_by_name::<()>("show-stock", &[&id]);
+                        }
+                    ));
+
+                    list_item
+                        .property_expression("item")
+                        .bind(&row, "item", glib::Object::NONE);
+
+                    list_item.set_child(Some(&row));
+                }
+            ));
+            self.list_view.set_factory(Some(&factory));
+        }
+
         fn dispose(&self) {
             self.dispose_template();
+        }
+
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
+
+            SIGNALS.get_or_init(|| {
+                vec![
+                    Signal::builder("show-entity")
+                        .param_types([EntityId::static_type()])
+                        .build(),
+                    Signal::builder("show-stock")
+                        .param_types([StockId::static_type()])
+                        .build(),
+                ]
+            })
         }
     }
 
@@ -56,6 +115,28 @@ glib::wrapper! {
 impl TimelineView {
     pub fn new() -> Self {
         glib::Object::new()
+    }
+
+    pub fn connect_show_entity<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &EntityId) + 'static,
+    {
+        self.connect_closure(
+            "show-entity",
+            false,
+            closure_local!(|obj: &Self, id: &EntityId| f(obj, id)),
+        )
+    }
+
+    pub fn connect_show_stock<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &StockId) + 'static,
+    {
+        self.connect_closure(
+            "show-stock",
+            false,
+            closure_local!(|obj: &Self, id: &StockId| f(obj, id)),
+        )
     }
 
     pub fn bind_timeline(&self, timeline: &Timeline) {

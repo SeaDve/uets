@@ -17,6 +17,8 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/window.ui")]
     pub struct Window {
         #[template_child]
+        pub(super) view_stack: TemplateChild<adw::ViewStack>,
+        #[template_child]
         pub(super) dashboard_view: TemplateChild<DashboardView>,
         #[template_child]
         pub(super) assets_stack_page: TemplateChild<adw::ViewStackPage>,
@@ -62,6 +64,24 @@ mod imp {
                 move |_| {
                     obj.update_entities_stack_page_display();
                     obj.update_assets_view_stack();
+                }
+            ));
+
+            self.timeline_view.connect_show_entity(clone!(
+                #[weak]
+                obj,
+                move |_, entity_id| {
+                    todo!();
+                }
+            ));
+            self.timeline_view.connect_show_stock(clone!(
+                #[weak]
+                obj,
+                move |_, stock_id| {
+                    let imp = obj.imp();
+                    imp.stocks_view.show(stock_id);
+                    imp.view_stack.set_visible_child_name("assets");
+                    imp.assets_view_stack.set_visible_child(&*imp.stocks_view);
                 }
             ));
 

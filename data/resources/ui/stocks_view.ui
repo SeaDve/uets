@@ -26,7 +26,7 @@
               <object class="GtkScrolledWindow" id="main_page">
                 <property name="hscrollbar-policy">never</property>
                 <property name="child">
-                  <object class="GtkListView">
+                  <object class="GtkListView" id="list_view">
                     <property name="model">
                       <object class="GtkSingleSelection" id="selection_model">
                         <property name="can-unselect">True</property>

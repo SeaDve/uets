@@ -14,16 +14,17 @@
             <property name="show-end-title-buttons">False</property>
             <property name="title-widget">
               <object class="AdwViewSwitcher">
-                <property name="stack">stack</property>
+                <property name="stack">view_stack</property>
               </object>
             </property>
           </object>
         </child>
         <child>
-          <object class="AdwViewStack" id="stack">
+          <object class="AdwViewStack" id="view_stack">
             <property name="vexpand">True</property>
             <child>
               <object class="AdwViewStackPage">
+                <property name="name">dashboard</property>
                 <property name="title">Dashboard</property>
                 <property name="icon-name">go-home-symbolic</property>
                 <property name="child">
@@ -33,6 +34,7 @@
             </child>
             <child>
               <object class="AdwViewStackPage" id="assets_stack_page">
+                <property name="name">assets</property>
                 <property name="child">
                   <object class="GtkStack" id="assets_view_stack">
                     <child>
@@ -47,6 +49,7 @@
             </child>
             <child>
               <object class="AdwViewStackPage">
+                <property name="name">timeline</property>
                 <property name="title">Timeline</property>
                 <property name="icon-name">view-list-bullet-symbolic</property>
                 <property name="child">
@@ -56,6 +59,7 @@
             </child>
             <child>
               <object class="AdwViewStackPage">
+                <property name="name">settings</property>
                 <property name="title">Settings</property>
                 <property name="icon-name">settings-symbolic</property>
                 <property name="child">

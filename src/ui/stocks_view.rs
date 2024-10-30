@@ -6,6 +6,7 @@ use gtk::{
 
 use crate::{
     stock::Stock,
+    stock_id::StockId,
     stock_list::StockList,
     ui::{stock_details_pane::StockDetailsPane, stock_row::StockRow},
 };
@@ -24,6 +25,8 @@ mod imp {
         pub(super) empty_page: TemplateChild<adw::StatusPage>,
         #[template_child]
         pub(super) main_page: TemplateChild<gtk::ScrolledWindow>,
+        #[template_child]
+        pub(super) list_view: TemplateChild<gtk::ListView>,
         #[template_child]
         pub(super) selection_model: TemplateChild<gtk::SingleSelection>,
         #[template_child]
@@ -108,17 +111,30 @@ impl StocksView {
         self.update_stack();
     }
 
-    fn update_stack(&self) {
+    pub fn show(&self, stock_id: &StockId) {
         let imp = self.imp();
 
-        let stock_list = imp
+        let position = self
+            .stock_list()
+            .get_index_of(stock_id)
+            .expect("stock must exist") as u32;
+
+        imp.selection_model.set_selected(position);
+    }
+
+    fn stock_list(&self) -> StockList {
+        self.imp()
             .selection_model
             .model()
             .unwrap()
             .downcast::<StockList>()
-            .unwrap();
+            .unwrap()
+    }
 
-        if stock_list.is_empty() {
+    fn update_stack(&self) {
+        let imp = self.imp();
+
+        if self.stock_list().is_empty() {
             imp.stack.set_visible_child(&*imp.empty_page);
         } else {
             imp.stack.set_visible_child(&*imp.main_page);

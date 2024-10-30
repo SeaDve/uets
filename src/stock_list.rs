@@ -68,6 +68,10 @@ impl StockList {
         self.imp().list.borrow().get(id).cloned()
     }
 
+    pub fn get_index_of(&self, id: &StockId) -> Option<usize> {
+        self.imp().list.borrow().get_index_of(id)
+    }
+
     pub fn insert(&self, stock: Stock) {
         let imp = self.imp();
 
