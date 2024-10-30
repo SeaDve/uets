@@ -29,6 +29,11 @@
                   </object>
                 </child>
                 <child>
+                  <object class="UetsInformationRow" id="is_inside_row">
+                    <property name="title">Inside</property>
+                  </object>
+                </child>
+                <child>
                   <object class="UetsInformationRow" id="last_action_row">
                     <property name="title">Last Action</property>
                   </object>

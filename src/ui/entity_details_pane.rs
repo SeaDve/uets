@@ -27,7 +27,11 @@ mod imp {
         #[template_child]
         pub(super) id_row: TemplateChild<InformationRow>,
         #[template_child]
+        pub(super) is_inside_row: TemplateChild<InformationRow>,
+        #[template_child]
         pub(super) last_action_row: TemplateChild<InformationRow>,
+
+        pub(super) entity_bindings: glib::BindingGroup,
     }
 
     #[glib::object_subclass]
@@ -63,6 +67,16 @@ mod imp {
                 }
             ));
             self.close_image.add_controller(gesture_click);
+
+            self.entity_bindings
+                .bind("is-inside", &*self.is_inside_row, "value")
+                .transform_to(|_, n_inside| {
+                    let is_inside = n_inside.get::<bool>().unwrap();
+                    let ret = if is_inside { "Yes" } else { "No" };
+                    Some(ret.to_string().into())
+                })
+                .flags(glib::BindingFlags::SYNC_CREATE)
+                .build();
         }
 
         fn dispose(&self) {
@@ -92,6 +106,8 @@ mod imp {
                     .map(|s| s.id().to_string())
                     .unwrap_or_default(),
             );
+
+            self.entity_bindings.set_source(entity.as_ref());
 
             self.entity.replace(entity);
             obj.notify_entity();

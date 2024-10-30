@@ -15,6 +15,7 @@ pub struct StockId(Box<str>);
 
 impl StockId {
     pub fn new(id: impl Into<Box<str>>) -> Self {
+        // TODO Disallow empty or blank stock id
         Self(id.into())
     }
 }

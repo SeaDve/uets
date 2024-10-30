@@ -1,18 +1,25 @@
 use std::fmt;
 
-use gtk::{glib, subclass::prelude::*};
+use gtk::{glib, prelude::*, subclass::prelude::*};
 
 use crate::{
     date_time::DateTime, date_time_pair::DateTimePair, db, entity_id::EntityId, stock_id::StockId,
 };
 
 mod imp {
-    use std::cell::{OnceCell, RefCell};
+    use std::{
+        cell::{OnceCell, RefCell},
+        marker::PhantomData,
+    };
 
     use super::*;
 
-    #[derive(Default)]
+    #[derive(Default, glib::Properties)]
+    #[properties(wrapper_type = super::Entity)]
     pub struct Entity {
+        #[property(get = Self::is_inside)]
+        pub(super) is_inside: PhantomData<bool>,
+
         pub(super) id: OnceCell<EntityId>,
         pub(super) stock_id: OnceCell<Option<StockId>>,
         pub(super) dt_pairs: RefCell<Vec<DateTimePair>>,
@@ -24,7 +31,17 @@ mod imp {
         type Type = super::Entity;
     }
 
+    #[glib::derived_properties]
     impl ObjectImpl for Entity {}
+
+    impl Entity {
+        fn is_inside(&self) -> bool {
+            self.dt_pairs
+                .borrow()
+                .last()
+                .is_some_and(|last_dt_pair| last_dt_pair.exit.is_none())
+        }
+    }
 }
 
 glib::wrapper! {
@@ -74,15 +91,6 @@ impl Entity {
         self.imp().dt_pairs.borrow().last().cloned()
     }
 
-    pub fn is_inside(&self) -> bool {
-        let imp = self.imp();
-
-        imp.dt_pairs
-            .borrow()
-            .last()
-            .is_some_and(|last_dt_pair| last_dt_pair.exit.is_none())
-    }
-
     pub fn add_entry_dt(&self, dt: DateTime) {
         let imp = self.imp();
 
@@ -94,19 +102,21 @@ impl Entity {
             entry: dt,
             exit: None,
         });
+
+        self.notify_is_inside();
     }
 
     pub fn add_exit_dt(&self, dt: DateTime) {
         let imp = self.imp();
 
-        let mut dt_pairs = imp.dt_pairs.borrow_mut();
-
-        if let Some(pair) = dt_pairs.last_mut() {
+        if let Some(pair) = imp.dt_pairs.borrow_mut().last_mut() {
             let prev_exit = pair.exit.replace(dt);
             debug_assert_eq!(prev_exit, None, "double exit");
         } else {
             unreachable!("exit without entry");
         }
+
+        self.notify_is_inside();
     }
 }
 
