@@ -21,13 +21,13 @@ mod imp {
         #[template_child]
         pub(super) dashboard_view: TemplateChild<DashboardView>,
         #[template_child]
-        pub(super) assets_stack_page: TemplateChild<adw::ViewStackPage>,
-        #[template_child]
-        pub(super) assets_view_stack: TemplateChild<gtk::Stack>,
-        #[template_child]
-        pub(super) entities_view: TemplateChild<EntitiesView>,
+        pub(super) stocks_stack_page: TemplateChild<adw::ViewStackPage>,
         #[template_child]
         pub(super) stocks_view: TemplateChild<StocksView>,
+        #[template_child]
+        pub(super) entities_stack_page: TemplateChild<adw::ViewStackPage>,
+        #[template_child]
+        pub(super) entities_view: TemplateChild<EntitiesView>,
         #[template_child]
         pub(super) timeline_view: TemplateChild<TimelineView>,
         #[template_child]
@@ -62,8 +62,7 @@ mod imp {
                 #[weak]
                 obj,
                 move |_| {
-                    obj.update_entities_stack_page_display();
-                    obj.update_assets_view_stack();
+                    obj.update_stocks_entities_stack_pages_display();
                 }
             ));
 
@@ -73,8 +72,7 @@ mod imp {
                 move |_, entity_id| {
                     let imp = obj.imp();
                     imp.entities_view.show(entity_id);
-                    imp.view_stack.set_visible_child_name("assets");
-                    imp.assets_view_stack.set_visible_child(&*imp.entities_view);
+                    imp.view_stack.set_visible_child_name("entities");
                 }
             ));
             self.timeline_view.connect_show_stock(clone!(
@@ -83,8 +81,7 @@ mod imp {
                 move |_, stock_id| {
                     let imp = obj.imp();
                     imp.stocks_view.show(stock_id);
-                    imp.view_stack.set_visible_child_name("assets");
-                    imp.assets_view_stack.set_visible_child(&*imp.stocks_view);
+                    imp.view_stack.set_visible_child_name("stocks");
                 }
             ));
 
@@ -92,8 +89,7 @@ mod imp {
             self.stocks_view.bind_stock_list(timeline.stock_list());
             self.timeline_view.bind_timeline(timeline);
 
-            obj.update_entities_stack_page_display();
-            obj.update_assets_view_stack();
+            obj.update_stocks_entities_stack_pages_display();
         }
     }
 
@@ -115,33 +111,35 @@ impl Window {
             .build()
     }
 
-    fn update_entities_stack_page_display(&self) {
+    fn update_stocks_entities_stack_pages_display(&self) {
         let imp = self.imp();
 
-        let title = match Application::get().settings().operation_mode() {
-            OperationMode::Counter | OperationMode::Attendance => "Entities",
-            OperationMode::Inventory | OperationMode::Refrigerator => "Stocks",
-        };
-        imp.assets_stack_page.set_title(Some(title));
+        let operation_mode = Application::get().settings().operation_mode();
 
-        let icon_name = match Application::get().settings().operation_mode() {
-            OperationMode::Counter | OperationMode::Attendance => "people-symbolic",
-            OperationMode::Inventory => "preferences-desktop-apps-symbolic",
-            OperationMode::Refrigerator => "egg-symbolic",
-        };
-        imp.assets_stack_page.set_icon_name(Some(icon_name));
-    }
-
-    fn update_assets_view_stack(&self) {
-        let imp = self.imp();
-
-        match Application::get().settings().operation_mode() {
+        match operation_mode {
             OperationMode::Counter | OperationMode::Attendance => {
-                imp.assets_view_stack.set_visible_child(&*imp.entities_view);
+                imp.stocks_stack_page.set_visible(false);
+
+                imp.entities_stack_page
+                    .set_icon_name(Some("people-symbolic"));
             }
             OperationMode::Inventory | OperationMode::Refrigerator => {
-                imp.assets_view_stack.set_visible_child(&*imp.stocks_view);
+                imp.stocks_stack_page.set_visible(true);
+
+                match operation_mode {
+                    OperationMode::Inventory => {
+                        imp.stocks_stack_page
+                            .set_icon_name(Some("preferences-desktop-apps-symbolic"));
+                    }
+                    OperationMode::Refrigerator => {
+                        imp.stocks_stack_page.set_icon_name(Some("egg-symbolic"));
+                    }
+                    _ => unreachable!(),
+                }
+
+                imp.entities_stack_page
+                    .set_icon_name(Some("tag-outline-symbolic"));
             }
-        }
+        };
     }
 }

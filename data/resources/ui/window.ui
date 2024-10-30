@@ -33,17 +33,20 @@
               </object>
             </child>
             <child>
-              <object class="AdwViewStackPage" id="assets_stack_page">
-                <property name="name">assets</property>
+              <object class="AdwViewStackPage" id="stocks_stack_page">
+                <property name="name">stocks</property>
+                <property name="title">Stocks</property>
                 <property name="child">
-                  <object class="GtkStack" id="assets_view_stack">
-                    <child>
-                      <object class="UetsStocksView" id="stocks_view"/>
-                    </child>
-                    <child>
-                      <object class="UetsEntitiesView" id="entities_view"/>
-                    </child>
-                  </object>
+                  <object class="UetsStocksView" id="stocks_view"/>
+                </property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwViewStackPage" id="entities_stack_page">
+                <property name="name">entities</property>
+                <property name="title">Entities</property>
+                <property name="child">
+                  <object class="UetsEntitiesView" id="entities_view"/>
                 </property>
               </object>
             </child>

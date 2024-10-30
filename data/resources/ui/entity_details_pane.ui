@@ -25,7 +25,7 @@
                 <property name="title">Information</property>
                 <child>
                   <object class="UetsInformationRow" id="id_row">
-                    <property name="title">Name</property>
+                    <property name="title">ID</property>
                   </object>
                 </child>
                 <child>

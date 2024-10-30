@@ -29,7 +29,7 @@ rsync --filter=':- .gitignore' --exclude \".*/\" -aP ./ $REMOTE_DIR
 
 1. Filter date range
 
-### Assets View
+### Stocks & Entities View
 
 1. Add details pane showing:
    - N entries and exits

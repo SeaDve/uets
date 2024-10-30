@@ -279,7 +279,7 @@ impl Timeline {
 
         // TODO Should this be allowed instead?
         //
-        // When exiting, this should not be allowed as an asset cannot enter then exit
+        // When exiting, this should not be allowed as an entity cannot enter then exit
         // with different stock id. But if the same entity enters with a different stock id,
         // the id may have been reused on the a different item, I think this should be allowed,
         // or can it even happen?
