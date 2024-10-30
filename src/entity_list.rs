@@ -68,6 +68,10 @@ impl EntityList {
         self.imp().list.borrow().get(id).cloned()
     }
 
+    pub fn get_index_of(&self, id: &EntityId) -> Option<usize> {
+        self.imp().list.borrow().get_index_of(id)
+    }
+
     pub fn insert(&self, entity: Entity) {
         let imp = self.imp();
 

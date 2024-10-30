@@ -127,7 +127,7 @@ impl StocksView {
             .selection_model
             .model()
             .unwrap()
-            .downcast::<StockList>()
+            .downcast()
             .unwrap()
     }
 

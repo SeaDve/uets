@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="UetsEntityDetailsPane">
+    <property name="layout-manager">
+      <object class="GtkBinLayout"/>
+    </property>
+    <child>
+      <object class="GtkBox" id="vbox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkImage" id="close_image">
+            <property name="icon-name">go-down-symbolic</property>
+            <style>
+              <class name="close-icon"/>
+            </style>
+          </object>
+        </child>
+        <child>
+          <object class="GtkSeparator"/>
+        </child>
+        <child>
+          <object class="AdwPreferencesPage">
+            <child>
+              <object class="AdwPreferencesGroup">
+                <property name="title">Information</property>
+                <child>
+                  <object class="UetsInformationRow" id="id_row">
+                    <property name="title">Name</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="UetsInformationRow" id="last_action_row">
+                    <property name="title">Last Action</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

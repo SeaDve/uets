@@ -4,7 +4,12 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::{entity_list::EntityList, ui::entity_row::EntityRow};
+use crate::{
+    entity::Entity,
+    entity_id::EntityId,
+    entity_list::EntityList,
+    ui::{entity_details_pane::EntityDetailsPane, entity_row::EntityRow},
+};
 
 mod imp {
     use super::*;
@@ -13,6 +18,8 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/entities_view.ui")]
     pub struct EntitiesView {
         #[template_child]
+        pub(super) flap: TemplateChild<adw::Flap>,
+        #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
         pub(super) empty_page: TemplateChild<adw::StatusPage>,
@@ -20,6 +27,10 @@ mod imp {
         pub(super) main_page: TemplateChild<gtk::ScrolledWindow>,
         #[template_child]
         pub(super) list_view: TemplateChild<gtk::ListView>,
+        #[template_child]
+        pub(super) selection_model: TemplateChild<gtk::SingleSelection>,
+        #[template_child]
+        pub(super) details_pane: TemplateChild<EntityDetailsPane>,
     }
 
     #[glib::object_subclass]
@@ -40,6 +51,32 @@ mod imp {
     }
 
     impl ObjectImpl for EntitiesView {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            let obj = self.obj();
+
+            self.selection_model
+                .bind_property("selected-item", &*self.flap, "reveal-flap")
+                .transform_to(|_, entity: Option<Entity>| Some(entity.is_some()))
+                .sync_create()
+                .build();
+            self.selection_model
+                .bind_property("selected-item", &*self.details_pane, "entity")
+                .sync_create()
+                .build();
+
+            self.details_pane.connect_close_request(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.imp()
+                        .selection_model
+                        .set_selected(gtk::INVALID_LIST_POSITION);
+                }
+            ));
+        }
+
         fn dispose(&self) {
             self.dispose_template();
         }
@@ -69,28 +106,35 @@ impl EntitiesView {
             }
         ));
 
-        let selection_model = gtk::NoSelection::new(Some(entity_list.clone()));
-        imp.list_view.set_model(Some(&selection_model));
+        imp.selection_model.set_model(Some(entity_list));
 
         self.update_stack();
+    }
+
+    pub fn show(&self, stock_id: &EntityId) {
+        let imp = self.imp();
+
+        let position = self
+            .entity_list()
+            .get_index_of(stock_id)
+            .expect("stock must exist") as u32;
+
+        imp.selection_model.set_selected(position);
+    }
+
+    fn entity_list(&self) -> EntityList {
+        self.imp()
+            .selection_model
+            .model()
+            .unwrap()
+            .downcast()
+            .unwrap()
     }
 
     fn update_stack(&self) {
         let imp = self.imp();
 
-        let selection_model = imp
-            .list_view
-            .model()
-            .unwrap()
-            .downcast::<gtk::NoSelection>()
-            .unwrap();
-        let entity_list = selection_model
-            .model()
-            .unwrap()
-            .downcast::<EntityList>()
-            .unwrap();
-
-        if entity_list.is_empty() {
+        if self.entity_list().is_empty() {
             imp.stack.set_visible_child(&*imp.empty_page);
         } else {
             imp.stack.set_visible_child(&*imp.main_page);

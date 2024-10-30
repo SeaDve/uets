@@ -5,45 +5,63 @@
       <object class="GtkBinLayout"/>
     </property>
     <child>
-      <object class="GtkStack" id="stack">
-        <property name="transition-type">crossfade</property>
-        <child>
-          <object class="AdwStatusPage" id="empty_page">
-            <property name="title">No Entities</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkScrolledWindow" id="main_page">
-            <property name="hscrollbar-policy">never</property>
-            <property name="child">
-              <object class="GtkListView" id="list_view">
-                <property name="factory">
-                  <object class="GtkBuilderListItemFactory">
-                    <property name="bytes"><![CDATA[
-<?xml version="1.0" encoding="UTF-8"?>
-<interface>
-  <template class="GtkListItem">
-    <property name="selectable">False</property>
-    <property name="child">
-      <object class="UetsEntityRow">
-        <binding name="entity">
-          <lookup name="item">GtkListItem</lookup>
-        </binding>
-      </object>
-    </property>
-  </template>
-</interface>
-]]>
+      <object class="AdwFlap" id="flap">
+        <property name="orientation">vertical</property>
+        <property name="flap-position">end</property>
+        <property name="flap">
+          <object class="UetsEntityDetailsPane" id="details_pane"/>
+        </property>
+        <property name="separator">
+          <object class="GtkSeparator"/>
+        </property>
+        <property name="content">
+          <object class="GtkStack" id="stack">
+            <property name="transition-type">crossfade</property>
+            <child>
+              <object class="AdwStatusPage" id="empty_page">
+                <property name="title">No Entities</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkScrolledWindow" id="main_page">
+                <property name="hscrollbar-policy">never</property>
+                <property name="child">
+                  <object class="GtkListView" id="list_view">
+                    <property name="model">
+                      <object class="GtkSingleSelection" id="selection_model">
+                        <property name="can-unselect">True</property>
+                        <property name="autoselect">False</property>
+                      </object>
                     </property>
+                    <property name="factory">
+                      <object class="GtkBuilderListItemFactory">
+                        <property name="bytes"><![CDATA[
+    <?xml version="1.0" encoding="UTF-8"?>
+    <interface>
+      <template class="GtkListItem">
+        <property name="selectable">False</property>
+        <property name="child">
+          <object class="UetsEntityRow">
+            <binding name="entity">
+              <lookup name="item">GtkListItem</lookup>
+            </binding>
+          </object>
+        </property>
+      </template>
+    </interface>
+    ]]>
+                        </property>
+                      </object>
+                    </property>
+                    <style>
+                      <class name="navigation-sidebar"/>
+                    </style>
                   </object>
                 </property>
-                <style>
-                  <class name="navigation-sidebar"/>
-                </style>
               </object>
-            </property>
+            </child>
           </object>
-        </child>
+        </property>
       </object>
     </child>
   </template>

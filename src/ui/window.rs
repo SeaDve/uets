@@ -71,7 +71,10 @@ mod imp {
                 #[weak]
                 obj,
                 move |_, entity_id| {
-                    todo!();
+                    let imp = obj.imp();
+                    imp.entities_view.show(entity_id);
+                    imp.view_stack.set_visible_child_name("assets");
+                    imp.assets_view_stack.set_visible_child(&*imp.entities_view);
                 }
             ));
             self.timeline_view.connect_show_stock(clone!(
