@@ -23,14 +23,8 @@ pub const STOCKS_DB_NAME: &str = "stocks";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RawTimelineItem {
-    pub kind: RawTimelineItemKind,
+    pub is_entry: bool,
     pub entity_id: EntityId,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum RawTimelineItemKind {
-    Entry,
-    Exit { inside_duration: Duration }, // FIXME chrono::TimeDelta should support serde
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -4,7 +4,6 @@
 mod application;
 mod colors;
 mod date_time;
-mod date_time_pair;
 mod db;
 mod detector;
 mod entity;

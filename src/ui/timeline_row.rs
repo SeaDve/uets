@@ -130,7 +130,7 @@ mod imp {
                         self.image.remove_css_class("exit-icon");
                         self.image.add_css_class("entry-icon");
                     }
-                    TimelineItemKind::Exit { .. } => {
+                    TimelineItemKind::Exit => {
                         self.image.set_icon_name(Some("arrow4-left-symbolic"));
                         self.image.remove_css_class("entry-icon");
                         self.image.add_css_class("exit-icon");
@@ -208,7 +208,16 @@ impl TimelineRow {
                 TimelineItemKind::Entry => {
                     format!("<b>{}</b> {}", title, enter_verb)
                 }
-                TimelineItemKind::Exit { inside_duration } => {
+                TimelineItemKind::Exit => {
+                    let entity = Application::get()
+                        .timeline()
+                        .entity_list()
+                        .get(entity_id)
+                        .expect("entity must be known");
+                    let inside_duration = entity
+                        .inside_duration_on_exit(item.dt())
+                        .expect("inside duration must be computed on exit");
+
                     format!(
                         "<b>{}</b> {} after <i>{}</i> {}",
                         title,

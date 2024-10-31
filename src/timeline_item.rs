@@ -61,18 +61,17 @@ impl TimelineItem {
         stock_id: Option<StockId>,
         n_inside: u32,
     ) -> Self {
-        Self::new(
-            dt,
-            TimelineItemKind::from_db(raw.kind),
-            raw.entity_id,
-            stock_id,
-            n_inside,
-        )
+        let kind = if raw.is_entry {
+            TimelineItemKind::Entry
+        } else {
+            TimelineItemKind::Exit
+        };
+        Self::new(dt, kind, raw.entity_id, stock_id, n_inside)
     }
 
     pub fn to_db(&self) -> db::RawTimelineItem {
         db::RawTimelineItem {
-            kind: self.kind().to_db(),
+            is_entry: self.kind().is_entry(),
             entity_id: self.entity_id().clone(),
         }
     }

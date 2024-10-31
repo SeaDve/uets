@@ -151,13 +151,10 @@ impl Timeline {
         let items = raw_items
             .into_iter()
             .map(|(dt, raw_item)| {
-                match raw_item.kind {
-                    db::RawTimelineItemKind::Entry => {
-                        n_inside += 1;
-                    }
-                    db::RawTimelineItemKind::Exit { .. } => {
-                        n_inside -= 1;
-                    }
+                if raw_item.is_entry {
+                    n_inside += 1;
+                } else {
+                    n_inside -= 1;
                 }
 
                 let stock_id = entities
@@ -175,14 +172,8 @@ impl Timeline {
             .map(|item| item.n_inside())
             .max()
             .unwrap_or(0);
-        let n_entries = items
-            .values()
-            .filter(|item| matches!(item.kind(), TimelineItemKind::Entry))
-            .count();
-        let n_exits = items
-            .values()
-            .filter(|item| matches!(item.kind(), TimelineItemKind::Exit { .. }))
-            .count();
+        let n_entries = items.values().filter(|item| item.kind().is_entry()).count();
+        let n_exits = items.values().filter(|item| item.kind().is_exit()).count();
         let last_entry_dt = {
             let mut last_entry_dt = None;
             for (_, item) in items.iter().rev() {
@@ -196,7 +187,7 @@ impl Timeline {
         let last_exit_dt = {
             let mut last_exit_dt = None;
             for (_, item) in items.iter().rev() {
-                if let TimelineItemKind::Exit { .. } = item.kind() {
+                if let TimelineItemKind::Exit = item.kind() {
                     last_exit_dt = Some(item.dt());
                     break;
                 }
@@ -215,7 +206,7 @@ impl Timeline {
                 TimelineItemKind::Entry => {
                     entity.add_entry_dt(item.dt());
                 }
-                TimelineItemKind::Exit { .. } => {
+                TimelineItemKind::Exit => {
                     entity.add_exit_dt(item.dt());
                 }
             }
@@ -229,7 +220,7 @@ impl Timeline {
                     TimelineItemKind::Entry => {
                         *n_inside += 1;
                     }
-                    TimelineItemKind::Exit { .. } => {
+                    TimelineItemKind::Exit => {
                         *n_inside -= 1;
                     }
                 }
@@ -333,13 +324,7 @@ impl Timeline {
         let stock_id = provided_stock_id.or_else(|| entity.stock_id());
 
         let item_kind = if is_exit {
-            TimelineItemKind::Exit {
-                inside_duration: entity
-                    .last_dt_pair()
-                    .expect("added exit dt and thus a dt pair")
-                    .inside_duration()
-                    .expect("a complete dt pair"),
-            }
+            TimelineItemKind::Exit
         } else {
             TimelineItemKind::Entry
         };

@@ -2,13 +2,18 @@ use std::fmt;
 
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{
-    date_time::DateTime, date_time_pair::DateTimePair, db, entity_id::EntityId, stock_id::StockId,
-};
+use crate::{date_time::DateTime, db, entity_id::EntityId, stock_id::StockId};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DateTimePair {
+    entry: DateTime,
+    exit: Option<DateTime>,
+}
 
 mod imp {
     use std::{
         cell::{OnceCell, RefCell},
+        collections::HashMap,
         marker::PhantomData,
     };
 
@@ -23,6 +28,8 @@ mod imp {
         pub(super) id: OnceCell<EntityId>,
         pub(super) stock_id: OnceCell<Option<StockId>>,
         pub(super) dt_pairs: RefCell<Vec<DateTimePair>>,
+
+        pub(super) inside_durations_on_exit: RefCell<HashMap<DateTime, chrono::TimeDelta>>,
     }
 
     #[glib::object_subclass]
@@ -83,12 +90,12 @@ impl Entity {
         self.imp().stock_id.get().unwrap().as_ref()
     }
 
-    pub fn dt_pairs(&self) -> Vec<DateTimePair> {
-        self.imp().dt_pairs.borrow().clone()
-    }
-
-    pub fn last_dt_pair(&self) -> Option<DateTimePair> {
-        self.imp().dt_pairs.borrow().last().cloned()
+    pub fn inside_duration_on_exit(&self, exit_dt: DateTime) -> Option<chrono::Duration> {
+        self.imp()
+            .inside_durations_on_exit
+            .borrow()
+            .get(&exit_dt)
+            .copied()
     }
 
     pub fn add_entry_dt(&self, dt: DateTime) {
@@ -106,12 +113,16 @@ impl Entity {
         self.notify_is_inside();
     }
 
-    pub fn add_exit_dt(&self, dt: DateTime) {
+    pub fn add_exit_dt(&self, exit_dt: DateTime) {
         let imp = self.imp();
 
         if let Some(pair) = imp.dt_pairs.borrow_mut().last_mut() {
-            let prev_exit = pair.exit.replace(dt);
+            let prev_exit = pair.exit.replace(exit_dt);
             debug_assert_eq!(prev_exit, None, "double exit");
+
+            imp.inside_durations_on_exit
+                .borrow_mut()
+                .insert(exit_dt, exit_dt.inner() - pair.entry.inner());
         } else {
             unreachable!("exit without entry");
         }
