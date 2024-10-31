@@ -173,7 +173,7 @@ impl EntitiesView {
     pub fn show_entities_with_stock_id(&self, stock_id: &StockId) {
         let imp = self.imp();
 
-        imp.search_entry.set_text(&format!("stock_id:{}", stock_id));
+        imp.search_entry.set_text(&format!("stock:{}", stock_id));
     }
 
     fn handle_search_entry_search_changed(&self, entry: &gtk::SearchEntry) {
@@ -200,7 +200,7 @@ impl EntitiesView {
                         entity.is_inside()
                     }));
                 }
-                "stock_id" => {
+                "stock" => {
                     let stock_id = StockId::new(value);
                     filters.append(gtk::CustomFilter::new(move |o| {
                         let entity = o.downcast_ref::<Entity>().unwrap();
