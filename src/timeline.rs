@@ -269,13 +269,17 @@ impl Timeline {
         self.imp().stock_list.get().unwrap()
     }
 
-    pub fn handle_detected(&self, entity_id: &EntityId, stock_id: Option<&StockId>) -> Result<()> {
+    pub fn handle_detected(
+        &self,
+        provided_entity_id: &EntityId,
+        provided_stock_id: Option<&StockId>,
+    ) -> Result<()> {
         let imp = self.imp();
 
         let entity = self
             .entity_list()
-            .get(entity_id)
-            .unwrap_or_else(|| Entity::new(entity_id.clone(), stock_id.cloned()));
+            .get(provided_entity_id)
+            .unwrap_or_else(|| Entity::new(provided_entity_id.clone(), provided_stock_id.cloned()));
 
         // TODO Should this be allowed instead?
         //
@@ -283,10 +287,10 @@ impl Timeline {
         // with different stock id. But if the same entity enters with a different stock id,
         // the id may have been reused on the a different item, I think this should be allowed,
         // or can it even happen?
-        if stock_id.is_some() && stock_id != entity.stock_id() {
+        if provided_stock_id.is_some() && provided_stock_id != entity.stock_id() {
             bail!(
                 "Entity `{}` already handled with different stock id",
-                entity_id
+                provided_entity_id
             );
         }
 
@@ -304,6 +308,8 @@ impl Timeline {
         } else {
             entity.add_entry_dt(now_dt);
         }
+
+        let stock_id = provided_stock_id.or_else(|| entity.stock_id());
 
         let item_kind = if is_exit {
             TimelineItemKind::Exit {
@@ -324,13 +330,13 @@ impl Timeline {
         let item = TimelineItem::new(
             now_dt,
             item_kind,
-            entity_id.clone(),
+            provided_entity_id.clone(),
             stock_id.cloned(),
             new_n_inside,
         );
 
         // Use entity stock id from entity if no stock id is provided.
-        let stock = if let Some(stock_id) = stock_id.or_else(|| entity.stock_id()) {
+        let stock = if let Some(stock_id) = stock_id {
             let stock = self
                 .stock_list()
                 .get(stock_id)
@@ -345,7 +351,7 @@ impl Timeline {
             stock_timeline.insert(StockTimelineItem::new(
                 now_dt,
                 item_kind,
-                entity_id.clone(),
+                provided_entity_id.clone(),
                 stock_id.clone(),
                 stock_new_n_inside,
             ));
