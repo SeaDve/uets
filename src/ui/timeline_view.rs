@@ -63,6 +63,8 @@ mod imp {
             let obj = self.obj();
 
             let vadj = self.scrolled_window.vadjustment();
+            debug_assert_eq!(vadj, self.list_view.vadjustment().unwrap());
+
             vadj.connect_value_changed(clone!(
                 #[weak]
                 obj,
