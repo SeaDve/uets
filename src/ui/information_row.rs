@@ -48,6 +48,24 @@ mod imp {
 
             let obj = self.obj();
 
+            // FIXME Properly add dim-label class to the title label
+            {
+                let header = obj.first_child().unwrap();
+                let title_box = header
+                    .first_child()
+                    .unwrap()
+                    .next_sibling()
+                    .unwrap()
+                    .next_sibling()
+                    .unwrap();
+                let title_label = title_box
+                    .first_child()
+                    .unwrap()
+                    .downcast::<gtk::Label>()
+                    .unwrap();
+                title_label.add_css_class("dim-label");
+            }
+
             self.value_label.connect_activate_link(clone!(
                 #[weak]
                 obj,
