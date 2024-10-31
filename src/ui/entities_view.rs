@@ -194,12 +194,21 @@ impl EntitiesView {
 
         for (key, value) in kv_queries {
             match key {
-                "is" if value == "inside" => {
-                    filters.append(gtk::CustomFilter::new(|o| {
-                        let entity = o.downcast_ref::<Entity>().unwrap();
-                        entity.is_inside()
-                    }));
-                }
+                "is" => match value {
+                    "inside" => {
+                        filters.append(gtk::CustomFilter::new(|o| {
+                            let entity = o.downcast_ref::<Entity>().unwrap();
+                            entity.is_inside()
+                        }));
+                    }
+                    "outside" => {
+                        filters.append(gtk::CustomFilter::new(|o| {
+                            let entity = o.downcast_ref::<Entity>().unwrap();
+                            !entity.is_inside()
+                        }));
+                    }
+                    _ => continue,
+                },
                 "stock" => {
                     let stock_id = StockId::new(value);
                     filters.append(gtk::CustomFilter::new(move |o| {
