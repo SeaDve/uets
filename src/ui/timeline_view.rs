@@ -62,7 +62,7 @@ mod imp {
 
             let obj = self.obj();
 
-            let vadj = self.list_view.vadjustment().unwrap();
+            let vadj = self.scrolled_window.vadjustment();
             vadj.connect_value_changed(clone!(
                 #[weak]
                 obj,
@@ -239,7 +239,7 @@ impl TimelineView {
 
     fn is_at_bottom(&self) -> bool {
         let imp = self.imp();
-        let vadj = imp.list_view.vadjustment().unwrap();
+        let vadj = imp.scrolled_window.vadjustment();
         vadj.value() + vadj.page_size() == vadj.upper()
     }
 
