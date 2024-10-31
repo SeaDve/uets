@@ -9,7 +9,7 @@ use crate::{
 };
 
 mod imp {
-    use std::sync::OnceLock;
+    use std::{cell::Cell, sync::OnceLock};
 
     use glib::subclass::Signal;
 
@@ -23,9 +23,16 @@ mod imp {
         #[template_child]
         pub(super) no_data_page: TemplateChild<adw::StatusPage>,
         #[template_child]
-        pub(super) main_page: TemplateChild<gtk::ScrolledWindow>,
+        pub(super) main_page: TemplateChild<gtk::Overlay>,
+        #[template_child]
+        pub(super) scrolled_window: TemplateChild<gtk::ScrolledWindow>,
         #[template_child]
         pub(super) list_view: TemplateChild<gtk::ListView>,
+        #[template_child]
+        pub(super) scroll_to_bottom_revealer: TemplateChild<gtk::Revealer>,
+
+        pub(super) is_sticky: Cell<bool>,
+        pub(super) is_auto_scrolling: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -36,6 +43,10 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+
+            klass.install_action("timeline-view.scroll-to-bottom", None, move |obj, _, _| {
+                obj.scroll_to_bottom();
+            });
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -48,6 +59,64 @@ mod imp {
             self.parent_constructed();
 
             let obj = self.obj();
+
+            let vadj = self.list_view.vadjustment().unwrap();
+            vadj.connect_value_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    let imp = obj.imp();
+
+                    let is_at_bottom = obj.is_at_bottom();
+                    if imp.is_auto_scrolling.get() {
+                        if is_at_bottom {
+                            imp.is_auto_scrolling.set(false);
+                            imp.is_sticky.set(true);
+                        } else {
+                            obj.scroll_to_bottom();
+                        }
+                    } else {
+                        imp.is_sticky.set(is_at_bottom);
+                    }
+
+                    obj.update_scroll_to_bottom_revealer_reveal_child();
+                }
+            ));
+            vadj.connect_upper_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    let imp = obj.imp();
+
+                    if imp.is_sticky.get() {
+                        obj.scroll_to_bottom();
+                    }
+
+                    obj.update_scroll_to_bottom_revealer_reveal_child();
+                }
+            ));
+            vadj.connect_page_size_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    let imp = obj.imp();
+
+                    if imp.is_sticky.get() {
+                        obj.scroll_to_bottom();
+                    }
+
+                    obj.update_scroll_to_bottom_revealer_reveal_child();
+                }
+            ));
+
+            self.scroll_to_bottom_revealer
+                .connect_child_revealed_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_scroll_to_bottom_revealer_can_target();
+                    }
+                ));
 
             let factory = gtk::SignalListItemFactory::new();
             factory.connect_setup(clone!(
@@ -156,6 +225,19 @@ impl TimelineView {
         self.update_stack();
     }
 
+    fn scroll_to_bottom(&self) {
+        let imp = self.imp();
+        imp.is_auto_scrolling.set(true);
+        imp.scrolled_window
+            .emit_scroll_child(gtk::ScrollType::End, false);
+    }
+
+    fn is_at_bottom(&self) -> bool {
+        let imp = self.imp();
+        let vadj = imp.list_view.vadjustment().unwrap();
+        vadj.value() + vadj.page_size() == vadj.upper()
+    }
+
     fn update_stack(&self) {
         let imp = self.imp();
 
@@ -176,5 +258,19 @@ impl TimelineView {
         } else {
             imp.stack.set_visible_child(&*imp.main_page);
         }
+    }
+
+    fn update_scroll_to_bottom_revealer_reveal_child(&self) {
+        let imp = self.imp();
+
+        imp.scroll_to_bottom_revealer
+            .set_reveal_child(!self.is_at_bottom());
+    }
+
+    fn update_scroll_to_bottom_revealer_can_target(&self) {
+        let imp = self.imp();
+
+        imp.scroll_to_bottom_revealer
+            .set_can_target(imp.scroll_to_bottom_revealer.is_child_revealed());
     }
 }
