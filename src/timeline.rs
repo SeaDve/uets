@@ -146,7 +146,7 @@ impl Timeline {
             start_time.elapsed()
         );
 
-        // Recover stock id from entities db and current n inside as it is not stored on timeline db.
+        // Recover current n inside as it is not stored on timeline db.
         let mut n_inside = 0;
         let items = raw_items
             .into_iter()
@@ -157,13 +157,7 @@ impl Timeline {
                     n_inside -= 1;
                 }
 
-                let stock_id = entities
-                    .get(&raw_item.entity_id)
-                    .expect("timeline must match with entities db")
-                    .stock_id();
-                let item = TimelineItem::from_db(dt, raw_item, stock_id.cloned(), n_inside);
-
-                (dt, item)
+                (dt, TimelineItem::from_db(dt, raw_item, n_inside))
             })
             .collect::<IndexMap<_, _>>();
 
@@ -212,7 +206,7 @@ impl Timeline {
             }
 
             // Recover stock timeline as it is not stored on stocks db.
-            if let Some(stock_id) = item.stock_id() {
+            if let Some(stock_id) = entity.stock_id() {
                 let (raw_stock_timeline, n_inside) =
                     raw_stocks_data.entry(stock_id.clone()).or_default();
 
@@ -321,8 +315,6 @@ impl Timeline {
             entity.add_entry_dt(now_dt);
         }
 
-        let stock_id = provided_stock_id.or_else(|| entity.stock_id());
-
         let item_kind = if is_exit {
             TimelineItemKind::Exit
         } else {
@@ -333,16 +325,10 @@ impl Timeline {
         } else {
             self.n_inside() + 1
         };
-        let item = TimelineItem::new(
-            now_dt,
-            item_kind,
-            provided_entity_id.clone(),
-            stock_id.cloned(),
-            new_n_inside,
-        );
+        let item = TimelineItem::new(now_dt, item_kind, provided_entity_id.clone(), new_n_inside);
 
         // Use entity stock id from entity if no stock id is provided.
-        let stock = if let Some(stock_id) = stock_id {
+        let stock = if let Some(stock_id) = provided_stock_id.or_else(|| entity.stock_id()) {
             let stock = self
                 .stock_list()
                 .get(stock_id)

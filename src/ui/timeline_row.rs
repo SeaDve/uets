@@ -185,8 +185,14 @@ impl TimelineRow {
         if let Some(ref item) = self.item() {
             let entity_id = item.entity_id();
 
+            let entity = Application::get()
+                .timeline()
+                .entity_list()
+                .get(entity_id)
+                .expect("entity must be known");
+
             let entity_uri = format!("entity:{}", entity_id);
-            let title = item.stock_id().map_or_else(
+            let title = entity.stock_id().map_or_else(
                 || format!("<a href=\"{entity_uri}\">{entity_id}</a>"),
                 |stock_id| {
                     let stock_uri = format!("stock:{}", stock_id);
