@@ -27,6 +27,8 @@ mod imp {
         #[template_child]
         pub(super) id_row: TemplateChild<InformationRow>,
         #[template_child]
+        pub(super) stock_id_row: TemplateChild<InformationRow>,
+        #[template_child]
         pub(super) is_inside_row: TemplateChild<InformationRow>,
 
         pub(super) entity_bindings: glib::BindingGroup,
@@ -102,6 +104,12 @@ mod imp {
                 entity
                     .as_ref()
                     .map(|s| s.id().to_string())
+                    .unwrap_or_default(),
+            );
+            self.stock_id_row.set_value(
+                entity
+                    .as_ref()
+                    .and_then(|s| s.stock_id().map(|s_id| s_id.to_string()))
                     .unwrap_or_default(),
             );
 
