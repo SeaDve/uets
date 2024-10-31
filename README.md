@@ -26,6 +26,8 @@ This is used for tracking attendance, whereas unauthorized entities are not allo
 
 This is used for tracking parking spaces and vehicles (e.g., parking lot).
 
+This is useful for tracking how long a vehicle has been parked and whether it is authorized to park.
+
 ## 🏗️ Building and Running
 
 1. Set up a toolbox container.
