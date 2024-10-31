@@ -55,7 +55,12 @@ mod imp {
             }
 
             if let Some(entity) = &entity {
-                self.title_label.set_label(&entity.id().to_string())
+                let text = if let Some(stock_id) = entity.stock_id() {
+                    format!("{} ({})", entity.id(), stock_id)
+                } else {
+                    entity.id().to_string()
+                };
+                self.title_label.set_label(&text)
             } else {
                 self.title_label.set_label("");
             }
