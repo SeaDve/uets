@@ -22,7 +22,7 @@ mod imp {
         #[template_child]
         pub(super) reset_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub(super) all_listbox: TemplateChild<gtk::ListBox>,
+        pub(super) entities_listbox: TemplateChild<gtk::ListBox>,
         #[template_child]
         pub(super) inside_listbox: TemplateChild<gtk::ListBox>,
     }
@@ -70,7 +70,7 @@ mod imp {
                 }
             });
 
-            self.all_listbox.bind_model(
+            self.entities_listbox.bind_model(
                 Some(Application::get().timeline().entity_list()),
                 |entity| {
                     let entity = entity.downcast_ref::<Entity>().unwrap();

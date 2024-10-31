@@ -67,9 +67,9 @@
                 </child>
                 <child>
                   <object class="AdwPreferencesGroup">
-                    <property name="title">All</property>
+                    <property name="title">Entities</property>
                     <child>
-                      <object class="GtkListBox" id="all_listbox">
+                      <object class="GtkListBox" id="entities_listbox">
                         <property name="selection-mode">none</property>
                         <style>
                           <class name="boxed-list"/>
