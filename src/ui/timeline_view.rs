@@ -58,6 +58,8 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
+            self.is_sticky.set(true);
+
             let obj = self.obj();
 
             let vadj = self.list_view.vadjustment().unwrap();
@@ -227,9 +229,12 @@ impl TimelineView {
 
     fn scroll_to_bottom(&self) {
         let imp = self.imp();
+
         imp.is_auto_scrolling.set(true);
         imp.scrolled_window
             .emit_scroll_child(gtk::ScrollType::End, false);
+
+        self.update_scroll_to_bottom_revealer_reveal_child();
     }
 
     fn is_at_bottom(&self) -> bool {
@@ -264,7 +269,7 @@ impl TimelineView {
         let imp = self.imp();
 
         imp.scroll_to_bottom_revealer
-            .set_reveal_child(!self.is_at_bottom());
+            .set_reveal_child(!self.is_at_bottom() && !imp.is_auto_scrolling.get());
     }
 
     fn update_scroll_to_bottom_revealer_can_target(&self) {
