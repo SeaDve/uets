@@ -12,6 +12,8 @@ mod imp {
         #[template_child]
         pub(super) page: TemplateChild<adw::PreferencesPage>, // Unused
         #[template_child]
+        pub(super) show_test_window_button: TemplateChild<gtk::Button>,
+        #[template_child]
         pub(super) quit_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub(super) shutdown_button: TemplateChild<gtk::Button>,
@@ -42,6 +44,9 @@ mod imp {
             action_group.add_action(&Application::get().settings().create_operation_mode_action());
             obj.insert_action_group("settings-view", Some(&action_group));
 
+            self.show_test_window_button.connect_clicked(|_| {
+                Application::get().present_test_window();
+            });
             self.quit_button.connect_clicked(|_| {
                 Application::get().quit();
             });

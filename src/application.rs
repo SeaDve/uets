@@ -144,6 +144,10 @@ impl Application {
         self.imp().env.get().unwrap()
     }
 
+    pub fn present_test_window(&self) {
+        TestWindow::new(self).present();
+    }
+
     fn window(&self) -> Window {
         self.active_window()
             .map_or_else(|| Window::new(self), |w| w.downcast().unwrap())
@@ -152,7 +156,7 @@ impl Application {
     fn setup_actions(&self) {
         let show_test_window_action = gio::ActionEntry::builder("show-test-window")
             .activate(|obj: &Self, _, _| {
-                TestWindow::new(obj).present();
+                obj.present_test_window();
             })
             .build();
         let quit_action = gio::ActionEntry::builder("quit")

@@ -76,6 +76,18 @@
                 <property name="title">Developer Options</property>
                 <child>
                   <object class="AdwActionRow">
+                    <property name="title">Show Test Window</property>
+                    <property name="subtitle">Opens the test window</property>
+                    <child>
+                      <object class="GtkButton" id="show_test_window_button">
+                        <property name="valign">center</property>
+                        <property name="label">Show</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow">
                     <property name="title">Quit Application</property>
                     <property name="subtitle">Close the application</property>
                     <child>

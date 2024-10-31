@@ -1,5 +1,9 @@
 use adw::{prelude::*, subclass::prelude::*};
-use gtk::{gdk, glib, pango};
+use gtk::{
+    gdk,
+    glib::{self, clone},
+    pango,
+};
 
 use crate::{entity::Entity, entity_id::EntityId, stock_id::StockId, Application};
 
@@ -13,6 +17,8 @@ mod imp {
         pub(super) entity_id_entry: TemplateChild<gtk::Entry>,
         #[template_child]
         pub(super) stock_id_entry: TemplateChild<gtk::Entry>,
+        #[template_child]
+        pub(super) enter_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub(super) reset_button: TemplateChild<gtk::Button>,
         #[template_child]
@@ -42,11 +48,22 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
-            self.entity_id_entry.connect_activate(move |entry| {
-                let id = EntityId::new(entry.text());
-                entry.set_text("");
-                Application::get().detector().simulate_detected(&id);
-            });
+            let obj = self.obj();
+
+            self.entity_id_entry.connect_activate(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.handle_enter();
+                }
+            ));
+            self.enter_button.connect_clicked(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.handle_enter();
+                }
+            ));
             self.reset_button.connect_clicked(|_button| {
                 if let Err(err) = Application::get().timeline().reset() {
                     eprintln!("Failed to reset timeline: {:?}", err);
@@ -121,5 +138,15 @@ impl TestWindow {
         }
 
         Some(StockId::new(text))
+    }
+
+    fn handle_enter(&self) {
+        let imp = self.imp();
+
+        let id = EntityId::new(imp.entity_id_entry.text());
+
+        imp.entity_id_entry.set_text("");
+
+        Application::get().detector().simulate_detected(&id);
     }
 }

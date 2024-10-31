@@ -29,20 +29,38 @@
                 <child>
                   <object class="GtkBox">
                     <property name="spacing">6</property>
-                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">6</property>
+                        <child>
+                          <object class="GtkEntry" id="entity_id_entry">
+                            <property name="hexpand">True</property>
+                            <property name="placeholder-text">Entity ID</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkEntry" id="stock_id_entry">
+                            <property name="hexpand">True</property>
+                            <property name="placeholder-text">Stock ID</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="enter_button">
+                        <property name="label">Enter</property>
+                        <style>
+                          <class name="suggested-action"/>
+                        </style>
+                      </object>
+                    </child>
                     <child>
                       <object class="GtkButton" id="reset_button">
-                        <property name="label">Reset</property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkEntry" id="entity_id_entry">
-                        <property name="hexpand">True</property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkEntry" id="stock_id_entry">
-                        <property name="hexpand">True</property>
+                        <property name="label">Reset All</property>
+                        <style>
+                          <class name="destructive-action"/>
+                        </style>
                       </object>
                     </child>
                   </object>
