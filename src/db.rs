@@ -25,8 +25,6 @@ pub const STOCKS_DB_NAME: &str = "stocks";
 pub struct RawTimelineItem {
     pub kind: RawTimelineItemKind,
     pub entity_id: EntityId,
-    pub stock_id: Option<StockId>,
-    pub n_inside: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

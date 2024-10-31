@@ -55,13 +55,18 @@ impl TimelineItem {
         this
     }
 
-    pub fn from_db(dt: DateTime, raw: db::RawTimelineItem) -> Self {
+    pub fn from_db(
+        dt: DateTime,
+        raw: db::RawTimelineItem,
+        stock_id: Option<StockId>,
+        n_inside: u32,
+    ) -> Self {
         Self::new(
             dt,
             TimelineItemKind::from_db(raw.kind),
             raw.entity_id,
-            raw.stock_id,
-            raw.n_inside,
+            stock_id,
+            n_inside,
         )
     }
 
@@ -69,8 +74,6 @@ impl TimelineItem {
         db::RawTimelineItem {
             kind: self.kind().to_db(),
             entity_id: self.entity_id().clone(),
-            stock_id: self.stock_id().cloned(),
-            n_inside: self.n_inside(),
         }
     }
 

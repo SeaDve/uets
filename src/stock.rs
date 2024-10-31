@@ -39,7 +39,7 @@ impl Stock {
         this
     }
 
-    pub fn from_db(id: StockId, stock_timeline: StockTimeline, _raw: db::RawStock) -> Self {
+    pub fn from_db(id: StockId, _raw: db::RawStock, stock_timeline: StockTimeline) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();

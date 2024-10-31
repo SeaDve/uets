@@ -100,22 +100,16 @@ glib::wrapper! {
 
 impl Timeline {
     pub fn load_from_env(env: heed::Env) -> Result<Self> {
-        let db_load_start_time = Instant::now();
+        let start_time = Instant::now();
 
-        let (tdb, items, edb, entities, sdb, raw_stocks) = env.with_write_txn(|wtxn| {
+        let (tdb, raw_items, edb, entities, sdb, raw_stocks) = env.with_write_txn(|wtxn| {
             let tdb: db::TimelineDbType = env
                 .create_database(wtxn, Some(db::TIMELINE_DB_NAME))
                 .context("Failed to create timeline db")?;
-            let items = tdb
+            let raw_items = tdb
                 .iter(wtxn)
                 .context("Failed to iter items from db")?
-                .map(|res| {
-                    res.map(|(dt, raw)| {
-                        let item = TimelineItem::from_db(dt, raw);
-                        (dt, item)
-                    })
-                })
-                .collect::<Result<IndexMap<_, _>, _>>()
+                .collect::<Result<Vec<_>, _>>()
                 .context("Failed to collect items from db")?;
 
             let edb: db::EntitiesDbType = env
@@ -136,21 +130,45 @@ impl Timeline {
             let sdb: db::StocksDbType = env
                 .create_database(wtxn, Some(db::STOCKS_DB_NAME))
                 .context("Failed to create stocks db")?;
-            let stocks = sdb
+            let raw_stocks = sdb
                 .iter(wtxn)
                 .context("Failed to iter stocks from db")?
-                .collect::<Result<IndexMap<_, _>, _>>()
+                .collect::<Result<Vec<_>, _>>()
                 .context("Failed to collect stocks from db")?;
 
-            Ok((tdb, items, edb, entities, sdb, stocks))
+            Ok((tdb, raw_items, edb, entities, sdb, raw_stocks))
         })?;
-        debug_assert!(items.keys().is_sorted());
+        debug_assert!(raw_items.iter().map(|(dt, _)| dt).is_sorted());
 
         tracing::debug!(
-            "Loaded {} items and entities in {:?}",
-            items.len(),
-            db_load_start_time.elapsed()
+            "Loaded {} items, entities, and stocks dbs in {:?}",
+            raw_items.len(),
+            start_time.elapsed()
         );
+
+        // Recover stock id from entities db and current n inside as it is not stored on timeline db.
+        let mut n_inside = 0;
+        let items = raw_items
+            .into_iter()
+            .map(|(dt, raw_item)| {
+                match raw_item.kind {
+                    db::RawTimelineItemKind::Entry => {
+                        n_inside += 1;
+                    }
+                    db::RawTimelineItemKind::Exit { .. } => {
+                        n_inside -= 1;
+                    }
+                }
+
+                let stock_id = entities
+                    .get(&raw_item.entity_id)
+                    .expect("timeline must match with entities db")
+                    .stock_id();
+                let item = TimelineItem::from_db(dt, raw_item, stock_id.cloned(), n_inside);
+
+                (dt, item)
+            })
+            .collect::<IndexMap<_, _>>();
 
         let max_n_inside = items
             .values()
@@ -165,7 +183,6 @@ impl Timeline {
             .values()
             .filter(|item| matches!(item.kind(), TimelineItemKind::Exit { .. }))
             .count();
-
         let last_entry_dt = {
             let mut last_entry_dt = None;
             for (_, item) in items.iter().rev() {
@@ -190,7 +207,7 @@ impl Timeline {
         let mut raw_stocks_data =
             HashMap::<StockId, (IndexMap<DateTime, StockTimelineItem>, u32)>::new();
         for (_, item) in &items {
-            // Recover entry dts as it is not stored on db.
+            // Recover entry dts as it is not stored on entities db.
             let entity = entities
                 .get(item.entity_id())
                 .expect("timeline must match with entities db");
@@ -203,7 +220,7 @@ impl Timeline {
                 }
             }
 
-            // Recover stock timeline as it is not stored on db.
+            // Recover stock timeline as it is not stored on stocks db.
             if let Some(stock_id) = item.stock_id() {
                 let (raw_stock_timeline, n_inside) =
                     raw_stocks_data.entry(stock_id.clone()).or_default();
@@ -246,7 +263,7 @@ impl Timeline {
                             .map_or_else(StockTimeline::new, |(raw_stock_timeline, _)| {
                                 StockTimeline::from_raw(raw_stock_timeline)
                             });
-                        let stock = Stock::from_db(stock_id.clone(), stock_timeline, raw_stock);
+                        let stock = Stock::from_db(stock_id.clone(), raw_stock, stock_timeline);
                         (stock_id, stock)
                     })
                     .collect(),
@@ -257,6 +274,10 @@ impl Timeline {
         imp.n_exits.set(n_exits as u32);
         imp.last_entry_dt.set(last_entry_dt);
         imp.last_exit_dt.set(last_exit_dt);
+
+        tracing::debug!("Loaded timeline in {:?}", start_time.elapsed());
+
+        debug_assert!(imp.list.borrow().keys().is_sorted());
 
         Ok(this)
     }
