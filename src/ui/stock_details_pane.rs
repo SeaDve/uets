@@ -6,11 +6,15 @@ use gtk::{
 
 use crate::{
     stock::Stock,
-    ui::{information_row::InformationRow, stock_graph::StockGraph},
+    stock_timeline::StockTimeline,
+    ui::{information_row::InformationRow, time_graph::TimeGraph},
 };
 
 mod imp {
-    use std::{cell::RefCell, sync::OnceLock};
+    use std::{
+        cell::{OnceCell, RefCell},
+        sync::OnceLock,
+    };
 
     use glib::subclass::Signal;
 
@@ -32,9 +36,10 @@ mod imp {
         #[template_child]
         pub(super) n_inside_row: TemplateChild<InformationRow>,
         #[template_child]
-        pub(super) graph: TemplateChild<StockGraph>,
+        pub(super) graph: TemplateChild<TimeGraph>,
 
         pub(super) timeline_bindings: glib::BindingGroup,
+        pub(super) timeline_signals: OnceCell<glib::SignalGroup>,
     }
 
     #[glib::object_subclass]
@@ -79,6 +84,22 @@ mod imp {
                 })
                 .flags(glib::BindingFlags::SYNC_CREATE)
                 .build();
+
+            let timeline_signals = glib::SignalGroup::new::<StockTimeline>();
+            timeline_signals.connect_local(
+                "items-changed",
+                false,
+                clone!(
+                    #[weak]
+                    obj,
+                    #[upgrade_or_panic]
+                    move |_| {
+                        obj.update_graph_data();
+                        None
+                    }
+                ),
+            );
+            self.timeline_signals.set(timeline_signals).unwrap();
         }
 
         fn dispose(&self) {
@@ -112,10 +133,13 @@ mod imp {
             self.timeline_bindings
                 .set_source(stock.as_ref().map(|s| s.timeline()));
 
-            self.graph
-                .set_timeline(stock.as_ref().map(|s| s.timeline().clone()));
+            self.timeline_signals
+                .get()
+                .unwrap()
+                .set_target(stock.as_ref().map(|s| s.timeline()));
 
             self.stock.replace(stock);
+            obj.update_graph_data();
             obj.notify_stock();
         }
     }
@@ -136,5 +160,21 @@ impl StockDetailsPane {
         F: Fn(&Self) + 'static,
     {
         self.connect_closure("close-request", false, closure_local!(|obj: &Self| f(obj)))
+    }
+
+    fn update_graph_data(&self) {
+        let imp = self.imp();
+
+        let data = self
+            .stock()
+            .map(|stock| {
+                stock
+                    .timeline()
+                    .iter()
+                    .map(|item| (item.dt().inner(), item.n_inside()))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        imp.graph.set_data(data);
     }
 }

@@ -1,35 +1,28 @@
 use anyhow::Result;
 use chrono::Utc;
-use gtk::{
-    glib::{self, clone},
-    prelude::*,
-    subclass::prelude::*,
-};
+use gtk::{glib, prelude::*, subclass::prelude::*};
 use plotters_cairo::CairoBackend;
 
-use crate::{
-    colors::{self, ColorExt},
-    timeline::Timeline,
-};
+use crate::colors::{self, ColorExt};
 
 mod imp {
-    use std::cell::OnceCell;
+    use std::cell::RefCell;
 
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/seadve/Uets/ui/graph.ui")]
+    #[template(resource = "/io/github/seadve/Uets/ui/time_graph.ui")]
     pub struct Graph {
         #[template_child]
         pub(super) no_data_revealer: TemplateChild<gtk::Revealer>,
 
-        pub(super) timeline: OnceCell<Timeline>,
+        pub(super) data: RefCell<Vec<(chrono::DateTime<Utc>, u32)>>,
     }
 
     #[glib::object_subclass]
     impl ObjectSubclass for Graph {
-        const NAME: &'static str = "UetsGraph";
-        type Type = super::Graph;
+        const NAME: &'static str = "UetsTimeGraph";
+        type Type = super::TimeGraph;
         type ParentType = gtk::Widget;
 
         fn class_init(klass: &mut Self::Class) {
@@ -72,28 +65,19 @@ mod imp {
 }
 
 glib::wrapper! {
-    pub struct Graph(ObjectSubclass<imp::Graph>)
+    pub struct TimeGraph(ObjectSubclass<imp::Graph>)
         @extends gtk::Widget;
 }
 
-impl Graph {
+impl TimeGraph {
     pub fn new() -> Self {
         glib::Object::new()
     }
 
-    pub fn bind_timeline(&self, timeline: &Timeline) {
+    pub fn set_data(&self, data: Vec<(chrono::DateTime<Utc>, u32)>) {
         let imp = self.imp();
 
-        timeline.connect_items_changed(clone!(
-            #[weak(rename_to = obj)]
-            self,
-            move |_, _, _, _| {
-                obj.queue_draw();
-                obj.update_no_data_revealer();
-            }
-        ));
-
-        imp.timeline.set(timeline.clone()).unwrap();
+        imp.data.replace(data);
 
         self.queue_draw();
         self.update_no_data_revealer();
@@ -103,23 +87,23 @@ impl Graph {
         let imp = self.imp();
 
         imp.no_data_revealer
-            .set_reveal_child(imp.timeline.get().unwrap().is_empty());
+            .set_reveal_child(imp.data.borrow().is_empty());
     }
 
     fn draw_graph(&self, backend: CairoBackend<'_>) -> Result<()> {
         use plotters::prelude::*;
 
         let imp = self.imp();
-        let timeline = imp.timeline.get().unwrap();
+        let data = imp.data.borrow();
 
-        if timeline.is_empty() {
+        if data.is_empty() {
             return Ok(());
         }
 
         let root = backend.into_drawing_area();
 
-        let x_min = timeline.first().unwrap().dt().inner();
-        let x_max = timeline.last().unwrap().dt().inner();
+        let x_min = *data.first().map(|(x, _)| x).unwrap();
+        let x_max = *data.last().map(|(x, _)| x).unwrap();
 
         let diff = x_max.signed_duration_since(x_min);
         let formatter = if diff.num_weeks() > 0 {
@@ -130,8 +114,8 @@ impl Graph {
             |dt: &chrono::DateTime<Utc>| dt.format("%H:%M:%S").to_string()
         };
 
-        let y_min = timeline.iter().map(|item| item.n_inside()).min().unwrap();
-        let y_max = timeline.iter().map(|item| item.n_inside()).max().unwrap();
+        let y_min = *data.iter().map(|(_, y)| y).min().unwrap();
+        let y_max = *data.iter().map(|(_, y)| y).max().unwrap();
 
         let mut chart = ChartBuilder::on(&root)
             .margin(20)
@@ -150,16 +134,12 @@ impl Graph {
             .draw()?;
 
         chart.draw_series(LineSeries::new(
-            timeline
-                .iter()
-                .map(|item| (item.dt().inner(), item.n_inside())),
+            data.iter().copied(),
             &colors::BLUE_2.to_plotters(),
         ))?;
 
         chart.draw_series(PointSeries::of_element(
-            timeline
-                .iter()
-                .map(|item| (item.dt().inner(), item.n_inside())),
+            data.iter().copied(),
             3,
             &colors::BLUE_4.to_plotters(),
             &|c, s, st| EmptyElement::at(c) + Circle::new((0, 0), s, st.filled()),

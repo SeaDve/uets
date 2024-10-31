@@ -1,10 +1,11 @@
 use gtk::{
     glib::{self, clone},
+    prelude::*,
     subclass::prelude::*,
 };
 
 use crate::{
-    ui::{graph::Graph, information_row::InformationRow},
+    ui::{information_row::InformationRow, time_graph::TimeGraph},
     Application,
 };
 
@@ -29,7 +30,7 @@ mod imp {
         #[template_child]
         pub(super) last_exit_dt_row: TemplateChild<InformationRow>,
         #[template_child]
-        pub(super) graph: TemplateChild<Graph>,
+        pub(super) graph: TemplateChild<TimeGraph>,
     }
 
     #[glib::object_subclass]
@@ -56,8 +57,13 @@ mod imp {
             let app = Application::get();
             let timeline = app.timeline();
 
-            self.graph.bind_timeline(timeline);
-
+            timeline.connect_items_changed(clone!(
+                #[weak]
+                obj,
+                move |_, _, _, _| {
+                    obj.update_graph_data();
+                }
+            ));
             timeline.connect_n_inside_notify(clone!(
                 #[weak]
                 obj,
@@ -101,6 +107,7 @@ mod imp {
                 }
             ));
 
+            obj.update_graph_data();
             obj.update_n_inside_label();
             obj.update_max_n_inside_row();
             obj.update_n_entries_label();
@@ -125,6 +132,17 @@ glib::wrapper! {
 impl DashboardView {
     pub fn new() -> Self {
         glib::Object::new()
+    }
+
+    fn update_graph_data(&self) {
+        let imp = self.imp();
+
+        let data = Application::get()
+            .timeline()
+            .iter()
+            .map(|item| (item.dt().inner(), item.n_inside()))
+            .collect::<Vec<_>>();
+        imp.graph.set_data(data);
     }
 
     fn update_n_inside_label(&self) {

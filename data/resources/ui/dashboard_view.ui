@@ -62,7 +62,7 @@
           <object class="AdwPreferencesGroup">
             <property name="title">Inside Count Over Time</property>
             <child>
-              <object class="UetsGraph" id="graph">
+              <object class="UetsTimeGraph" id="graph">
                 <property name="height-request">240</property>
                 <style>
                   <class name="card"/>

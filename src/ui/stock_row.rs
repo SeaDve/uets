@@ -81,17 +81,16 @@ mod imp {
                 return;
             }
 
-            let timeline_signals = self.timeline_signals.get().unwrap();
-
             if let Some(stock) = &stock {
                 self.title_label.set_label(&stock.id().to_string());
-
-                timeline_signals.set_target(Some(stock.timeline()));
             } else {
                 self.title_label.set_label("");
-
-                timeline_signals.set_target(glib::Object::NONE);
             }
+
+            self.timeline_signals
+                .get()
+                .unwrap()
+                .set_target(stock.as_ref().map(|s| s.timeline()));
 
             self.stock.replace(stock);
             obj.update_n_inside_label();
