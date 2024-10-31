@@ -71,7 +71,7 @@ mod imp {
                 obj,
                 move |_, stock_id| {
                     let imp = obj.imp();
-                    imp.stocks_view.show(stock_id);
+                    imp.stocks_view.show_stock(stock_id);
                     imp.view_stack.set_visible_child_name("stocks");
                 }
             ));
@@ -80,7 +80,7 @@ mod imp {
                 obj,
                 move |_, entity_id| {
                     let imp = obj.imp();
-                    imp.entities_view.show(entity_id);
+                    imp.entities_view.show_entity(entity_id);
                     imp.view_stack.set_visible_child_name("entities");
                 }
             ));
@@ -89,7 +89,7 @@ mod imp {
                 obj,
                 move |_, stock_id| {
                     let imp = obj.imp();
-                    imp.stocks_view.show(stock_id);
+                    imp.stocks_view.show_stock(stock_id);
                     imp.view_stack.set_visible_child_name("stocks");
                 }
             ));

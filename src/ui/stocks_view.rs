@@ -111,7 +111,7 @@ impl StocksView {
         self.update_stack();
     }
 
-    pub fn show(&self, stock_id: &StockId) {
+    pub fn show_stock(&self, stock_id: &StockId) {
         let imp = self.imp();
 
         let position = self

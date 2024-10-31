@@ -144,13 +144,13 @@ impl EntitiesView {
         self.update_stack();
     }
 
-    pub fn show(&self, stock_id: &EntityId) {
+    pub fn show_entity(&self, entity_id: &EntityId) {
         let imp = self.imp();
 
         let position = self
             .entity_list()
-            .get_index_of(stock_id)
-            .expect("stock must exist") as u32;
+            .get_index_of(entity_id)
+            .expect("entity must exist") as u32;
 
         imp.selection_model.set_selected(position);
 
