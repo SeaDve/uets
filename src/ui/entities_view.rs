@@ -31,9 +31,13 @@ mod imp {
         #[template_child]
         pub(super) main_page: TemplateChild<gtk::ScrolledWindow>,
         #[template_child]
+        pub(super) search_entry: TemplateChild<gtk::SearchEntry>,
+        #[template_child]
         pub(super) list_view: TemplateChild<gtk::ListView>,
         #[template_child]
         pub(super) selection_model: TemplateChild<gtk::SingleSelection>,
+        #[template_child]
+        pub(super) filter_list_model: TemplateChild<gtk::FilterListModel>,
         #[template_child]
         pub(super) details_pane: TemplateChild<EntityDetailsPane>,
     }
@@ -70,6 +74,22 @@ mod imp {
                 .bind_property("selected-item", &*self.details_pane, "entity")
                 .sync_create()
                 .build();
+
+            self.search_entry.connect_search_changed(clone!(
+                #[weak]
+                obj,
+                move |entry| {
+                    obj.handle_search_entry_search_changed(entry);
+                }
+            ));
+
+            self.filter_list_model.connect_items_changed(clone!(
+                #[weak]
+                obj,
+                move |_, _, _, _| {
+                    obj.update_stack();
+                }
+            ));
 
             self.details_pane.connect_show_stock_request(clone!(
                 #[weak]
@@ -131,25 +151,16 @@ impl EntitiesView {
     pub fn bind_entity_list(&self, entity_list: &EntityList) {
         let imp = self.imp();
 
-        entity_list.connect_items_changed(clone!(
-            #[weak(rename_to = obj)]
-            self,
-            move |_, _, _, _| {
-                obj.update_stack();
-            }
-        ));
-
-        imp.selection_model.set_model(Some(entity_list));
-
-        self.update_stack();
+        imp.filter_list_model.set_model(Some(entity_list));
     }
 
     pub fn show_entity(&self, entity_id: &EntityId) {
         let imp = self.imp();
 
-        let position = self
-            .entity_list()
-            .get_index_of(entity_id)
+        let position = imp
+            .filter_list_model
+            .iter::<Entity>()
+            .position(|entity| entity.unwrap().id() == entity_id)
             .expect("entity must exist") as u32;
 
         imp.selection_model.set_selected(position);
@@ -159,19 +170,54 @@ impl EntitiesView {
             .unwrap();
     }
 
-    fn entity_list(&self) -> EntityList {
-        self.imp()
-            .selection_model
-            .model()
-            .unwrap()
-            .downcast()
-            .unwrap()
+    pub fn show_entities_with_stock_id(&self, stock_id: &StockId) {
+        let imp = self.imp();
+
+        imp.search_entry.set_text(&format!("stock_id:{}", stock_id));
+    }
+
+    fn handle_search_entry_search_changed(&self, entry: &gtk::SearchEntry) {
+        let imp = self.imp();
+
+        let text = entry.text();
+        let kv_queries = text
+            .split_whitespace()
+            .filter_map(|part| part.split_once(':'))
+            .collect::<Vec<_>>();
+
+        if kv_queries.is_empty() {
+            imp.filter_list_model.set_filter(gtk::Filter::NONE);
+            return;
+        }
+
+        let filters = gtk::AnyFilter::new();
+
+        for (key, value) in kv_queries {
+            match key {
+                "is" if value == "inside" => {
+                    filters.append(gtk::CustomFilter::new(|o| {
+                        let entity = o.downcast_ref::<Entity>().unwrap();
+                        entity.is_inside()
+                    }));
+                }
+                "stock_id" => {
+                    let stock_id = StockId::new(value);
+                    filters.append(gtk::CustomFilter::new(move |o| {
+                        let entity = o.downcast_ref::<Entity>().unwrap();
+                        entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
+                    }));
+                }
+                _ => {}
+            }
+        }
+
+        imp.filter_list_model.set_filter(Some(&filters));
     }
 
     fn update_stack(&self) {
         let imp = self.imp();
 
-        if self.entity_list().is_empty() {
+        if imp.filter_list_model.n_items() == 0 {
             imp.stack.set_visible_child(&*imp.empty_page);
         } else {
             imp.stack.set_visible_child(&*imp.main_page);

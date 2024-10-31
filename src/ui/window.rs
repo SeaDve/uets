@@ -66,6 +66,15 @@ mod imp {
                 }
             ));
 
+            self.stocks_view.connect_show_entities_request(clone!(
+                #[weak]
+                obj,
+                move |_, stock_id| {
+                    let imp = obj.imp();
+                    imp.entities_view.show_entities_with_stock_id(stock_id);
+                    imp.view_stack.set_visible_child_name("entities");
+                }
+            ));
             self.entities_view.connect_show_stock_request(clone!(
                 #[weak]
                 obj,

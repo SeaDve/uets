@@ -13,7 +13,7 @@ pub struct EntityId(Box<str>);
 
 impl EntityId {
     pub fn new(id: impl Into<Box<str>>) -> Self {
-        // TODO Disallow empty or blank stock id
+        // TODO Disallow empty and spaces
         Self(id.into())
     }
 }

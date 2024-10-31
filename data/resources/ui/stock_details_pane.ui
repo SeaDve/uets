@@ -33,6 +33,18 @@
                     <property name="title">Count</property>
                   </object>
                 </child>
+                <child>
+                  <object class="AdwActionRow" id="show_entities_row">
+                    <property name="title">Show Entities</property>
+                    <property name="activatable">True</property>
+                    <property name="action-name">stock-details-pane.show-entities</property>
+                    <child type="suffix">
+                      <object class="GtkImage">
+                        <property name="icon-name">go-next-symbolic</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
               </object>
             </child>
             <child>

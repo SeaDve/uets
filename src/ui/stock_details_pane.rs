@@ -50,6 +50,14 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+
+            klass.install_action(
+                "stock-details-pane.show-entities",
+                None,
+                move |obj, _, _| {
+                    obj.emit_by_name::<()>("show-entities-request", &[]);
+                },
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -109,7 +117,12 @@ mod imp {
         fn signals() -> &'static [Signal] {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
 
-            SIGNALS.get_or_init(|| vec![Signal::builder("close-request").build()])
+            SIGNALS.get_or_init(|| {
+                vec![
+                    Signal::builder("show-entities-request").build(),
+                    Signal::builder("close-request").build(),
+                ]
+            })
         }
     }
 
@@ -153,6 +166,17 @@ glib::wrapper! {
 impl StockDetailsPane {
     pub fn new() -> Self {
         glib::Object::new()
+    }
+
+    pub fn connect_show_entities_request<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self) + 'static,
+    {
+        self.connect_closure(
+            "show-entities-request",
+            false,
+            closure_local!(|obj: &Self| f(obj)),
+        )
     }
 
     pub fn connect_close_request<F>(&self, f: F) -> glib::SignalHandlerId

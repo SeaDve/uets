@@ -1,5 +1,5 @@
 use gtk::{
-    glib::{self, clone},
+    glib::{self, clone, closure_local},
     prelude::*,
     subclass::prelude::*,
 };
@@ -12,6 +12,10 @@ use crate::{
 };
 
 mod imp {
+    use std::sync::OnceLock;
+
+    use glib::subclass::Signal;
+
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
@@ -66,6 +70,14 @@ mod imp {
                 .sync_create()
                 .build();
 
+            self.details_pane.connect_show_entities_request(clone!(
+                #[weak]
+                obj,
+                move |details_pane| {
+                    let stock = details_pane.stock().expect("stock must exist");
+                    obj.emit_by_name::<()>("show-entities-request", &[stock.id()]);
+                }
+            ));
             self.details_pane.connect_close_request(clone!(
                 #[weak]
                 obj,
@@ -80,6 +92,16 @@ mod imp {
         fn dispose(&self) {
             self.dispose_template();
         }
+
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
+
+            SIGNALS.get_or_init(|| {
+                vec![Signal::builder("show-entities-request")
+                    .param_types([StockId::static_type()])
+                    .build()]
+            })
+        }
     }
 
     impl WidgetImpl for StocksView {}
@@ -93,6 +115,17 @@ glib::wrapper! {
 impl StocksView {
     pub fn new() -> Self {
         glib::Object::new()
+    }
+
+    pub fn connect_show_entities_request<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &StockId) + 'static,
+    {
+        self.connect_closure(
+            "show-entities-request",
+            false,
+            closure_local!(|obj: &Self, id: &StockId| f(obj, id)),
+        )
     }
 
     pub fn bind_stock_list(&self, stock_list: &StockList) {
