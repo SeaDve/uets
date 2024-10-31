@@ -70,15 +70,15 @@ mod imp {
                 obj,
                 #[upgrade_or_panic]
                 move |_, uri| {
-                    if let Some((scheme, id)) = uri.split_once(":") {
+                    if let Some((scheme, raw_id)) = uri.split_once(":") {
                         match scheme {
                             "entity" => {
-                                let entity_id = EntityId::new(id);
-                                obj.emit_by_name::<()>("show-entity", &[&entity_id]);
+                                let entity_id = EntityId::new(raw_id);
+                                obj.emit_by_name::<()>("show-entity-request", &[&entity_id]);
                             }
                             "stock" => {
-                                let stock_id = StockId::new(id);
-                                obj.emit_by_name::<()>("show-stock", &[&stock_id]);
+                                let stock_id = StockId::new(raw_id);
+                                obj.emit_by_name::<()>("show-stock-request", &[&stock_id]);
                             }
                             _ => unreachable!("invalid scheme `{scheme}`"),
                         }
@@ -99,10 +99,10 @@ mod imp {
 
             SIGNALS.get_or_init(|| {
                 vec![
-                    Signal::builder("show-entity")
+                    Signal::builder("show-entity-request")
                         .param_types([EntityId::static_type()])
                         .build(),
-                    Signal::builder("show-stock")
+                    Signal::builder("show-stock-request")
                         .param_types([StockId::static_type()])
                         .build(),
                 ]
@@ -157,23 +157,23 @@ impl TimelineRow {
         glib::Object::new()
     }
 
-    pub fn connect_show_entity<F>(&self, f: F) -> glib::SignalHandlerId
+    pub fn connect_show_entity_request<F>(&self, f: F) -> glib::SignalHandlerId
     where
         F: Fn(&Self, &EntityId) + 'static,
     {
         self.connect_closure(
-            "show-entity",
+            "show-entity-request",
             false,
             closure_local!(|obj: &Self, id: &EntityId| f(obj, id)),
         )
     }
 
-    pub fn connect_show_stock<F>(&self, f: F) -> glib::SignalHandlerId
+    pub fn connect_show_stock_request<F>(&self, f: F) -> glib::SignalHandlerId
     where
         F: Fn(&Self, &StockId) + 'static,
     {
         self.connect_closure(
-            "show-stock",
+            "show-stock-request",
             false,
             closure_local!(|obj: &Self, id: &StockId| f(obj, id)),
         )

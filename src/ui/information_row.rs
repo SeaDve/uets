@@ -1,9 +1,13 @@
 use adw::{prelude::*, subclass::prelude::*};
-use gtk::glib;
+use gtk::glib::{self, clone, closure_local};
 
 use std::cell::RefCell;
 
 mod imp {
+    use std::{cell::Cell, sync::OnceLock};
+
+    use glib::subclass::Signal;
+
     use super::*;
 
     #[derive(Default, glib::Properties, gtk::CompositeTemplate)]
@@ -15,6 +19,8 @@ mod imp {
         /// If this is empty, self will be hidden.
         #[property(get, set = Self::set_value, explicit_notify)]
         pub(super) value: RefCell<String>,
+        #[property(get, set = Self::set_value_use_markup, explicit_notify)]
+        pub(super) value_use_markup: Cell<bool>,
 
         #[template_child]
         pub(super) value_label: TemplateChild<gtk::Label>,
@@ -40,7 +46,30 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
-            self.obj().update_ui();
+            let obj = self.obj();
+
+            self.value_label.connect_activate_link(clone!(
+                #[weak]
+                obj,
+                #[upgrade_or_panic]
+                move |_, uri| {
+                    obj.emit_by_name::<bool>("activate-value-link", &[&uri])
+                        .into()
+                }
+            ));
+
+            obj.update_ui();
+        }
+
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
+
+            SIGNALS.get_or_init(|| {
+                vec![Signal::builder("activate-value-link")
+                    .param_types([String::static_type()])
+                    .return_type::<bool>()
+                    .build()]
+            })
         }
     }
 
@@ -61,6 +90,19 @@ mod imp {
             obj.update_ui();
             obj.notify_value();
         }
+
+        fn set_value_use_markup(&self, value_use_markup: bool) {
+            let obj = self.obj();
+
+            if value_use_markup == obj.value_use_markup() {
+                return;
+            }
+
+            self.value_label.set_use_markup(value_use_markup);
+
+            self.value_use_markup.set(value_use_markup);
+            obj.notify_value_use_markup();
+        }
     }
 }
 
@@ -74,9 +116,22 @@ impl InformationRow {
         glib::Object::new()
     }
 
+    pub fn connect_activate_value_link<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &str) -> glib::Propagation + 'static,
+    {
+        self.connect_closure(
+            "activate-value-link",
+            false,
+            closure_local!(|obj: &Self, uri: &str| f(obj, uri)),
+        )
+    }
+
     fn update_ui(&self) {
+        let imp = self.imp();
+
         let value = self.value();
         self.set_visible(!value.trim().is_empty());
-        self.imp().value_label.set_label(&value);
+        imp.value_label.set_label(&value);
     }
 }

@@ -31,6 +31,7 @@
                 <child>
                   <object class="UetsInformationRow" id="stock_id_row">
                     <property name="title">Stock Name</property>
+                    <property name="value-use-markup">True</property>
                   </object>
                 </child>
                 <child>

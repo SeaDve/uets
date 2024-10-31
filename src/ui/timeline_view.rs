@@ -59,18 +59,18 @@ mod imp {
                     list_item.set_activatable(false);
 
                     let row = TimelineRow::new();
-                    row.connect_show_entity(clone!(
+                    row.connect_show_entity_request(clone!(
                         #[weak]
                         obj,
                         move |_, id| {
-                            obj.emit_by_name::<()>("show-entity", &[&id]);
+                            obj.emit_by_name::<()>("show-entity-request", &[&id]);
                         }
                     ));
-                    row.connect_show_stock(clone!(
+                    row.connect_show_stock_request(clone!(
                         #[weak]
                         obj,
                         move |_, id| {
-                            obj.emit_by_name::<()>("show-stock", &[&id]);
+                            obj.emit_by_name::<()>("show-stock-request", &[&id]);
                         }
                     ));
 
@@ -93,10 +93,10 @@ mod imp {
 
             SIGNALS.get_or_init(|| {
                 vec![
-                    Signal::builder("show-entity")
+                    Signal::builder("show-entity-request")
                         .param_types([EntityId::static_type()])
                         .build(),
-                    Signal::builder("show-stock")
+                    Signal::builder("show-stock-request")
                         .param_types([StockId::static_type()])
                         .build(),
                 ]
@@ -117,23 +117,23 @@ impl TimelineView {
         glib::Object::new()
     }
 
-    pub fn connect_show_entity<F>(&self, f: F) -> glib::SignalHandlerId
+    pub fn connect_show_entity_request<F>(&self, f: F) -> glib::SignalHandlerId
     where
         F: Fn(&Self, &EntityId) + 'static,
     {
         self.connect_closure(
-            "show-entity",
+            "show-entity-request",
             false,
             closure_local!(|obj: &Self, id: &EntityId| f(obj, id)),
         )
     }
 
-    pub fn connect_show_stock<F>(&self, f: F) -> glib::SignalHandlerId
+    pub fn connect_show_stock_request<F>(&self, f: F) -> glib::SignalHandlerId
     where
         F: Fn(&Self, &StockId) + 'static,
     {
         self.connect_closure(
-            "show-stock",
+            "show-stock-request",
             false,
             closure_local!(|obj: &Self, id: &StockId| f(obj, id)),
         )

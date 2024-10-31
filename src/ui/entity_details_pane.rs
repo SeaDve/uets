@@ -4,7 +4,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::{entity::Entity, ui::information_row::InformationRow};
+use crate::{entity::Entity, stock_id::StockId, ui::information_row::InformationRow};
 
 mod imp {
     use std::{cell::RefCell, sync::OnceLock};
@@ -68,6 +68,17 @@ mod imp {
             ));
             self.close_image.add_controller(gesture_click);
 
+            self.stock_id_row.connect_activate_value_link(clone!(
+                #[weak]
+                obj,
+                #[upgrade_or_panic]
+                move |_, raw_stock_id| {
+                    let stock_id = StockId::new(raw_stock_id);
+                    obj.emit_by_name::<()>("show-stock-request", &[&stock_id]);
+                    glib::Propagation::Stop
+                }
+            ));
+
             self.entity_bindings
                 .bind("is-inside", &*self.is_inside_row, "value")
                 .transform_to(|_, n_inside| {
@@ -86,7 +97,14 @@ mod imp {
         fn signals() -> &'static [Signal] {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
 
-            SIGNALS.get_or_init(|| vec![Signal::builder("close-request").build()])
+            SIGNALS.get_or_init(|| {
+                vec![
+                    Signal::builder("show-stock-request")
+                        .param_types([StockId::static_type()])
+                        .build(),
+                    Signal::builder("close-request").build(),
+                ]
+            })
         }
     }
 
@@ -109,7 +127,10 @@ mod imp {
             self.stock_id_row.set_value(
                 entity
                     .as_ref()
-                    .and_then(|s| s.stock_id().map(|s_id| s_id.to_string()))
+                    .and_then(|s| {
+                        s.stock_id()
+                            .map(|s_id| format!("<a href=\"{s_id}\">{s_id}</a>",))
+                    })
                     .unwrap_or_default(),
             );
 
@@ -129,6 +150,17 @@ glib::wrapper! {
 impl EntityDetailsPane {
     pub fn new() -> Self {
         glib::Object::new()
+    }
+
+    pub fn connect_show_stock_request<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &StockId) + 'static,
+    {
+        self.connect_closure(
+            "show-stock-request",
+            false,
+            closure_local!(|obj: &Self, id: &StockId| f(obj, id)),
+        )
     }
 
     pub fn connect_close_request<F>(&self, f: F) -> glib::SignalHandlerId

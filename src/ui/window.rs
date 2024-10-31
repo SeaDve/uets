@@ -66,7 +66,16 @@ mod imp {
                 }
             ));
 
-            self.timeline_view.connect_show_entity(clone!(
+            self.entities_view.connect_show_stock_request(clone!(
+                #[weak]
+                obj,
+                move |_, stock_id| {
+                    let imp = obj.imp();
+                    imp.stocks_view.show(stock_id);
+                    imp.view_stack.set_visible_child_name("stocks");
+                }
+            ));
+            self.timeline_view.connect_show_entity_request(clone!(
                 #[weak]
                 obj,
                 move |_, entity_id| {
@@ -75,7 +84,7 @@ mod imp {
                     imp.view_stack.set_visible_child_name("entities");
                 }
             ));
-            self.timeline_view.connect_show_stock(clone!(
+            self.timeline_view.connect_show_stock_request(clone!(
                 #[weak]
                 obj,
                 move |_, stock_id| {
