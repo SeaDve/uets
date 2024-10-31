@@ -1,9 +1,6 @@
 use gtk::{glib, subclass::prelude::*};
 
-use crate::{
-    date_time::DateTime, entity_id::EntityId, stock_id::StockId,
-    timeline_item_kind::TimelineItemKind,
-};
+use crate::date_time::DateTime;
 
 mod imp {
     use std::cell::OnceCell;
@@ -13,11 +10,6 @@ mod imp {
     #[derive(Default)]
     pub struct StockTimelineItem {
         pub(super) dt: OnceCell<DateTime>,
-        pub(super) kind: OnceCell<TimelineItemKind>,
-        /// Id of the entity associated with this item.
-        pub(super) entity_id: OnceCell<EntityId>,
-        /// Id of the stock associated with this item.
-        pub(super) stock_id: OnceCell<StockId>,
         /// Number of entity inside at this dt point.
         pub(super) n_inside: OnceCell<u32>,
     }
@@ -36,20 +28,11 @@ glib::wrapper! {
 }
 
 impl StockTimelineItem {
-    pub fn new(
-        dt: DateTime,
-        kind: TimelineItemKind,
-        entity_id: EntityId,
-        stock_id: StockId,
-        n_inside: u32,
-    ) -> Self {
+    pub fn new(dt: DateTime, n_inside: u32) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
         imp.dt.set(dt).unwrap();
-        imp.kind.set(kind).unwrap();
-        imp.entity_id.set(entity_id).unwrap();
-        imp.stock_id.set(stock_id).unwrap();
         imp.n_inside.set(n_inside).unwrap();
 
         this
@@ -57,18 +40,6 @@ impl StockTimelineItem {
 
     pub fn dt(&self) -> DateTime {
         *self.imp().dt.get().unwrap()
-    }
-
-    pub fn kind(&self) -> TimelineItemKind {
-        *self.imp().kind.get().unwrap()
-    }
-
-    pub fn entity_id(&self) -> &EntityId {
-        self.imp().entity_id.get().unwrap()
-    }
-
-    pub fn stock_id(&self) -> &StockId {
-        self.imp().stock_id.get().unwrap()
     }
 
     pub fn n_inside(&self) -> u32 {

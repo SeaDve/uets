@@ -219,16 +219,7 @@ impl Timeline {
                     }
                 }
 
-                raw_stock_timeline.insert(
-                    item.dt(),
-                    StockTimelineItem::new(
-                        item.dt(),
-                        item.kind(),
-                        item.entity_id().clone(),
-                        stock_id.clone(),
-                        *n_inside,
-                    ),
-                );
+                raw_stock_timeline.insert(item.dt(), StockTimelineItem::new(item.dt(), *n_inside));
             }
         }
 
@@ -333,20 +324,14 @@ impl Timeline {
                 .stock_list()
                 .get(stock_id)
                 .unwrap_or_else(|| Stock::new(stock_id.clone()));
-            let stock_timeline = stock.timeline();
 
+            let stock_timeline = stock.timeline();
             let stock_new_n_inside = if is_exit {
                 stock_timeline.n_inside() - 1
             } else {
                 stock_timeline.n_inside() + 1
             };
-            stock_timeline.insert(StockTimelineItem::new(
-                now_dt,
-                item_kind,
-                provided_entity_id.clone(),
-                stock_id.clone(),
-                stock_new_n_inside,
-            ));
+            stock_timeline.insert(StockTimelineItem::new(now_dt, stock_new_n_inside));
 
             Some(stock)
         } else {
