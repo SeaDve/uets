@@ -98,7 +98,7 @@ impl Entity {
             .copied()
     }
 
-    pub fn add_entry_dt(&self, dt: DateTime) {
+    pub fn add_entry_dt(&self, entry_dt: DateTime) {
         let imp = self.imp();
 
         if let Some(last_dt_pair) = imp.dt_pairs.borrow().last() {
@@ -106,7 +106,7 @@ impl Entity {
         }
 
         imp.dt_pairs.borrow_mut().push(DateTimePair {
-            entry: dt,
+            entry: entry_dt,
             exit: None,
         });
 
