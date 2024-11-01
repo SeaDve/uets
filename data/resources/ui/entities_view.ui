@@ -29,7 +29,7 @@
                 <property name="spacing">6</property>
                 <property name="hexpand">True</property>
                 <child>
-                  <object class="GtkSearchEntry" id="search_entry">
+                  <object class="UetsSearchEntry" id="search_entry">
                     <property name="halign">center</property>
                     <property name="width-chars">40</property>
                     <property name="placeholder-text">Search Entities</property>

@@ -10,7 +10,7 @@ use crate::{
     stock_id::StockId,
     timeline::Timeline,
     timeline_item::TimelineItem,
-    ui::timeline_row::TimelineRow,
+    ui::{search_entry::SearchEntry, timeline_row::TimelineRow},
     Application,
 };
 
@@ -54,7 +54,7 @@ mod imp {
         #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
-        pub(super) search_entry: TemplateChild<gtk::SearchEntry>,
+        pub(super) search_entry: TemplateChild<SearchEntry>,
         #[template_child]
         pub(super) item_kind_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
@@ -302,7 +302,7 @@ impl TimelineView {
         queries.remove_iden("stock");
         queries.insert("stock", &stock_id.to_string());
 
-        imp.search_entry.set_text(&queries.to_string());
+        imp.search_entry.set_text_instant(&queries.to_string());
     }
 
     pub fn show_entity(&self, entity_id: &EntityId) {
@@ -314,7 +314,7 @@ impl TimelineView {
         queries.remove_iden("entity");
         queries.insert("entity", &entity_id.to_string());
 
-        imp.search_entry.set_text(&queries.to_string());
+        imp.search_entry.set_text_instant(&queries.to_string());
     }
 
     fn scroll_to_bottom(&self) {
@@ -333,7 +333,7 @@ impl TimelineView {
         vadj.value() + vadj.page_size() == vadj.upper()
     }
 
-    fn handle_search_entry_search_changed(&self, entry: &gtk::SearchEntry) {
+    fn handle_search_entry_search_changed(&self, entry: &SearchEntry) {
         let imp = self.imp();
 
         let text = entry.text();
@@ -444,7 +444,7 @@ impl TimelineView {
             }
         }
 
-        imp.search_entry.set_text(&queries.to_string());
+        imp.search_entry.set_text_instant(&queries.to_string());
     }
 
     fn update_stack(&self) {

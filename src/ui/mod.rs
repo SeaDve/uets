@@ -3,6 +3,7 @@ mod entities_view;
 mod entity_details_pane;
 mod entity_row;
 mod information_row;
+mod search_entry;
 mod settings_view;
 mod stock_details_pane;
 mod stock_row;

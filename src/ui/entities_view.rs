@@ -10,7 +10,9 @@ use crate::{
     entity_list::EntityList,
     search_query::{SearchQueries, SearchQuery},
     stock_id::StockId,
-    ui::{entity_details_pane::EntityDetailsPane, entity_row::EntityRow},
+    ui::{
+        entity_details_pane::EntityDetailsPane, entity_row::EntityRow, search_entry::SearchEntry,
+    },
 };
 
 #[derive(Debug, Clone, Copy, glib::Enum)]
@@ -54,7 +56,7 @@ mod imp {
         #[template_child]
         pub(super) main_page: TemplateChild<gtk::ScrolledWindow>,
         #[template_child]
-        pub(super) search_entry: TemplateChild<gtk::SearchEntry>,
+        pub(super) search_entry: TemplateChild<SearchEntry>,
         #[template_child]
         pub(super) entity_zone_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
@@ -230,7 +232,7 @@ impl EntitiesView {
         let imp = self.imp();
 
         // Clear search filter so we can find the entity
-        imp.search_entry.set_text("");
+        imp.search_entry.set_text_instant("");
 
         let position = imp
             .filter_list_model
@@ -257,10 +259,10 @@ impl EntitiesView {
         queries.remove_iden("stock");
         queries.insert("stock", &stock_id.to_string());
 
-        imp.search_entry.set_text(&queries.to_string());
+        imp.search_entry.set_text_instant(&queries.to_string());
     }
 
-    fn handle_search_entry_search_changed(&self, entry: &gtk::SearchEntry) {
+    fn handle_search_entry_search_changed(&self, entry: &SearchEntry) {
         let imp = self.imp();
 
         let text = entry.text();
@@ -356,7 +358,7 @@ impl EntitiesView {
             }
         }
 
-        imp.search_entry.set_text(&queries.to_string());
+        imp.search_entry.set_text_instant(&queries.to_string());
     }
 
     fn update_stack(&self) {
