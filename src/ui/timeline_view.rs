@@ -14,7 +14,7 @@ use crate::{
     Application,
 };
 
-#[derive(Clone, Copy, glib::Enum)]
+#[derive(Debug, Clone, Copy, glib::Enum)]
 #[enum_type(name = "UetsItemKind")]
 enum ItemKind {
     All,
@@ -339,37 +339,13 @@ impl TimelineView {
         let text = entry.text();
         let queries = SearchQueries::parse(&text);
 
-        if queries.is_empty() {
-            imp.filter_list_model.set_filter(gtk::Filter::NONE);
-            return;
-        }
-
-        let every_filter = gtk::EveryFilter::new();
-        let any_stock_filter = gtk::AnyFilter::new();
-        let any_entity_filter = gtk::AnyFilter::new();
-
         let item_kind = if let Some(SearchQuery::IdenValue(iden, value)) =
             queries.find_last_match(&["is:entry", "is:exit"])
         {
             debug_assert_eq!(iden, "is");
-
             match value.as_str() {
-                "entry" => {
-                    every_filter.append(gtk::CustomFilter::new(|o| {
-                        let entity = o.downcast_ref::<TimelineItem>().unwrap();
-                        entity.kind().is_entry()
-                    }));
-
-                    ItemKind::Entry
-                }
-                "exit" => {
-                    every_filter.append(gtk::CustomFilter::new(|o| {
-                        let entity = o.downcast_ref::<TimelineItem>().unwrap();
-                        entity.kind().is_exit()
-                    }));
-
-                    ItemKind::Exit
-                }
+                "entry" => ItemKind::Entry,
+                "exit" => ItemKind::Exit,
                 _ => unreachable!(),
             }
         } else {
@@ -384,6 +360,30 @@ impl TimelineView {
         imp.item_kind_dropdown
             .unblock_signal(selected_item_notify_handler);
 
+        if queries.is_empty() {
+            imp.filter_list_model.set_filter(gtk::Filter::NONE);
+            return;
+        }
+
+        let every_filter = gtk::EveryFilter::new();
+
+        match item_kind {
+            ItemKind::All => {}
+            ItemKind::Entry => {
+                every_filter.append(gtk::CustomFilter::new(|o| {
+                    let entity = o.downcast_ref::<TimelineItem>().unwrap();
+                    entity.kind().is_entry()
+                }));
+            }
+            ItemKind::Exit => {
+                every_filter.append(gtk::CustomFilter::new(|o| {
+                    let entity = o.downcast_ref::<TimelineItem>().unwrap();
+                    entity.kind().is_exit()
+                }));
+            }
+        }
+
+        let any_stock_filter = gtk::AnyFilter::new();
         for stock_id in queries.all_values("stock").into_iter().map(StockId::new) {
             any_stock_filter.append(gtk::CustomFilter::new(move |o| {
                 let item = o.downcast_ref::<TimelineItem>().unwrap();
@@ -396,6 +396,7 @@ impl TimelineView {
             }));
         }
 
+        let any_entity_filter = gtk::AnyFilter::new();
         for entity_id in queries.all_values("entity").into_iter().map(EntityId::new) {
             any_entity_filter.append(gtk::CustomFilter::new(move |o| {
                 let item = o.downcast_ref::<TimelineItem>().unwrap();

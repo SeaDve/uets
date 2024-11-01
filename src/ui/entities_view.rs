@@ -13,7 +13,7 @@ use crate::{
     ui::{entity_details_pane::EntityDetailsPane, entity_row::EntityRow},
 };
 
-#[derive(Clone, Copy, glib::Enum)]
+#[derive(Debug, Clone, Copy, glib::Enum)]
 #[enum_type(name = "UetsEntityZone")]
 enum EntityZone {
     All,
@@ -266,36 +266,13 @@ impl EntitiesView {
         let text = entry.text();
         let queries = SearchQueries::parse(&text);
 
-        if queries.is_empty() {
-            imp.filter_list_model.set_filter(gtk::Filter::NONE);
-            return;
-        }
-
-        let every_filter = gtk::EveryFilter::new();
-        let stock_any_filter = gtk::AnyFilter::new();
-
         let entity_zone = if let Some(SearchQuery::IdenValue(iden, value)) =
             queries.find_last_match(&["is:inside", "is:outside"])
         {
             debug_assert_eq!(iden, "is");
-
             match value.as_str() {
-                "inside" => {
-                    every_filter.append(gtk::CustomFilter::new(|o| {
-                        let entity = o.downcast_ref::<Entity>().unwrap();
-                        entity.is_inside()
-                    }));
-
-                    EntityZone::Inside
-                }
-                "outside" => {
-                    every_filter.append(gtk::CustomFilter::new(|o| {
-                        let entity = o.downcast_ref::<Entity>().unwrap();
-                        !entity.is_inside()
-                    }));
-
-                    EntityZone::Outside
-                }
+                "inside" => EntityZone::Inside,
+                "outside" => EntityZone::Outside,
                 _ => unreachable!(),
             }
         } else {
@@ -313,18 +290,42 @@ impl EntitiesView {
         imp.entity_zone_dropdown
             .unblock_signal(selected_item_notify_handler);
 
+        if queries.is_empty() {
+            imp.filter_list_model.set_filter(gtk::Filter::NONE);
+            return;
+        }
+
+        let every_filter = gtk::EveryFilter::new();
+
+        match entity_zone {
+            EntityZone::All => {}
+            EntityZone::Inside => {
+                every_filter.append(gtk::CustomFilter::new(|o| {
+                    let entity = o.downcast_ref::<Entity>().unwrap();
+                    entity.is_inside()
+                }));
+            }
+            EntityZone::Outside => {
+                every_filter.append(gtk::CustomFilter::new(|o| {
+                    let entity = o.downcast_ref::<Entity>().unwrap();
+                    !entity.is_inside()
+                }));
+            }
+        }
+
+        let any_stock_filter = gtk::AnyFilter::new();
         for stock_id in queries.all_values("stock").into_iter().map(StockId::new) {
-            stock_any_filter.append(gtk::CustomFilter::new(move |o| {
+            any_stock_filter.append(gtk::CustomFilter::new(move |o| {
                 let entity = o.downcast_ref::<Entity>().unwrap();
                 entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
             }));
         }
 
-        if stock_any_filter.n_items() == 0 {
-            stock_any_filter.append(gtk::CustomFilter::new(|_| true));
+        if any_stock_filter.n_items() == 0 {
+            any_stock_filter.append(gtk::CustomFilter::new(|_| true));
         }
 
-        every_filter.append(stock_any_filter);
+        every_filter.append(any_stock_filter);
         imp.filter_list_model.set_filter(Some(&every_filter));
     }
 
