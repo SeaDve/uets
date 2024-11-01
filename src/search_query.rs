@@ -68,7 +68,7 @@ impl SearchQueries {
             .find(|query| needles.iter().any(|needle| needle == &query.to_string()))
     }
 
-    /// Returns all values for the given `iden`.
+    /// Returns all unique values without for the given `iden`.
     pub fn all_values(&self, iden: &str) -> HashSet<&str> {
         debug_assert!(!iden.contains(char::is_whitespace));
 
@@ -81,21 +81,79 @@ impl SearchQueries {
             .collect()
     }
 
-    /// Inserts a new query with the given `iden` and `value` if it doesn't already exist.
-    pub fn insert(&mut self, iden: &str, value: &str) {
+    /// Inserts or replaces all queries with the given `iden` and `old_value` with the `new_value`,
+    /// and deduplicate those queries, leaving only the first occurrence.
+    ///
+    /// If there are iden with already the `new_value`, it will remain and the other succeeding
+    /// queries with `new_value` and `old_value` will be removed.
+    pub fn replace_all_or_insert(&mut self, iden: &str, old_value: &str, new_value: &str) {
         debug_assert!(!iden.contains(char::is_whitespace));
-        debug_assert!(!value.contains(char::is_whitespace));
+        debug_assert!(!old_value.contains(char::is_whitespace));
+        debug_assert!(!new_value.contains(char::is_whitespace));
+        debug_assert_ne!(old_value, new_value);
 
-        for query in &mut self.0 {
-            if let SearchQuery::IdenValue(i, v) = query {
-                if i == iden && v == value {
-                    return;
+        let mut is_inserted = false;
+        self.0.retain_mut(|query| match query {
+            SearchQuery::IdenValue(i, v) if i == iden && v == old_value => {
+                let retain = !is_inserted;
+
+                if !is_inserted {
+                    *v = new_value.to_string();
+                    is_inserted = true;
                 }
-            }
-        }
 
-        self.0
-            .push_front(SearchQuery::IdenValue(iden.to_string(), value.to_string()));
+                retain
+            }
+            SearchQuery::IdenValue(i, v) if i == iden && v == new_value => {
+                let retain = !is_inserted;
+
+                if !is_inserted {
+                    is_inserted = true;
+                }
+
+                retain
+            }
+            _ => true,
+        });
+
+        if !is_inserted {
+            self.0.push_front(SearchQuery::IdenValue(
+                iden.to_string(),
+                new_value.to_string(),
+            ));
+        }
+    }
+
+    /// Inserts or replaces all queries with the given `iden` values with the `new_value`,
+    /// and deduplicate those queries, leaving only the first occurrence.
+    ///
+    /// If there are iden with already the `new_value`, it will remain and the other succeeding
+    /// queries with `new_value` and `old_value` will be removed.
+    pub fn replace_all_iden_or_insert(&mut self, iden: &str, new_value: &str) {
+        debug_assert!(!iden.contains(char::is_whitespace));
+        debug_assert!(!new_value.contains(char::is_whitespace));
+
+        let mut is_inserted = false;
+        self.0.retain_mut(|query| match query {
+            SearchQuery::IdenValue(i, v) if i == iden => {
+                let retain = !is_inserted;
+
+                if !is_inserted {
+                    *v = new_value.to_string();
+                    is_inserted = true;
+                }
+
+                retain
+            }
+            _ => true,
+        });
+
+        if !is_inserted {
+            self.0.push_front(SearchQuery::IdenValue(
+                iden.to_string(),
+                new_value.to_string(),
+            ));
+        }
     }
 
     /// Removes all queries with the given `iden` and `value`.
@@ -106,19 +164,6 @@ impl SearchQueries {
         self.0.retain(|query| {
             if let SearchQuery::IdenValue(i, v) = query {
                 i != iden || v != value
-            } else {
-                true
-            }
-        });
-    }
-
-    /// Removes all queries with the given `iden`.
-    pub fn remove_all_iden(&mut self, iden: &str) {
-        debug_assert!(!iden.contains(char::is_whitespace));
-
-        self.0.retain(|query| {
-            if let SearchQuery::IdenValue(i, _) = query {
-                i != iden
             } else {
                 true
             }

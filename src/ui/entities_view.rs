@@ -256,8 +256,7 @@ impl EntitiesView {
         let text = imp.search_entry.text();
 
         let mut queries = SearchQueries::parse(&text);
-        queries.remove_all_iden("stock");
-        queries.insert("stock", &stock_id.to_string());
+        queries.replace_all_iden_or_insert("stock", &stock_id.to_string());
 
         imp.search_entry.set_text_instant(&queries.to_string());
     }
@@ -346,12 +345,10 @@ impl EntitiesView {
                 queries.remove_all("is", "outside");
             }
             EntityZone::Inside => {
-                queries.remove_all("is", "outside");
-                queries.insert("is", "inside")
+                queries.replace_all_or_insert("is", "outside", "inside");
             }
             EntityZone::Outside => {
-                queries.remove_all("is", "inside");
-                queries.insert("is", "outside")
+                queries.replace_all_or_insert("is", "inside", "outside");
             }
         }
 
