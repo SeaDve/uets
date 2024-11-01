@@ -73,7 +73,7 @@ mod imp {
         pub(super) is_sticky: Cell<bool>,
         pub(super) is_auto_scrolling: Cell<bool>,
 
-        pub(super) item_kind_dropdown_selected_item_handler: OnceCell<glib::SignalHandlerId>,
+        pub(super) item_kind_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
     }
 
     #[glib::object_subclass]
@@ -166,7 +166,7 @@ mod imp {
                 .set_expression(Some(&adw::EnumListItem::this_expression("name")));
             self.item_kind_dropdown
                 .set_model(Some(&adw::EnumListModel::new(ItemKind::static_type())));
-            let item_kind_dropdown_selected_item_notify_handler =
+            let item_kind_dropdown_selected_item_notify_id =
                 self.item_kind_dropdown.connect_selected_item_notify(clone!(
                     #[weak]
                     obj,
@@ -174,8 +174,8 @@ mod imp {
                         obj.handle_item_kind_dropdown_selected_item_notify(drop_down);
                     }
                 ));
-            self.item_kind_dropdown_selected_item_handler
-                .set(item_kind_dropdown_selected_item_notify_handler)
+            self.item_kind_dropdown_selected_item_id
+                .set(item_kind_dropdown_selected_item_notify_id)
                 .unwrap();
 
             self.filter_list_model.connect_items_changed(clone!(
@@ -352,13 +352,11 @@ impl TimelineView {
             ItemKind::All
         };
 
-        let selected_item_notify_handler =
-            imp.item_kind_dropdown_selected_item_handler.get().unwrap();
-        imp.item_kind_dropdown
-            .block_signal(selected_item_notify_handler);
+        let selected_item_notify_id = imp.item_kind_dropdown_selected_item_id.get().unwrap();
+        imp.item_kind_dropdown.block_signal(selected_item_notify_id);
         imp.item_kind_dropdown.set_selected(item_kind.position());
         imp.item_kind_dropdown
-            .unblock_signal(selected_item_notify_handler);
+            .unblock_signal(selected_item_notify_id);
 
         if queries.is_empty() {
             imp.filter_list_model.set_filter(gtk::Filter::NONE);

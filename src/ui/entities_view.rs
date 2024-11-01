@@ -68,7 +68,7 @@ mod imp {
         #[template_child]
         pub(super) details_pane: TemplateChild<EntityDetailsPane>,
 
-        pub(super) entity_zone_dropdown_selected_item_handler: OnceCell<glib::SignalHandlerId>,
+        pub(super) entity_zone_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
     }
 
     #[glib::object_subclass]
@@ -116,7 +116,7 @@ mod imp {
                 .set_expression(Some(&adw::EnumListItem::this_expression("name")));
             self.entity_zone_dropdown
                 .set_model(Some(&adw::EnumListModel::new(EntityZone::static_type())));
-            let entity_zone_dropdown_selected_item_notify_handler = self
+            let entity_zone_dropdown_selected_item_notify_id = self
                 .entity_zone_dropdown
                 .connect_selected_item_notify(clone!(
                     #[weak]
@@ -125,8 +125,8 @@ mod imp {
                         obj.handle_entity_zone_dropdown_selected_item_notify(drop_down);
                     }
                 ));
-            self.entity_zone_dropdown_selected_item_handler
-                .set(entity_zone_dropdown_selected_item_notify_handler)
+            self.entity_zone_dropdown_selected_item_id
+                .set(entity_zone_dropdown_selected_item_notify_id)
                 .unwrap();
 
             self.filter_list_model.connect_items_changed(clone!(
@@ -281,16 +281,13 @@ impl EntitiesView {
             EntityZone::All
         };
 
-        let selected_item_notify_handler = imp
-            .entity_zone_dropdown_selected_item_handler
-            .get()
-            .unwrap();
+        let selected_item_notify_id = imp.entity_zone_dropdown_selected_item_id.get().unwrap();
         imp.entity_zone_dropdown
-            .block_signal(selected_item_notify_handler);
+            .block_signal(selected_item_notify_id);
         imp.entity_zone_dropdown
             .set_selected(entity_zone.position());
         imp.entity_zone_dropdown
-            .unblock_signal(selected_item_notify_handler);
+            .unblock_signal(selected_item_notify_id);
 
         if queries.is_empty() {
             imp.filter_list_model.set_filter(gtk::Filter::NONE);
