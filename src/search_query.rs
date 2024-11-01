@@ -9,23 +9,11 @@ pub enum SearchQuery {
     Standalone(String),
 }
 
-impl SearchQuery {
-    fn parse(part: &str) -> Self {
-        debug_assert!(!part.contains(char::is_whitespace));
-
-        if let Some((iden, value)) = part.split_once(':') {
-            SearchQuery::IdenValue(iden.to_string(), value.to_string())
-        } else {
-            SearchQuery::Standalone(part.to_string())
-        }
-    }
-}
-
 impl fmt::Display for SearchQuery {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SearchQuery::IdenValue(iden, value) => write!(f, "{}:{}", iden, value),
-            SearchQuery::Standalone(part) => write!(f, "{}", part),
+            SearchQuery::Standalone(standalone) => write!(f, "{}", standalone),
         }
     }
 }
@@ -51,23 +39,39 @@ impl fmt::Display for SearchQueries {
 
 impl SearchQueries {
     pub fn parse(text: &str) -> Self {
-        Self(text.split_whitespace().map(SearchQuery::parse).collect())
+        Self(
+            text.split_whitespace()
+                .map(|query| {
+                    if let Some((iden, value)) = query.split_once(':') {
+                        SearchQuery::IdenValue(iden.to_string(), value.to_string())
+                    } else {
+                        SearchQuery::Standalone(query.to_string())
+                    }
+                })
+                .collect(),
+        )
     }
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
-    /// Returns the last query that matches any of the given `parts`.
-    pub fn find_last_match(&self, parts: &[&str]) -> Option<&SearchQuery> {
+    /// Returns the last query that matches any of the given needles.
+    pub fn find_last_match(&self, needles: &[&str]) -> Option<&SearchQuery> {
+        debug_assert!(needles
+            .iter()
+            .all(|needle| !needle.contains(char::is_whitespace)));
+
         self.0
             .iter()
             .rev()
-            .find(|query| parts.iter().any(|part| SearchQuery::parse(part) == **query))
+            .find(|query| needles.iter().any(|needle| needle == &query.to_string()))
     }
 
     /// Returns all values for the given `iden`.
     pub fn all_values(&self, iden: &str) -> HashSet<&str> {
+        debug_assert!(!iden.contains(char::is_whitespace));
+
         self.0
             .iter()
             .filter_map(|query| match query {
@@ -79,6 +83,9 @@ impl SearchQueries {
 
     /// Inserts a new query with the given `iden` and `value` if it doesn't already exist.
     pub fn insert(&mut self, iden: &str, value: &str) {
+        debug_assert!(!iden.contains(char::is_whitespace));
+        debug_assert!(!value.contains(char::is_whitespace));
+
         for query in &mut self.0 {
             if let SearchQuery::IdenValue(i, v) = query {
                 if i == iden && v == value {
@@ -93,6 +100,9 @@ impl SearchQueries {
 
     /// Removes all queries with the given `iden` and `value`.
     pub fn remove(&mut self, iden: &str, value: &str) {
+        debug_assert!(!iden.contains(char::is_whitespace));
+        debug_assert!(!value.contains(char::is_whitespace));
+
         self.0.retain(|query| {
             if let SearchQuery::IdenValue(i, v) = query {
                 i != iden || v != value
@@ -104,6 +114,8 @@ impl SearchQueries {
 
     /// Removes all queries with the given `iden`.
     pub fn remove_iden(&mut self, iden: &str) {
+        debug_assert!(!iden.contains(char::is_whitespace));
+
         self.0.retain(|query| {
             if let SearchQuery::IdenValue(i, _) = query {
                 i != iden
