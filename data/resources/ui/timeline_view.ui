@@ -13,6 +13,7 @@
             <property name="child">
               <object class="GtkSearchEntry" id="search_entry">
                 <property name="width-chars">40</property>
+                <property name="placeholder-text">Search Timeline</property>
               </object>
             </property>
           </object>
