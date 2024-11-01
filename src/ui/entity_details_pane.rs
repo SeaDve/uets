@@ -81,8 +81,12 @@ mod imp {
                 obj,
                 #[upgrade_or_panic]
                 move |_, raw_stock_id| {
-                    let stock_id = StockId::new(raw_stock_id);
-                    obj.emit_by_name::<()>("show-stock-request", &[&stock_id]);
+                    debug_assert_eq!(
+                        obj.entity().unwrap().stock_id(),
+                        Some(&StockId::new(raw_stock_id))
+                    );
+
+                    obj.emit_by_name::<()>("show-stock-request", &[]);
                     glib::Propagation::Stop
                 }
             ));
@@ -107,9 +111,7 @@ mod imp {
 
             SIGNALS.get_or_init(|| {
                 vec![
-                    Signal::builder("show-stock-request")
-                        .param_types([StockId::static_type()])
-                        .build(),
+                    Signal::builder("show-stock-request").build(),
                     Signal::builder("show-timeline-request").build(),
                     Signal::builder("close-request").build(),
                 ]
@@ -163,12 +165,12 @@ impl EntityDetailsPane {
 
     pub fn connect_show_stock_request<F>(&self, f: F) -> glib::SignalHandlerId
     where
-        F: Fn(&Self, &StockId) + 'static,
+        F: Fn(&Self) + 'static,
     {
         self.connect_closure(
             "show-stock-request",
             false,
-            closure_local!(|obj: &Self, id: &StockId| f(obj, id)),
+            closure_local!(|obj: &Self| f(obj)),
         )
     }
 

@@ -94,8 +94,10 @@ mod imp {
             self.details_pane.connect_show_stock_request(clone!(
                 #[weak]
                 obj,
-                move |_, id| {
-                    obj.emit_by_name::<()>("show-stock-request", &[&id]);
+                move |details_pane| {
+                    let entity = details_pane.entity().expect("entity must exist");
+                    let stock_id = entity.stock_id().expect("stock must exist");
+                    obj.emit_by_name::<()>("show-stock-request", &[&stock_id]);
                 }
             ));
             self.details_pane.connect_show_timeline_request(clone!(
