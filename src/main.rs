@@ -10,6 +10,7 @@ mod entity;
 mod entity_id;
 mod entity_list;
 mod format;
+mod search_query;
 mod settings;
 mod stock;
 mod stock_id;

@@ -1,5 +1,5 @@
 use gtk::{
-    glib::{self, clone, closure_local},
+    glib::{self, clone, closure_local, translate::TryFromGlib},
     prelude::*,
     subclass::prelude::*,
 };
@@ -8,12 +8,35 @@ use crate::{
     entity::Entity,
     entity_id::EntityId,
     entity_list::EntityList,
+    search_query::{SearchQueries, SearchQuery},
     stock_id::StockId,
     ui::{entity_details_pane::EntityDetailsPane, entity_row::EntityRow},
 };
 
+#[derive(Clone, Copy, glib::Enum)]
+#[enum_type(name = "UetsEntityZone")]
+enum EntityZone {
+    All,
+    Inside,
+    Outside,
+}
+
+impl EntityZone {
+    fn position(&self) -> u32 {
+        *self as u32
+    }
+}
+
+impl TryFrom<i32> for EntityZone {
+    type Error = i32;
+
+    fn try_from(val: i32) -> Result<Self, Self::Error> {
+        unsafe { Self::try_from_glib(val) }
+    }
+}
+
 mod imp {
-    use std::sync::OnceLock;
+    use std::{cell::OnceCell, sync::OnceLock};
 
     use glib::subclass::Signal;
 
@@ -33,6 +56,8 @@ mod imp {
         #[template_child]
         pub(super) search_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]
+        pub(super) entity_zone_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
         pub(super) list_view: TemplateChild<gtk::ListView>,
         #[template_child]
         pub(super) selection_model: TemplateChild<gtk::SingleSelection>,
@@ -40,6 +65,8 @@ mod imp {
         pub(super) filter_list_model: TemplateChild<gtk::FilterListModel>,
         #[template_child]
         pub(super) details_pane: TemplateChild<EntityDetailsPane>,
+
+        pub(super) entity_zone_dropdown_selected_item_handler: OnceCell<glib::SignalHandlerId>,
     }
 
     #[glib::object_subclass]
@@ -82,6 +109,23 @@ mod imp {
                     obj.handle_search_entry_search_changed(entry);
                 }
             ));
+
+            self.entity_zone_dropdown
+                .set_expression(Some(&adw::EnumListItem::this_expression("name")));
+            self.entity_zone_dropdown
+                .set_model(Some(&adw::EnumListModel::new(EntityZone::static_type())));
+            let entity_zone_dropdown_selected_item_notify_handler = self
+                .entity_zone_dropdown
+                .connect_selected_item_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |drop_down| {
+                        obj.handle_entity_zone_dropdown_selected_item_notify(drop_down);
+                    }
+                ));
+            self.entity_zone_dropdown_selected_item_handler
+                .set(entity_zone_dropdown_selected_item_notify_handler)
+                .unwrap();
 
             self.filter_list_model.connect_items_changed(clone!(
                 #[weak]
@@ -214,12 +258,9 @@ impl EntitiesView {
         let imp = self.imp();
 
         let text = entry.text();
-        let kv_queries = text
-            .split_whitespace()
-            .filter_map(|part| part.split_once(':'))
-            .collect::<Vec<_>>();
+        let queries = SearchQueries::parse(&text);
 
-        if kv_queries.is_empty() {
+        if queries.is_empty() {
             imp.filter_list_model.set_filter(gtk::Filter::NONE);
             return;
         }
@@ -227,32 +268,50 @@ impl EntitiesView {
         let every_filter = gtk::EveryFilter::new();
         let stock_any_filter = gtk::AnyFilter::new();
 
-        for (key, value) in kv_queries {
-            match key {
-                "is" => match value {
-                    "inside" => {
-                        every_filter.append(gtk::CustomFilter::new(|o| {
-                            let entity = o.downcast_ref::<Entity>().unwrap();
-                            entity.is_inside()
-                        }));
-                    }
-                    "outside" => {
-                        every_filter.append(gtk::CustomFilter::new(|o| {
-                            let entity = o.downcast_ref::<Entity>().unwrap();
-                            !entity.is_inside()
-                        }));
-                    }
-                    _ => continue,
-                },
-                "stock" => {
-                    let stock_id = StockId::new(value);
-                    stock_any_filter.append(gtk::CustomFilter::new(move |o| {
+        let entity_zone = if let Some(SearchQuery::IdenValue(iden, value)) =
+            queries.find_last_match(&["is:inside", "is:outside"])
+        {
+            debug_assert_eq!(iden, "is");
+
+            match value.as_str() {
+                "inside" => {
+                    every_filter.append(gtk::CustomFilter::new(|o| {
                         let entity = o.downcast_ref::<Entity>().unwrap();
-                        entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
+                        entity.is_inside()
                     }));
+
+                    EntityZone::Inside
                 }
-                _ => {}
+                "outside" => {
+                    every_filter.append(gtk::CustomFilter::new(|o| {
+                        let entity = o.downcast_ref::<Entity>().unwrap();
+                        !entity.is_inside()
+                    }));
+
+                    EntityZone::Outside
+                }
+                _ => unreachable!(),
             }
+        } else {
+            EntityZone::All
+        };
+
+        let selected_item_notify_handler = imp
+            .entity_zone_dropdown_selected_item_handler
+            .get()
+            .unwrap();
+        imp.entity_zone_dropdown
+            .block_signal(selected_item_notify_handler);
+        imp.entity_zone_dropdown
+            .set_selected(entity_zone.position());
+        imp.entity_zone_dropdown
+            .unblock_signal(selected_item_notify_handler);
+
+        for stock_id in queries.all_values("stock").into_iter().map(StockId::new) {
+            stock_any_filter.append(gtk::CustomFilter::new(move |o| {
+                let entity = o.downcast_ref::<Entity>().unwrap();
+                entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
+            }));
         }
 
         if stock_any_filter.n_items() == 0 {
@@ -261,6 +320,36 @@ impl EntitiesView {
 
         every_filter.append(stock_any_filter);
         imp.filter_list_model.set_filter(Some(&every_filter));
+    }
+
+    fn handle_entity_zone_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
+        let imp = self.imp();
+
+        let selected_item = dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+
+        let text = imp.search_entry.text();
+        let mut queries = SearchQueries::parse(&text);
+
+        match selected_item.value().try_into().unwrap() {
+            EntityZone::All => {
+                queries.remove("is", "inside");
+                queries.remove("is", "outside");
+            }
+            EntityZone::Inside => {
+                queries.remove("is", "outside");
+                queries.insert("is", "inside")
+            }
+            EntityZone::Outside => {
+                queries.remove("is", "inside");
+                queries.insert("is", "outside")
+            }
+        }
+
+        imp.search_entry.set_text(&queries.to_string());
     }
 
     fn update_stack(&self) {

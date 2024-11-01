@@ -20,15 +20,33 @@
           <object class="GtkBox">
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkSearchBar">
-                <property name="search-mode-enabled">True</property>
-                <property name="child">
+              <object class="GtkBox">
+                <property name="margin-top">6</property>
+                <property name="margin-bottom">6</property>
+                <property name="margin-start">6</property>
+                <property name="margin-end">6</property>
+                <property name="orientation">vertical</property>
+                <property name="spacing">6</property>
+                <property name="hexpand">True</property>
+                <child>
                   <object class="GtkSearchEntry" id="search_entry">
+                    <property name="halign">center</property>
                     <property name="width-chars">40</property>
                     <property name="placeholder-text">Search Entities</property>
                   </object>
-                </property>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="halign">center</property>
+                    <child>
+                      <object class="GtkDropDown" id="entity_zone_dropdown"/>
+                    </child>
+                  </object>
+                </child>
               </object>
+            </child>
+            <child>
+              <object class="GtkSeparator"/>
             </child>
             <child>
               <object class="GtkStack" id="stack">
@@ -58,18 +76,18 @@
                             <property name="bytes"><![CDATA[
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-<template class="GtkListItem">
-<property name="child">
-  <object class="UetsEntityRow">
-    <binding name="entity">
-      <lookup name="item">GtkListItem</lookup>
-    </binding>
-  </object>
-</property>
-</template>
+  <template class="GtkListItem">
+    <property name="child">
+      <object class="UetsEntityRow">
+        <binding name="entity">
+          <lookup name="item">GtkListItem</lookup>
+        </binding>
+      </object>
+    </property>
+  </template>
 </interface>
 ]]>
-                </property>
+                            </property>
                           </object>
                         </property>
                         <style>
