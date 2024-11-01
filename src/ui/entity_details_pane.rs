@@ -42,6 +42,14 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+
+            klass.install_action(
+                "entity-details-pane.show-timeline",
+                None,
+                move |obj, _, _| {
+                    obj.emit_by_name::<()>("show-timeline-request", &[]);
+                },
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -102,6 +110,7 @@ mod imp {
                     Signal::builder("show-stock-request")
                         .param_types([StockId::static_type()])
                         .build(),
+                    Signal::builder("show-timeline-request").build(),
                     Signal::builder("close-request").build(),
                 ]
             })
@@ -160,6 +169,17 @@ impl EntityDetailsPane {
             "show-stock-request",
             false,
             closure_local!(|obj: &Self, id: &StockId| f(obj, id)),
+        )
+    }
+
+    pub fn connect_show_timeline_request<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self) + 'static,
+    {
+        self.connect_closure(
+            "show-timeline-request",
+            false,
+            closure_local!(|obj: &Self| f(obj)),
         )
     }
 

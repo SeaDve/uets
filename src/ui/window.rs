@@ -84,6 +84,7 @@ mod imp {
                     imp.view_stack.set_visible_child_name("entities");
                 }
             ));
+
             self.entities_view.connect_show_stock_request(clone!(
                 #[weak]
                 obj,
@@ -93,6 +94,16 @@ mod imp {
                     imp.view_stack.set_visible_child_name("stocks");
                 }
             ));
+            self.entities_view.connect_show_timeline_request(clone!(
+                #[weak]
+                obj,
+                move |_, entity_id| {
+                    let imp = obj.imp();
+                    imp.timeline_view.show_entity(entity_id);
+                    imp.view_stack.set_visible_child_name("timeline");
+                }
+            ));
+
             self.timeline_view.connect_show_entity_request(clone!(
                 #[weak]
                 obj,

@@ -249,6 +249,12 @@ impl TimelineView {
         imp.search_entry.set_text(&format!("stock:{}", stock_id));
     }
 
+    pub fn show_entity(&self, entity_id: &EntityId) {
+        let imp = self.imp();
+
+        imp.search_entry.set_text(&format!("entity:{}", entity_id));
+    }
+
     fn scroll_to_bottom(&self) {
         let imp = self.imp();
 
@@ -303,14 +309,19 @@ impl TimelineView {
                     let stock_id = StockId::new(value);
                     any_filter.append(gtk::CustomFilter::new(move |o| {
                         let item = o.downcast_ref::<TimelineItem>().unwrap();
-
                         let entity = Application::get()
                             .timeline()
                             .entity_list()
                             .get(item.entity_id())
                             .expect("entity must be known");
-
                         entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
+                    }));
+                }
+                "entity" => {
+                    let entity_id = EntityId::new(value);
+                    any_filter.append(gtk::CustomFilter::new(move |o| {
+                        let item = o.downcast_ref::<TimelineItem>().unwrap();
+                        item.entity_id() == &entity_id
                     }));
                 }
                 _ => {}
