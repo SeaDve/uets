@@ -5,44 +5,67 @@
       <object class="GtkBinLayout"/>
     </property>
     <child>
-      <object class="GtkStack" id="stack">
-        <property name="transition-type">crossfade</property>
+      <object class="GtkBox" id="vbox">
+        <property name="orientation">vertical</property>
         <child>
-          <object class="AdwStatusPage" id="no_data_page">
-            <property name="title">No Data</property>
+          <object class="GtkSearchBar">
+            <property name="search-mode-enabled">True</property>
+            <property name="child">
+              <object class="GtkSearchEntry" id="search_entry">
+                <property name="width-chars">40</property>
+              </object>
+            </property>
           </object>
         </child>
         <child>
-          <object class="GtkOverlay" id="main_page">
-            <property name="child">
-              <object class="GtkScrolledWindow" id="scrolled_window">
-                <property name="hscrollbar-policy">never</property>
-                <property name="child">
-                  <object class="GtkListView" id="list_view">
-                    <style>
-                      <class name="timeline-list-view"/>
-                    </style>
-                  </object>
-                </property>
+          <object class="GtkStack" id="stack">
+            <property name="transition-type">crossfade</property>
+            <child>
+              <object class="AdwStatusPage" id="no_data_page">
+                <property name="title">No Data</property>
               </object>
-            </property>
-            <child type="overlay">
-              <object class="GtkRevealer" id="scroll_to_bottom_revealer">
-                <property name="halign">end</property>
-                <property name="valign">end</property>
-                <property name="margin-end">18</property>
-                <property name="margin-bottom">18</property>
-                <property name="transition-type">crossfade</property>
+            </child>
+            <child>
+              <object class="GtkOverlay" id="main_page">
                 <property name="child">
-                  <object class="GtkButton">
-                    <property name="icon-name">go-down-symbolic</property>
-                    <property name="action-name">timeline-view.scroll-to-bottom</property>
-                    <style>
-                      <class name="circular"/>
-                      <class name="osd"/>
-                    </style>
+                  <object class="GtkScrolledWindow" id="scrolled_window">
+                    <property name="vexpand">True</property>
+                    <property name="hscrollbar-policy">never</property>
+                    <property name="child">
+                      <object class="GtkListView" id="list_view">
+                        <property name="model">
+                          <object class="GtkNoSelection">
+                            <property name="model">
+                              <object class="GtkFilterListModel" id="filter_list_model"/>
+                            </property>
+                          </object>
+                        </property>
+                        <style>
+                          <class name="timeline-list-view"/>
+                        </style>
+                      </object>
+                    </property>
                   </object>
                 </property>
+                <child type="overlay">
+                  <object class="GtkRevealer" id="scroll_to_bottom_revealer">
+                    <property name="halign">end</property>
+                    <property name="valign">end</property>
+                    <property name="margin-end">18</property>
+                    <property name="margin-bottom">18</property>
+                    <property name="transition-type">crossfade</property>
+                    <property name="child">
+                      <object class="GtkButton">
+                        <property name="icon-name">go-down-symbolic</property>
+                        <property name="action-name">timeline-view.scroll-to-bottom</property>
+                        <style>
+                          <class name="circular"/>
+                          <class name="osd"/>
+                        </style>
+                      </object>
+                    </property>
+                  </object>
+                </child>
               </object>
             </child>
           </object>

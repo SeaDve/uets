@@ -5,7 +5,8 @@ use gtk::{
 };
 
 use crate::{
-    entity_id::EntityId, stock_id::StockId, timeline::Timeline, ui::timeline_row::TimelineRow,
+    entity_id::EntityId, stock_id::StockId, timeline::Timeline, timeline_item::TimelineItem,
+    ui::timeline_row::TimelineRow, Application,
 };
 
 mod imp {
@@ -19,7 +20,11 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/timeline_view.ui")]
     pub struct TimelineView {
         #[template_child]
+        pub(super) vbox: TemplateChild<gtk::Box>, // Unused
+        #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
+        #[template_child]
+        pub(super) search_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]
         pub(super) no_data_page: TemplateChild<adw::StatusPage>,
         #[template_child]
@@ -28,6 +33,8 @@ mod imp {
         pub(super) scrolled_window: TemplateChild<gtk::ScrolledWindow>,
         #[template_child]
         pub(super) list_view: TemplateChild<gtk::ListView>,
+        #[template_child]
+        pub(super) filter_list_model: TemplateChild<gtk::FilterListModel>,
         #[template_child]
         pub(super) scroll_to_bottom_revealer: TemplateChild<gtk::Revealer>,
 
@@ -113,6 +120,22 @@ mod imp {
                 }
             ));
 
+            self.search_entry.connect_search_changed(clone!(
+                #[weak]
+                obj,
+                move |entry| {
+                    obj.handle_search_entry_search_changed(entry);
+                }
+            ));
+
+            self.filter_list_model.connect_items_changed(clone!(
+                #[weak]
+                obj,
+                move |_, _, _, _| {
+                    obj.update_stack();
+                }
+            ));
+
             self.scroll_to_bottom_revealer
                 .connect_child_revealed_notify(clone!(
                     #[weak]
@@ -155,6 +178,8 @@ mod imp {
                 }
             ));
             self.list_view.set_factory(Some(&factory));
+
+            obj.update_stack();
         }
 
         fn dispose(&self) {
@@ -215,18 +240,13 @@ impl TimelineView {
     pub fn bind_timeline(&self, timeline: &Timeline) {
         let imp = self.imp();
 
-        timeline.connect_items_changed(clone!(
-            #[weak(rename_to = obj)]
-            self,
-            move |_, _, _, _| {
-                obj.update_stack();
-            }
-        ));
+        imp.filter_list_model.set_model(Some(timeline));
+    }
 
-        let selection_model = gtk::NoSelection::new(Some(timeline.clone()));
-        imp.list_view.set_model(Some(&selection_model));
+    pub fn show_stock(&self, stock_id: &StockId) {
+        let imp = self.imp();
 
-        self.update_stack();
+        imp.search_entry.set_text(&format!("stock:{}", stock_id));
     }
 
     fn scroll_to_bottom(&self) {
@@ -245,22 +265,66 @@ impl TimelineView {
         vadj.value() + vadj.page_size() == vadj.upper()
     }
 
+    fn handle_search_entry_search_changed(&self, entry: &gtk::SearchEntry) {
+        let imp = self.imp();
+
+        let text = entry.text();
+        let kv_queries = text
+            .split_whitespace()
+            .filter_map(|part| part.split_once(':'))
+            .collect::<Vec<_>>();
+
+        if kv_queries.is_empty() {
+            imp.filter_list_model.set_filter(gtk::Filter::NONE);
+            return;
+        }
+
+        let every_filter = gtk::EveryFilter::new();
+        let any_filter = gtk::AnyFilter::new();
+
+        for (key, value) in kv_queries {
+            match key {
+                "is" => match value {
+                    "entry" => {
+                        every_filter.append(gtk::CustomFilter::new(|o| {
+                            let entity = o.downcast_ref::<TimelineItem>().unwrap();
+                            entity.kind().is_entry()
+                        }));
+                    }
+                    "exit" => {
+                        every_filter.append(gtk::CustomFilter::new(|o| {
+                            let entity = o.downcast_ref::<TimelineItem>().unwrap();
+                            entity.kind().is_exit()
+                        }));
+                    }
+                    _ => continue,
+                },
+                "stock" => {
+                    let stock_id = StockId::new(value);
+                    any_filter.append(gtk::CustomFilter::new(move |o| {
+                        let item = o.downcast_ref::<TimelineItem>().unwrap();
+
+                        let entity = Application::get()
+                            .timeline()
+                            .entity_list()
+                            .get(item.entity_id())
+                            .expect("entity must be known");
+
+                        entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
+                    }));
+                }
+                _ => {}
+            }
+        }
+
+        every_filter.append(any_filter);
+        imp.filter_list_model.set_filter(Some(&every_filter));
+    }
+
     fn update_stack(&self) {
         let imp = self.imp();
 
-        let selection_model = imp
-            .list_view
-            .model()
-            .unwrap()
-            .downcast::<gtk::NoSelection>()
-            .unwrap();
-        let timeline = selection_model
-            .model()
-            .unwrap()
-            .downcast::<Timeline>()
-            .unwrap();
-
-        if timeline.is_empty() {
+        if imp.filter_list_model.n_items() == 0 {
             imp.stack.set_visible_child(&*imp.no_data_page);
         } else {
             imp.stack.set_visible_child(&*imp.main_page);

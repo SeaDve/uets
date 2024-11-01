@@ -66,6 +66,15 @@ mod imp {
                 }
             ));
 
+            self.stocks_view.connect_show_timeline_request(clone!(
+                #[weak]
+                obj,
+                move |_, stock_id| {
+                    let imp = obj.imp();
+                    imp.timeline_view.show_stock(stock_id);
+                    imp.view_stack.set_visible_child_name("timeline");
+                }
+            ));
             self.stocks_view.connect_show_entities_request(clone!(
                 #[weak]
                 obj,

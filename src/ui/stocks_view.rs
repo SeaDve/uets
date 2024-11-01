@@ -70,6 +70,14 @@ mod imp {
                 .sync_create()
                 .build();
 
+            self.details_pane.connect_show_timeline_request(clone!(
+                #[weak]
+                obj,
+                move |details_pane| {
+                    let stock = details_pane.stock().expect("stock must exist");
+                    obj.emit_by_name::<()>("show-timeline-request", &[stock.id()]);
+                }
+            ));
             self.details_pane.connect_show_entities_request(clone!(
                 #[weak]
                 obj,
@@ -97,9 +105,14 @@ mod imp {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
 
             SIGNALS.get_or_init(|| {
-                vec![Signal::builder("show-entities-request")
-                    .param_types([StockId::static_type()])
-                    .build()]
+                vec![
+                    Signal::builder("show-timeline-request")
+                        .param_types([StockId::static_type()])
+                        .build(),
+                    Signal::builder("show-entities-request")
+                        .param_types([StockId::static_type()])
+                        .build(),
+                ]
             })
         }
     }
@@ -115,6 +128,17 @@ glib::wrapper! {
 impl StocksView {
     pub fn new() -> Self {
         glib::Object::new()
+    }
+
+    pub fn connect_show_timeline_request<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &StockId) + 'static,
+    {
+        self.connect_closure(
+            "show-timeline-request",
+            false,
+            closure_local!(|obj: &Self, id: &StockId| f(obj, id)),
+        )
     }
 
     pub fn connect_show_entities_request<F>(&self, f: F) -> glib::SignalHandlerId

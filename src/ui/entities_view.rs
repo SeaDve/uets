@@ -107,6 +107,8 @@ mod imp {
                         .set_selected(gtk::INVALID_LIST_POSITION);
                 }
             ));
+
+            obj.update_stack();
         }
 
         fn dispose(&self) {

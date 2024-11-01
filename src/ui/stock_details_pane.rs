@@ -52,6 +52,13 @@ mod imp {
             klass.bind_template();
 
             klass.install_action(
+                "stock-details-pane.show-timeline",
+                None,
+                move |obj, _, _| {
+                    obj.emit_by_name::<()>("show-timeline-request", &[]);
+                },
+            );
+            klass.install_action(
                 "stock-details-pane.show-entities",
                 None,
                 move |obj, _, _| {
@@ -119,6 +126,7 @@ mod imp {
 
             SIGNALS.get_or_init(|| {
                 vec![
+                    Signal::builder("show-timeline-request").build(),
                     Signal::builder("show-entities-request").build(),
                     Signal::builder("close-request").build(),
                 ]
@@ -166,6 +174,17 @@ glib::wrapper! {
 impl StockDetailsPane {
     pub fn new() -> Self {
         glib::Object::new()
+    }
+
+    pub fn connect_show_timeline_request<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self) + 'static,
+    {
+        self.connect_closure(
+            "show-timeline-request",
+            false,
+            closure_local!(|obj: &Self| f(obj)),
+        )
     }
 
     pub fn connect_show_entities_request<F>(&self, f: F) -> glib::SignalHandlerId
