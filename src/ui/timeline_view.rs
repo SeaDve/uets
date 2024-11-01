@@ -1,16 +1,46 @@
 use gtk::{
-    glib::{self, clone, closure_local},
+    glib::{self, clone, closure_local, translate::TryFromGlib},
     prelude::*,
     subclass::prelude::*,
 };
 
 use crate::{
-    entity_id::EntityId, stock_id::StockId, timeline::Timeline, timeline_item::TimelineItem,
-    ui::timeline_row::TimelineRow, Application,
+    entity_id::EntityId,
+    search_query::{SearchQueries, SearchQuery},
+    stock_id::StockId,
+    timeline::Timeline,
+    timeline_item::TimelineItem,
+    ui::timeline_row::TimelineRow,
+    Application,
 };
 
+#[derive(Clone, Copy, glib::Enum)]
+#[enum_type(name = "UetsItemKind")]
+enum ItemKind {
+    All,
+    Entry,
+    Exit,
+}
+
+impl ItemKind {
+    fn position(&self) -> u32 {
+        *self as u32
+    }
+}
+
+impl TryFrom<i32> for ItemKind {
+    type Error = i32;
+
+    fn try_from(val: i32) -> Result<Self, Self::Error> {
+        unsafe { Self::try_from_glib(val) }
+    }
+}
+
 mod imp {
-    use std::{cell::Cell, sync::OnceLock};
+    use std::{
+        cell::{Cell, OnceCell},
+        sync::OnceLock,
+    };
 
     use glib::subclass::Signal;
 
@@ -26,6 +56,8 @@ mod imp {
         #[template_child]
         pub(super) search_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]
+        pub(super) item_kind_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
         pub(super) no_data_page: TemplateChild<adw::StatusPage>,
         #[template_child]
         pub(super) main_page: TemplateChild<gtk::Overlay>,
@@ -40,6 +72,8 @@ mod imp {
 
         pub(super) is_sticky: Cell<bool>,
         pub(super) is_auto_scrolling: Cell<bool>,
+
+        pub(super) item_kind_dropdown_selected_item_handler: OnceCell<glib::SignalHandlerId>,
     }
 
     #[glib::object_subclass]
@@ -127,6 +161,22 @@ mod imp {
                     obj.handle_search_entry_search_changed(entry);
                 }
             ));
+
+            self.item_kind_dropdown
+                .set_expression(Some(&adw::EnumListItem::this_expression("name")));
+            self.item_kind_dropdown
+                .set_model(Some(&adw::EnumListModel::new(ItemKind::static_type())));
+            let item_kind_dropdown_selected_item_notify_handler =
+                self.item_kind_dropdown.connect_selected_item_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |drop_down| {
+                        obj.handle_item_kind_dropdown_selected_item_notify(drop_down);
+                    }
+                ));
+            self.item_kind_dropdown_selected_item_handler
+                .set(item_kind_dropdown_selected_item_notify_handler)
+                .unwrap();
 
             self.filter_list_model.connect_items_changed(clone!(
                 #[weak]
@@ -246,13 +296,25 @@ impl TimelineView {
     pub fn show_stock(&self, stock_id: &StockId) {
         let imp = self.imp();
 
-        imp.search_entry.set_text(&format!("stock:{}", stock_id));
+        let text = imp.search_entry.text();
+
+        let mut queries = SearchQueries::parse(&text);
+        queries.remove_iden("stock");
+        queries.insert("stock", &stock_id.to_string());
+
+        imp.search_entry.set_text(&queries.to_string());
     }
 
     pub fn show_entity(&self, entity_id: &EntityId) {
         let imp = self.imp();
 
-        imp.search_entry.set_text(&format!("entity:{}", entity_id));
+        let text = imp.search_entry.text();
+
+        let mut queries = SearchQueries::parse(&text);
+        queries.remove_iden("entity");
+        queries.insert("entity", &entity_id.to_string());
+
+        imp.search_entry.set_text(&queries.to_string());
     }
 
     fn scroll_to_bottom(&self) {
@@ -275,12 +337,9 @@ impl TimelineView {
         let imp = self.imp();
 
         let text = entry.text();
-        let kv_queries = text
-            .split_whitespace()
-            .filter_map(|part| part.split_once(':'))
-            .collect::<Vec<_>>();
+        let queries = SearchQueries::parse(&text);
 
-        if kv_queries.is_empty() {
+        if queries.is_empty() {
             imp.filter_list_model.set_filter(gtk::Filter::NONE);
             return;
         }
@@ -289,44 +348,59 @@ impl TimelineView {
         let any_stock_filter = gtk::AnyFilter::new();
         let any_entity_filter = gtk::AnyFilter::new();
 
-        for (key, value) in kv_queries {
-            match key {
-                "is" => match value {
-                    "entry" => {
-                        every_filter.append(gtk::CustomFilter::new(|o| {
-                            let entity = o.downcast_ref::<TimelineItem>().unwrap();
-                            entity.kind().is_entry()
-                        }));
-                    }
-                    "exit" => {
-                        every_filter.append(gtk::CustomFilter::new(|o| {
-                            let entity = o.downcast_ref::<TimelineItem>().unwrap();
-                            entity.kind().is_exit()
-                        }));
-                    }
-                    _ => continue,
-                },
-                "stock" => {
-                    let stock_id = StockId::new(value);
-                    any_stock_filter.append(gtk::CustomFilter::new(move |o| {
-                        let item = o.downcast_ref::<TimelineItem>().unwrap();
-                        let entity = Application::get()
-                            .timeline()
-                            .entity_list()
-                            .get(item.entity_id())
-                            .expect("entity must be known");
-                        entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
+        let item_kind = if let Some(SearchQuery::IdenValue(iden, value)) =
+            queries.find_last_match(&["is:entry", "is:exit"])
+        {
+            debug_assert_eq!(iden, "is");
+
+            match value.as_str() {
+                "entry" => {
+                    every_filter.append(gtk::CustomFilter::new(|o| {
+                        let entity = o.downcast_ref::<TimelineItem>().unwrap();
+                        entity.kind().is_entry()
                     }));
+
+                    ItemKind::Entry
                 }
-                "entity" => {
-                    let entity_id = EntityId::new(value);
-                    any_entity_filter.append(gtk::CustomFilter::new(move |o| {
-                        let item = o.downcast_ref::<TimelineItem>().unwrap();
-                        item.entity_id() == &entity_id
+                "exit" => {
+                    every_filter.append(gtk::CustomFilter::new(|o| {
+                        let entity = o.downcast_ref::<TimelineItem>().unwrap();
+                        entity.kind().is_exit()
                     }));
+
+                    ItemKind::Exit
                 }
-                _ => {}
+                _ => unreachable!(),
             }
+        } else {
+            ItemKind::All
+        };
+
+        let selected_item_notify_handler =
+            imp.item_kind_dropdown_selected_item_handler.get().unwrap();
+        imp.item_kind_dropdown
+            .block_signal(selected_item_notify_handler);
+        imp.item_kind_dropdown.set_selected(item_kind.position());
+        imp.item_kind_dropdown
+            .unblock_signal(selected_item_notify_handler);
+
+        for stock_id in queries.all_values("stock").into_iter().map(StockId::new) {
+            any_stock_filter.append(gtk::CustomFilter::new(move |o| {
+                let item = o.downcast_ref::<TimelineItem>().unwrap();
+                let entity = Application::get()
+                    .timeline()
+                    .entity_list()
+                    .get(item.entity_id())
+                    .expect("entity must be known");
+                entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
+            }));
+        }
+
+        for entity_id in queries.all_values("entity").into_iter().map(EntityId::new) {
+            any_entity_filter.append(gtk::CustomFilter::new(move |o| {
+                let item = o.downcast_ref::<TimelineItem>().unwrap();
+                item.entity_id() == &entity_id
+            }));
         }
 
         if any_stock_filter.n_items() == 0 {
@@ -340,6 +414,36 @@ impl TimelineView {
         every_filter.append(any_stock_filter);
         every_filter.append(any_entity_filter);
         imp.filter_list_model.set_filter(Some(&every_filter));
+    }
+
+    fn handle_item_kind_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
+        let imp = self.imp();
+
+        let selected_item = dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+
+        let text = imp.search_entry.text();
+        let mut queries = SearchQueries::parse(&text);
+
+        match selected_item.value().try_into().unwrap() {
+            ItemKind::All => {
+                queries.remove("is", "entry");
+                queries.remove("is", "exit");
+            }
+            ItemKind::Entry => {
+                queries.remove("is", "exit");
+                queries.insert("is", "entry")
+            }
+            ItemKind::Exit => {
+                queries.remove("is", "entry");
+                queries.insert("is", "exit")
+            }
+        }
+
+        imp.search_entry.set_text(&queries.to_string());
     }
 
     fn update_stack(&self) {
