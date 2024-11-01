@@ -196,19 +196,20 @@ impl EntitiesView {
             return;
         }
 
-        let filters = gtk::AnyFilter::new();
+        let every_filter = gtk::EveryFilter::new();
+        let any_filter = gtk::AnyFilter::new();
 
         for (key, value) in kv_queries {
             match key {
                 "is" => match value {
                     "inside" => {
-                        filters.append(gtk::CustomFilter::new(|o| {
+                        every_filter.append(gtk::CustomFilter::new(|o| {
                             let entity = o.downcast_ref::<Entity>().unwrap();
                             entity.is_inside()
                         }));
                     }
                     "outside" => {
-                        filters.append(gtk::CustomFilter::new(|o| {
+                        every_filter.append(gtk::CustomFilter::new(|o| {
                             let entity = o.downcast_ref::<Entity>().unwrap();
                             !entity.is_inside()
                         }));
@@ -217,7 +218,7 @@ impl EntitiesView {
                 },
                 "stock" => {
                     let stock_id = StockId::new(value);
-                    filters.append(gtk::CustomFilter::new(move |o| {
+                    any_filter.append(gtk::CustomFilter::new(move |o| {
                         let entity = o.downcast_ref::<Entity>().unwrap();
                         entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
                     }));
@@ -226,7 +227,8 @@ impl EntitiesView {
             }
         }
 
-        imp.filter_list_model.set_filter(Some(&filters));
+        every_filter.append(any_filter);
+        imp.filter_list_model.set_filter(Some(&every_filter));
     }
 
     fn update_stack(&self) {
