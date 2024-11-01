@@ -157,10 +157,16 @@ impl EntitiesView {
     pub fn show_entity(&self, entity_id: &EntityId) {
         let imp = self.imp();
 
+        // Clear search filter so we can find the entity
+        imp.search_entry.set_text("");
+
         let position = imp
             .filter_list_model
-            .iter::<Entity>()
-            .position(|entity| entity.unwrap().id() == entity_id)
+            .iter::<glib::Object>()
+            .position(|o| {
+                let entity = o.unwrap().downcast::<Entity>().unwrap();
+                entity.id() == entity_id
+            })
             .expect("entity must exist") as u32;
 
         imp.selection_model.set_selected(position);
