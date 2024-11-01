@@ -299,7 +299,7 @@ impl TimelineView {
         let text = imp.search_entry.text();
 
         let mut queries = SearchQueries::parse(&text);
-        queries.remove_iden("stock");
+        queries.remove_all_iden("stock");
         queries.insert("stock", &stock_id.to_string());
 
         imp.search_entry.set_text_instant(&queries.to_string());
@@ -311,7 +311,7 @@ impl TimelineView {
         let text = imp.search_entry.text();
 
         let mut queries = SearchQueries::parse(&text);
-        queries.remove_iden("entity");
+        queries.remove_all_iden("entity");
         queries.insert("entity", &entity_id.to_string());
 
         imp.search_entry.set_text_instant(&queries.to_string());
@@ -429,15 +429,15 @@ impl TimelineView {
 
         match selected_item.value().try_into().unwrap() {
             ItemKind::All => {
-                queries.remove("is", "entry");
-                queries.remove("is", "exit");
+                queries.remove_all("is", "entry");
+                queries.remove_all("is", "exit");
             }
             ItemKind::Entry => {
-                queries.remove("is", "exit");
+                queries.remove_all("is", "exit");
                 queries.insert("is", "entry")
             }
             ItemKind::Exit => {
-                queries.remove("is", "entry");
+                queries.remove_all("is", "entry");
                 queries.insert("is", "exit")
             }
         }

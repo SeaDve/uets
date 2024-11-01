@@ -99,7 +99,7 @@ impl SearchQueries {
     }
 
     /// Removes all queries with the given `iden` and `value`.
-    pub fn remove(&mut self, iden: &str, value: &str) {
+    pub fn remove_all(&mut self, iden: &str, value: &str) {
         debug_assert!(!iden.contains(char::is_whitespace));
         debug_assert!(!value.contains(char::is_whitespace));
 
@@ -113,7 +113,7 @@ impl SearchQueries {
     }
 
     /// Removes all queries with the given `iden`.
-    pub fn remove_iden(&mut self, iden: &str) {
+    pub fn remove_all_iden(&mut self, iden: &str) {
         debug_assert!(!iden.contains(char::is_whitespace));
 
         self.0.retain(|query| {
