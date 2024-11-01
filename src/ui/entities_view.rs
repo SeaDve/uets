@@ -225,7 +225,7 @@ impl EntitiesView {
         }
 
         let every_filter = gtk::EveryFilter::new();
-        let any_filter = gtk::AnyFilter::new();
+        let stock_any_filter = gtk::AnyFilter::new();
 
         for (key, value) in kv_queries {
             match key {
@@ -246,7 +246,7 @@ impl EntitiesView {
                 },
                 "stock" => {
                     let stock_id = StockId::new(value);
-                    any_filter.append(gtk::CustomFilter::new(move |o| {
+                    stock_any_filter.append(gtk::CustomFilter::new(move |o| {
                         let entity = o.downcast_ref::<Entity>().unwrap();
                         entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
                     }));
@@ -255,7 +255,11 @@ impl EntitiesView {
             }
         }
 
-        every_filter.append(any_filter);
+        if stock_any_filter.n_items() == 0 {
+            stock_any_filter.append(gtk::CustomFilter::new(|_| true));
+        }
+
+        every_filter.append(stock_any_filter);
         imp.filter_list_model.set_filter(Some(&every_filter));
     }
 

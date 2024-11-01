@@ -286,7 +286,8 @@ impl TimelineView {
         }
 
         let every_filter = gtk::EveryFilter::new();
-        let any_filter = gtk::AnyFilter::new();
+        let any_stock_filter = gtk::AnyFilter::new();
+        let any_entity_filter = gtk::AnyFilter::new();
 
         for (key, value) in kv_queries {
             match key {
@@ -307,7 +308,7 @@ impl TimelineView {
                 },
                 "stock" => {
                     let stock_id = StockId::new(value);
-                    any_filter.append(gtk::CustomFilter::new(move |o| {
+                    any_stock_filter.append(gtk::CustomFilter::new(move |o| {
                         let item = o.downcast_ref::<TimelineItem>().unwrap();
                         let entity = Application::get()
                             .timeline()
@@ -319,7 +320,7 @@ impl TimelineView {
                 }
                 "entity" => {
                     let entity_id = EntityId::new(value);
-                    any_filter.append(gtk::CustomFilter::new(move |o| {
+                    any_entity_filter.append(gtk::CustomFilter::new(move |o| {
                         let item = o.downcast_ref::<TimelineItem>().unwrap();
                         item.entity_id() == &entity_id
                     }));
@@ -328,7 +329,16 @@ impl TimelineView {
             }
         }
 
-        every_filter.append(any_filter);
+        if any_stock_filter.n_items() == 0 {
+            any_stock_filter.append(gtk::CustomFilter::new(|_| true));
+        }
+
+        if any_entity_filter.n_items() == 0 {
+            any_entity_filter.append(gtk::CustomFilter::new(|_| true));
+        }
+
+        every_filter.append(any_stock_filter);
+        every_filter.append(any_entity_filter);
         imp.filter_list_model.set_filter(Some(&every_filter));
     }
 
