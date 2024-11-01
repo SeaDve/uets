@@ -58,6 +58,7 @@ impl SearchQueries {
         self.0.is_empty()
     }
 
+    /// Returns the last query that matches any of the given `parts`.
     pub fn find_last_match(&self, parts: &[&str]) -> Option<&SearchQuery> {
         self.0
             .iter()
@@ -65,6 +66,7 @@ impl SearchQueries {
             .find(|query| parts.iter().any(|part| SearchQuery::parse(part) == **query))
     }
 
+    /// Returns all values for the given `iden`.
     pub fn all_values(&self, iden: &str) -> HashSet<&str> {
         self.0
             .iter()
@@ -75,6 +77,7 @@ impl SearchQueries {
             .collect()
     }
 
+    /// Inserts a new query with the given `iden` and `value` if it doesn't already exist.
     pub fn insert(&mut self, iden: &str, value: &str) {
         for query in &mut self.0 {
             if let SearchQuery::IdenValue(i, v) = query {
@@ -88,10 +91,22 @@ impl SearchQueries {
             .push_front(SearchQuery::IdenValue(iden.to_string(), value.to_string()));
     }
 
+    /// Removes all queries with the given `iden` and `value`.
     pub fn remove(&mut self, iden: &str, value: &str) {
         self.0.retain(|query| {
             if let SearchQuery::IdenValue(i, v) = query {
                 i != iden || v != value
+            } else {
+                true
+            }
+        });
+    }
+
+    /// Removes all queries with the given `iden`.
+    pub fn remove_iden(&mut self, iden: &str) {
+        self.0.retain(|query| {
+            if let SearchQuery::IdenValue(i, _) = query {
+                i != iden
             } else {
                 true
             }

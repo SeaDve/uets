@@ -251,7 +251,13 @@ impl EntitiesView {
     pub fn show_entities_with_stock_id(&self, stock_id: &StockId) {
         let imp = self.imp();
 
-        imp.search_entry.set_text(&format!("stock:{}", stock_id));
+        let text = imp.search_entry.text();
+
+        let mut queries = SearchQueries::parse(&text);
+        queries.remove_iden("stock");
+        queries.insert("stock", &stock_id.to_string());
+
+        imp.search_entry.set_text(&queries.to_string());
     }
 
     fn handle_search_entry_search_changed(&self, entry: &gtk::SearchEntry) {
