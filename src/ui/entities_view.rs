@@ -17,20 +17,20 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, glib::Enum)]
-#[enum_type(name = "UetsEntityZone")]
-enum EntityZone {
+#[enum_type(name = "UetsEntityZoneFilter")]
+enum EntityZoneFilter {
     All,
     Inside,
     Outside,
 }
 
-impl EntityZone {
+impl EntityZoneFilter {
     fn position(&self) -> u32 {
         *self as u32
     }
 }
 
-impl TryFrom<i32> for EntityZone {
+impl TryFrom<i32> for EntityZoneFilter {
     type Error = i32;
 
     fn try_from(val: i32) -> Result<Self, Self::Error> {
@@ -110,7 +110,9 @@ mod imp {
             self.entity_zone_dropdown
                 .set_expression(Some(&adw::EnumListItem::this_expression("name")));
             self.entity_zone_dropdown
-                .set_model(Some(&adw::EnumListModel::new(EntityZone::static_type())));
+                .set_model(Some(&adw::EnumListModel::new(
+                    EntityZoneFilter::static_type(),
+                )));
             let entity_zone_dropdown_selected_item_notify_id = self
                 .entity_zone_dropdown
                 .connect_selected_item_notify(clone!(
@@ -283,9 +285,9 @@ impl EntitiesView {
         let queries = entry.queries();
 
         let entity_zone = match queries.find_last_match("is", &["inside", "outside"]) {
-            Some("inside") => EntityZone::Inside,
-            Some("outside") => EntityZone::Outside,
-            _ => EntityZone::All,
+            Some("inside") => EntityZoneFilter::Inside,
+            Some("outside") => EntityZoneFilter::Outside,
+            _ => EntityZoneFilter::All,
         };
 
         let selected_item_notify_id = imp.entity_zone_dropdown_selected_item_id.get().unwrap();
@@ -314,14 +316,14 @@ impl EntitiesView {
         every_filter.append(fuzzy_filter.clone());
 
         match entity_zone {
-            EntityZone::All => {}
-            EntityZone::Inside => {
+            EntityZoneFilter::All => {}
+            EntityZoneFilter::Inside => {
                 every_filter.append(gtk::CustomFilter::new(|o| {
                     let entity = o.downcast_ref::<Entity>().unwrap();
                     entity.is_inside()
                 }));
             }
-            EntityZone::Outside => {
+            EntityZoneFilter::Outside => {
                 every_filter.append(gtk::CustomFilter::new(|o| {
                     let entity = o.downcast_ref::<Entity>().unwrap();
                     !entity.is_inside()
@@ -357,14 +359,14 @@ impl EntitiesView {
         let mut queries = imp.search_entry.queries();
 
         match selected_item.value().try_into().unwrap() {
-            EntityZone::All => {
+            EntityZoneFilter::All => {
                 queries.remove_all("is", "inside");
                 queries.remove_all("is", "outside");
             }
-            EntityZone::Inside => {
+            EntityZoneFilter::Inside => {
                 queries.replace_all_or_insert("is", "outside", "inside");
             }
-            EntityZone::Outside => {
+            EntityZoneFilter::Outside => {
                 queries.replace_all_or_insert("is", "inside", "outside");
             }
         }

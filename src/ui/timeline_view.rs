@@ -15,20 +15,20 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, glib::Enum)]
-#[enum_type(name = "UetsItemKind")]
-enum ItemKind {
+#[enum_type(name = "UetsTimelineItemKindFilter")]
+enum TimelineItemKindFilter {
     All,
     Entry,
     Exit,
 }
 
-impl ItemKind {
+impl TimelineItemKindFilter {
     fn position(&self) -> u32 {
         *self as u32
     }
 }
 
-impl TryFrom<i32> for ItemKind {
+impl TryFrom<i32> for TimelineItemKindFilter {
     type Error = i32;
 
     fn try_from(val: i32) -> Result<Self, Self::Error> {
@@ -171,7 +171,9 @@ mod imp {
             self.item_kind_dropdown
                 .set_expression(Some(&adw::EnumListItem::this_expression("name")));
             self.item_kind_dropdown
-                .set_model(Some(&adw::EnumListModel::new(ItemKind::static_type())));
+                .set_model(Some(&adw::EnumListModel::new(
+                    TimelineItemKindFilter::static_type(),
+                )));
             let item_kind_dropdown_selected_item_notify_id =
                 self.item_kind_dropdown.connect_selected_item_notify(clone!(
                     #[weak]
@@ -358,9 +360,9 @@ impl TimelineView {
         let queries = entry.queries();
 
         let item_kind = match queries.find_last_match("is", &["entry", "exit"]) {
-            Some("entry") => ItemKind::Entry,
-            Some("exit") => ItemKind::Exit,
-            _ => ItemKind::All,
+            Some("entry") => TimelineItemKindFilter::Entry,
+            Some("exit") => TimelineItemKindFilter::Exit,
+            _ => TimelineItemKindFilter::All,
         };
 
         let selected_item_notify_id = imp.item_kind_dropdown_selected_item_id.get().unwrap();
@@ -387,14 +389,14 @@ impl TimelineView {
         every_filter.append(fuzzy_filter.clone());
 
         match item_kind {
-            ItemKind::All => {}
-            ItemKind::Entry => {
+            TimelineItemKindFilter::All => {}
+            TimelineItemKindFilter::Entry => {
                 every_filter.append(gtk::CustomFilter::new(|o| {
                     let entity = o.downcast_ref::<TimelineItem>().unwrap();
                     entity.kind().is_entry()
                 }));
             }
-            ItemKind::Exit => {
+            TimelineItemKindFilter::Exit => {
                 every_filter.append(gtk::CustomFilter::new(|o| {
                     let entity = o.downcast_ref::<TimelineItem>().unwrap();
                     entity.kind().is_exit()
@@ -448,14 +450,14 @@ impl TimelineView {
         let mut queries = imp.search_entry.queries();
 
         match selected_item.value().try_into().unwrap() {
-            ItemKind::All => {
+            TimelineItemKindFilter::All => {
                 queries.remove_all("is", "entry");
                 queries.remove_all("is", "exit");
             }
-            ItemKind::Entry => {
+            TimelineItemKindFilter::Entry => {
                 queries.replace_all_or_insert("is", "exit", "entry");
             }
-            ItemKind::Exit => {
+            TimelineItemKindFilter::Exit => {
                 queries.replace_all_or_insert("is", "entry", "exit");
             }
         }
