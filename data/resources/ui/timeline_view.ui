@@ -55,7 +55,11 @@
                         <property name="model">
                           <object class="GtkNoSelection">
                             <property name="model">
-                              <object class="GtkFilterListModel" id="filter_list_model"/>
+                              <object class="GtkSortListModel" id="sort_list_model">
+                                <property name="model">
+                                  <object class="GtkFilterListModel" id="filter_list_model"/>
+                                </property>
+                              </object>
                             </property>
                           </object>
                         </property>

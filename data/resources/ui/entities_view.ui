@@ -67,7 +67,11 @@
                             <property name="can-unselect">True</property>
                             <property name="autoselect">False</property>
                             <property name="model">
-                              <object class="GtkFilterListModel" id="filter_list_model"/>
+                              <object class="GtkSortListModel" id="sort_list_model">
+                                <property name="model">
+                                  <object class="GtkFilterListModel" id="filter_list_model"/>
+                                </property>
+                              </object>
                             </property>
                           </object>
                         </property>

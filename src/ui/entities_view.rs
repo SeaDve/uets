@@ -8,6 +8,7 @@ use crate::{
     entity::Entity,
     entity_id::EntityId,
     entity_list::EntityList,
+    fuzzy_filter::FuzzyFilter,
     search_query::{SearchQueries, SearchQuery},
     stock_id::StockId,
     ui::{
@@ -64,11 +65,15 @@ mod imp {
         #[template_child]
         pub(super) selection_model: TemplateChild<gtk::SingleSelection>,
         #[template_child]
+        pub(super) sort_list_model: TemplateChild<gtk::SortListModel>,
+        #[template_child]
         pub(super) filter_list_model: TemplateChild<gtk::FilterListModel>,
         #[template_child]
         pub(super) details_pane: TemplateChild<EntityDetailsPane>,
 
         pub(super) entity_zone_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
+
+        pub(super) fuzzy_filter: OnceCell<FuzzyFilter>,
     }
 
     #[glib::object_subclass]
@@ -163,6 +168,13 @@ mod imp {
                         .set_selected(gtk::INVALID_LIST_POSITION);
                 }
             ));
+
+            let fuzzy_filter = FuzzyFilter::new(|o| {
+                let item = o.downcast_ref::<Entity>().unwrap();
+                format!("{}", item.id())
+            });
+            self.sort_list_model.set_sorter(Some(fuzzy_filter.sorter()));
+            self.fuzzy_filter.set(fuzzy_filter).unwrap();
 
             obj.update_stack();
         }
@@ -290,6 +302,16 @@ impl EntitiesView {
         }
 
         let every_filter = gtk::EveryFilter::new();
+
+        let fuzzy_filter = imp.fuzzy_filter.get().unwrap();
+        fuzzy_filter.set_search(
+            &queries
+                .all_standalones()
+                .into_iter()
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+        every_filter.append(fuzzy_filter.clone());
 
         match entity_zone {
             EntityZone::All => {}

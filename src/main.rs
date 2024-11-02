@@ -1,4 +1,4 @@
-#![allow(clippy::new_without_default)]
+#![allow(clippy::new_without_default, clippy::type_complexity)]
 #![warn(rust_2018_idioms, clippy::unused_async, clippy::dbg_macro)]
 
 mod application;
@@ -10,6 +10,8 @@ mod entity;
 mod entity_id;
 mod entity_list;
 mod format;
+mod fuzzy_filter;
+mod fuzzy_sorter;
 mod search_query;
 mod settings;
 mod stock;

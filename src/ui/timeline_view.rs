@@ -6,6 +6,7 @@ use gtk::{
 
 use crate::{
     entity_id::EntityId,
+    fuzzy_filter::FuzzyFilter,
     search_query::SearchQuery,
     stock_id::StockId,
     timeline::Timeline,
@@ -66,6 +67,8 @@ mod imp {
         #[template_child]
         pub(super) list_view: TemplateChild<gtk::ListView>,
         #[template_child]
+        pub(super) sort_list_model: TemplateChild<gtk::SortListModel>,
+        #[template_child]
         pub(super) filter_list_model: TemplateChild<gtk::FilterListModel>,
         #[template_child]
         pub(super) scroll_to_bottom_revealer: TemplateChild<gtk::Revealer>,
@@ -74,6 +77,8 @@ mod imp {
         pub(super) is_auto_scrolling: Cell<bool>,
 
         pub(super) item_kind_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
+
+        pub(super) fuzzy_filter: OnceCell<FuzzyFilter>,
     }
 
     #[glib::object_subclass]
@@ -229,6 +234,13 @@ mod imp {
             ));
             self.list_view.set_factory(Some(&factory));
 
+            let fuzzy_filter = FuzzyFilter::new(|o| {
+                let item = o.downcast_ref::<TimelineItem>().unwrap();
+                format!("{}", item.entity_id())
+            });
+            self.sort_list_model.set_sorter(Some(fuzzy_filter.sorter()));
+            self.fuzzy_filter.set(fuzzy_filter).unwrap();
+
             obj.update_stack();
         }
 
@@ -355,6 +367,16 @@ impl TimelineView {
         }
 
         let every_filter = gtk::EveryFilter::new();
+
+        let fuzzy_filter = imp.fuzzy_filter.get().unwrap();
+        fuzzy_filter.set_search(
+            &queries
+                .all_standalones()
+                .into_iter()
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+        every_filter.append(fuzzy_filter.clone());
 
         match item_kind {
             ItemKind::All => {}

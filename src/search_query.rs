@@ -78,6 +78,17 @@ impl SearchQueries {
             .find(|query| needles.iter().any(|needle| needle == &query.to_string()))
     }
 
+    /// Returns all unique standalone queries.
+    pub fn all_standalones(&self) -> HashSet<&str> {
+        self.0
+            .iter()
+            .filter_map(|query| match query {
+                SearchQuery::Standalone(s) => Some(s.as_str()),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// Returns all unique values without for the given `iden`.
     pub fn all_values(&self, iden: &str) -> HashSet<&str> {
         debug_assert!(!iden.contains(char::is_whitespace));

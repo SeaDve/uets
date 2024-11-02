@@ -8,6 +8,7 @@ rust-version = "1.82"
 adw = { package = "libadwaita", version = "0.7", features = ["v1_2"] }
 anyhow = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
+fuzzy-matcher = "0.3.7"
 gtk = { package = "gtk4", version = "0.9", features = ["gnome_43"] }
 gsettings-macro = "0.2.1"
 gvdb = { version = "0.7", features = ["gresource"] }
