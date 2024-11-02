@@ -67,15 +67,18 @@ impl SearchQueries {
     }
 
     /// Returns the last query that matches any of the given needles.
-    pub fn find_last_match(&self, needles: &[&str]) -> Option<&SearchQuery> {
-        debug_assert!(needles
+    pub fn find_last_match(&self, iden: &str, values: &[&str]) -> Option<&str> {
+        debug_assert!(!iden.contains(char::is_whitespace));
+        debug_assert!(values
             .iter()
             .all(|needle| !needle.contains(char::is_whitespace)));
 
-        self.0
-            .iter()
-            .rev()
-            .find(|query| needles.iter().any(|needle| needle == &query.to_string()))
+        self.0.iter().rev().find_map(|query| match query {
+            SearchQuery::IdenValue(i, v) if i == iden && values.contains(&v.as_str()) => {
+                Some(v.as_str())
+            }
+            _ => None,
+        })
     }
 
     /// Returns all unique standalone queries.

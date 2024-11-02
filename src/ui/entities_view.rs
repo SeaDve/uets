@@ -9,7 +9,7 @@ use crate::{
     entity_id::EntityId,
     entity_list::EntityList,
     fuzzy_filter::FuzzyFilter,
-    search_query::{SearchQueries, SearchQuery},
+    search_query::SearchQueries,
     stock_id::StockId,
     ui::{
         entity_details_pane::EntityDetailsPane, entity_row::EntityRow, search_entry::SearchEntry,
@@ -282,11 +282,9 @@ impl EntitiesView {
 
         let queries = entry.queries();
 
-        let entity_zone = if let Some(SearchQuery::IdenValue(iden, value)) =
-            queries.find_last_match(&["is:inside", "is:outside"])
+        let entity_zone = if let Some(value) = queries.find_last_match("is", &["inside", "outside"])
         {
-            debug_assert_eq!(iden, "is");
-            match value.as_str() {
+            match value {
                 "inside" => EntityZone::Inside,
                 "outside" => EntityZone::Outside,
                 _ => unreachable!(),

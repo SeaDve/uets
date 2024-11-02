@@ -7,7 +7,6 @@ use gtk::{
 use crate::{
     entity_id::EntityId,
     fuzzy_filter::FuzzyFilter,
-    search_query::SearchQuery,
     stock_id::StockId,
     timeline::Timeline,
     timeline_item::TimelineItem,
@@ -358,11 +357,8 @@ impl TimelineView {
 
         let queries = entry.queries();
 
-        let item_kind = if let Some(SearchQuery::IdenValue(iden, value)) =
-            queries.find_last_match(&["is:entry", "is:exit"])
-        {
-            debug_assert_eq!(iden, "is");
-            match value.as_str() {
+        let item_kind = if let Some(value) = queries.find_last_match("is", &["entry", "exit"]) {
+            match value {
                 "entry" => ItemKind::Entry,
                 "exit" => ItemKind::Exit,
                 _ => unreachable!(),
