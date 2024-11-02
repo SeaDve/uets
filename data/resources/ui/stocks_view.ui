@@ -31,7 +31,7 @@
                 <child>
                   <object class="UetsSearchEntry" id="search_entry">
                     <property name="halign">center</property>
-                    <property name="width-chars">40</property>
+                    <property name="width-chars">48</property>
                     <property name="placeholder-text">Search Stocks</property>
                   </object>
                 </child>
