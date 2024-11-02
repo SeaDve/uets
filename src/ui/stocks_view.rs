@@ -5,14 +5,16 @@ use gtk::{
 };
 
 use crate::{
+    fuzzy_filter::FuzzyFilter,
+    search_query::SearchQueries,
     stock::Stock,
     stock_id::StockId,
     stock_list::StockList,
-    ui::{stock_details_pane::StockDetailsPane, stock_row::StockRow},
+    ui::{search_entry::SearchEntry, stock_details_pane::StockDetailsPane, stock_row::StockRow},
 };
 
 mod imp {
-    use std::sync::OnceLock;
+    use std::{cell::OnceCell, sync::OnceLock};
 
     use glib::subclass::Signal;
 
@@ -24,6 +26,8 @@ mod imp {
         #[template_child]
         pub(super) flap: TemplateChild<adw::Flap>,
         #[template_child]
+        pub(super) search_entry: TemplateChild<SearchEntry>,
+        #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
         pub(super) empty_page: TemplateChild<adw::StatusPage>,
@@ -34,7 +38,13 @@ mod imp {
         #[template_child]
         pub(super) selection_model: TemplateChild<gtk::SingleSelection>,
         #[template_child]
+        pub(super) sort_list_model: TemplateChild<gtk::SortListModel>,
+        #[template_child]
+        pub(super) filter_list_model: TemplateChild<gtk::FilterListModel>,
+        #[template_child]
         pub(super) details_pane: TemplateChild<StockDetailsPane>,
+
+        pub(super) fuzzy_filter: OnceCell<FuzzyFilter>,
     }
 
     #[glib::object_subclass]
@@ -60,6 +70,14 @@ mod imp {
 
             let obj = self.obj();
 
+            self.search_entry.connect_search_changed(clone!(
+                #[weak]
+                obj,
+                move |entry| {
+                    obj.handle_search_entry_search_changed(entry);
+                }
+            ));
+
             self.selection_model
                 .bind_property("selected-item", &*self.flap, "reveal-flap")
                 .transform_to(|_, stock: Option<Stock>| Some(stock.is_some()))
@@ -69,6 +87,13 @@ mod imp {
                 .bind_property("selected-item", &*self.details_pane, "stock")
                 .sync_create()
                 .build();
+            self.selection_model.connect_items_changed(clone!(
+                #[weak]
+                obj,
+                move |_, _, _, _| {
+                    obj.update_stack();
+                }
+            ));
 
             self.details_pane.connect_show_timeline_request(clone!(
                 #[weak]
@@ -95,6 +120,19 @@ mod imp {
                         .set_selected(gtk::INVALID_LIST_POSITION);
                 }
             ));
+
+            let fuzzy_filter = FuzzyFilter::new(|o| {
+                let stock = o.downcast_ref::<Stock>().unwrap();
+                [Some(stock.id().to_string())]
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            });
+            self.sort_list_model.set_sorter(Some(fuzzy_filter.sorter()));
+            self.fuzzy_filter.set(fuzzy_filter).unwrap();
+
+            obj.update_stack();
         }
 
         fn dispose(&self) {
@@ -155,25 +193,22 @@ impl StocksView {
     pub fn bind_stock_list(&self, stock_list: &StockList) {
         let imp = self.imp();
 
-        stock_list.connect_items_changed(clone!(
-            #[weak(rename_to = obj)]
-            self,
-            move |_, _, _, _| {
-                obj.update_stack();
-            }
-        ));
-
-        imp.selection_model.set_model(Some(stock_list));
-
-        self.update_stack();
+        imp.filter_list_model.set_model(Some(stock_list));
     }
 
     pub fn show_stock(&self, stock_id: &StockId) {
         let imp = self.imp();
 
-        let position = self
-            .stock_list()
-            .get_index_of(stock_id)
+        // Clear search filter so we can find the entity
+        imp.search_entry.set_queries(&SearchQueries::new());
+
+        let position = imp
+            .filter_list_model
+            .iter::<glib::Object>()
+            .position(|o| {
+                let stock = o.unwrap().downcast::<Stock>().unwrap();
+                stock.id() == stock_id
+            })
             .expect("stock must exist") as u32;
 
         imp.selection_model.set_selected(position);
@@ -183,19 +218,35 @@ impl StocksView {
             .unwrap();
     }
 
-    fn stock_list(&self) -> StockList {
-        self.imp()
-            .selection_model
-            .model()
-            .unwrap()
-            .downcast()
-            .unwrap()
+    fn handle_search_entry_search_changed(&self, entry: &SearchEntry) {
+        let imp = self.imp();
+
+        let queries = entry.queries();
+
+        if queries.is_empty() {
+            imp.filter_list_model.set_filter(gtk::Filter::NONE);
+            return;
+        }
+
+        let every_filter = gtk::EveryFilter::new();
+
+        let fuzzy_filter = imp.fuzzy_filter.get().unwrap();
+        fuzzy_filter.set_search(
+            &queries
+                .all_standalones()
+                .into_iter()
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+        every_filter.append(fuzzy_filter.clone());
+
+        imp.filter_list_model.set_filter(Some(&every_filter));
     }
 
     fn update_stack(&self) {
         let imp = self.imp();
 
-        if self.stock_list().is_empty() {
+        if imp.selection_model.n_items() == 0 {
             imp.stack.set_visible_child(&*imp.empty_page);
         } else {
             imp.stack.set_visible_child(&*imp.main_page);

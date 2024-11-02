@@ -67,6 +67,8 @@ mod imp {
         #[template_child]
         pub(super) list_view: TemplateChild<gtk::ListView>,
         #[template_child]
+        pub(super) selection_model: TemplateChild<gtk::NoSelection>,
+        #[template_child]
         pub(super) sort_list_model: TemplateChild<gtk::SortListModel>,
         #[template_child]
         pub(super) filter_list_model: TemplateChild<gtk::FilterListModel>,
@@ -183,7 +185,7 @@ mod imp {
                 .set(item_kind_dropdown_selected_item_notify_id)
                 .unwrap();
 
-            self.filter_list_model.connect_items_changed(clone!(
+            self.selection_model.connect_items_changed(clone!(
                 #[weak]
                 obj,
                 move |_, _, _, _| {
@@ -472,7 +474,7 @@ impl TimelineView {
     fn update_stack(&self) {
         let imp = self.imp();
 
-        if imp.filter_list_model.n_items() == 0 {
+        if imp.selection_model.n_items() == 0 {
             imp.stack.set_visible_child(&*imp.no_data_page);
         } else {
             imp.stack.set_visible_child(&*imp.main_page);

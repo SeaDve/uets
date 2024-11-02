@@ -17,49 +17,82 @@
           <object class="GtkSeparator"/>
         </property>
         <property name="content">
-          <object class="GtkStack" id="stack">
-            <property name="transition-type">crossfade</property>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
             <child>
-              <object class="AdwStatusPage" id="empty_page">
-                <property name="title">No Stocks</property>
+              <object class="GtkBox">
+                <property name="margin-top">6</property>
+                <property name="margin-bottom">6</property>
+                <property name="margin-start">6</property>
+                <property name="margin-end">6</property>
+                <property name="orientation">vertical</property>
+                <property name="spacing">6</property>
+                <property name="hexpand">True</property>
+                <child>
+                  <object class="UetsSearchEntry" id="search_entry">
+                    <property name="halign">center</property>
+                    <property name="width-chars">40</property>
+                    <property name="placeholder-text">Search Stocks</property>
+                  </object>
+                </child>
               </object>
             </child>
             <child>
-              <object class="GtkScrolledWindow" id="main_page">
-                <property name="vexpand">True</property>
-                <property name="hscrollbar-policy">never</property>
-                <property name="child">
-                  <object class="GtkListView" id="list_view">
-                    <property name="model">
-                      <object class="GtkSingleSelection" id="selection_model">
-                        <property name="can-unselect">True</property>
-                        <property name="autoselect">False</property>
-                      </object>
-                    </property>
-                    <property name="factory">
-                      <object class="GtkBuilderListItemFactory">
-                        <property name="bytes"><![CDATA[
-<?xml version="1.0" encoding="UTF-8"?>
-<interface>
-  <template class="GtkListItem">
-    <property name="child">
-      <object class="UetsStockRow">
-        <binding name="stock">
-          <lookup name="item">GtkListItem</lookup>
-        </binding>
-      </object>
-    </property>
-  </template>
-</interface>
-]]>
-                          </property>
-                      </object>
-                    </property>
-                    <style>
-                      <class name="navigation-sidebar"/>
-                    </style>
+              <object class="GtkSeparator"/>
+            </child>
+            <child>
+              <object class="GtkStack" id="stack">
+                <property name="transition-type">crossfade</property>
+                <child>
+                  <object class="AdwStatusPage" id="empty_page">
+                    <property name="title">No Stocks</property>
                   </object>
-                </property>
+                </child>
+                <child>
+                  <object class="GtkScrolledWindow" id="main_page">
+                    <property name="vexpand">True</property>
+                    <property name="hscrollbar-policy">never</property>
+                    <property name="child">
+                      <object class="GtkListView" id="list_view">
+                        <property name="model">
+                          <object class="GtkSingleSelection" id="selection_model">
+                            <property name="can-unselect">True</property>
+                            <property name="autoselect">False</property>
+                            <property name="model">
+                              <object class="GtkSortListModel" id="sort_list_model">
+                                <property name="model">
+                                  <object class="GtkFilterListModel" id="filter_list_model"/>
+                                </property>
+                              </object>
+                            </property>
+                          </object>
+                        </property>
+                        <property name="factory">
+                          <object class="GtkBuilderListItemFactory">
+                            <property name="bytes"><![CDATA[
+    <?xml version="1.0" encoding="UTF-8"?>
+    <interface>
+      <template class="GtkListItem">
+        <property name="child">
+          <object class="UetsStockRow">
+            <binding name="stock">
+              <lookup name="item">GtkListItem</lookup>
+            </binding>
+          </object>
+        </property>
+      </template>
+    </interface>
+    ]]>
+                              </property>
+                          </object>
+                        </property>
+                        <style>
+                          <class name="navigation-sidebar"/>
+                        </style>
+                      </object>
+                    </property>
+                  </object>
+                </child>
               </object>
             </child>
           </object>

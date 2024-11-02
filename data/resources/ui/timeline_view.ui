@@ -53,7 +53,7 @@
                     <property name="child">
                       <object class="GtkListView" id="list_view">
                         <property name="model">
-                          <object class="GtkNoSelection">
+                          <object class="GtkNoSelection" id="selection_model">
                             <property name="model">
                               <object class="GtkSortListModel" id="sort_list_model">
                                 <property name="model">

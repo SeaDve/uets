@@ -99,16 +99,6 @@ mod imp {
 
             let obj = self.obj();
 
-            self.selection_model
-                .bind_property("selected-item", &*self.flap, "reveal-flap")
-                .transform_to(|_, entity: Option<Entity>| Some(entity.is_some()))
-                .sync_create()
-                .build();
-            self.selection_model
-                .bind_property("selected-item", &*self.details_pane, "entity")
-                .sync_create()
-                .build();
-
             self.search_entry.connect_search_changed(clone!(
                 #[weak]
                 obj,
@@ -134,7 +124,16 @@ mod imp {
                 .set(entity_zone_dropdown_selected_item_notify_id)
                 .unwrap();
 
-            self.filter_list_model.connect_items_changed(clone!(
+            self.selection_model
+                .bind_property("selected-item", &*self.flap, "reveal-flap")
+                .transform_to(|_, entity: Option<Entity>| Some(entity.is_some()))
+                .sync_create()
+                .build();
+            self.selection_model
+                .bind_property("selected-item", &*self.details_pane, "entity")
+                .sync_create()
+                .build();
+            self.selection_model.connect_items_changed(clone!(
                 #[weak]
                 obj,
                 move |_, _, _, _| {
@@ -383,7 +382,7 @@ impl EntitiesView {
     fn update_stack(&self) {
         let imp = self.imp();
 
-        if imp.filter_list_model.n_items() == 0 {
+        if imp.selection_model.n_items() == 0 {
             imp.stack.set_visible_child(&*imp.empty_page);
         } else {
             imp.stack.set_visible_child(&*imp.main_page);
