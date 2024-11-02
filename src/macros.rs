@@ -16,6 +16,8 @@ macro_rules! list_model_enum {
             type Error = i32;
 
             fn try_from(val: i32) -> Result<Self, Self::Error> {
+                use gtk::glib::translate::TryFromGlib;
+
                 unsafe { Self::try_from_glib(val) }
             }
         }

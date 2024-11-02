@@ -1,17 +1,60 @@
+use std::cmp::Ordering;
+
 use gtk::{
-    glib::{self, clone, closure_local},
+    glib::{self, clone, closure, closure_local},
     prelude::*,
     subclass::prelude::*,
 };
 
 use crate::{
     fuzzy_filter::FuzzyFilter,
+    list_model_enum,
     search_query::SearchQueries,
     stock::Stock,
     stock_id::StockId,
     stock_list::StockList,
     ui::{search_entry::SearchEntry, stock_details_pane::StockDetailsPane, stock_row::StockRow},
 };
+
+struct S;
+
+impl S {
+    const SORT: &str = "sort";
+
+    const ID_ASC: &str = "id-asc";
+    const ID_DESC: &str = "id-desc";
+    const LEAST_COUNT: &str = "least-count";
+    const MOST_COUNT: &str = "most-count";
+    const FIRST_MODIFIED: &str = "first-modified";
+    const LAST_MODIFIED: &str = "last-modified";
+}
+
+#[derive(Debug, Default, Clone, Copy, glib::Enum)]
+#[enum_type(name = "UetsStockSort")]
+enum StockSort {
+    #[default]
+    IdAsc,
+    IdDesc,
+    LeastCount,
+    MostCount,
+    FirstModified,
+    LastModified,
+}
+
+list_model_enum!(StockSort);
+
+impl StockSort {
+    fn display(&self) -> &'static str {
+        match self {
+            StockSort::IdAsc => "ID (A-Z)",
+            StockSort::IdDesc => "ID (Z-A)",
+            StockSort::LeastCount => "Least Count",
+            StockSort::MostCount => "Most Count",
+            StockSort::FirstModified => "First Modified",
+            StockSort::LastModified => "Last Modified",
+        }
+    }
+}
 
 mod imp {
     use std::{cell::OnceCell, sync::OnceLock};
@@ -27,6 +70,8 @@ mod imp {
         pub(super) flap: TemplateChild<adw::Flap>,
         #[template_child]
         pub(super) search_entry: TemplateChild<SearchEntry>,
+        #[template_child]
+        pub(super) stock_sort_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
@@ -45,6 +90,8 @@ mod imp {
         pub(super) details_pane: TemplateChild<StockDetailsPane>,
 
         pub(super) fuzzy_filter: OnceCell<FuzzyFilter>,
+
+        pub(super) stock_sort_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
     }
 
     #[glib::object_subclass]
@@ -75,8 +122,31 @@ mod imp {
                 obj,
                 move |entry| {
                     obj.handle_search_entry_search_changed(entry);
+                    obj.update_default_sorter();
                 }
             ));
+
+            self.stock_sort_dropdown
+                .set_expression(Some(&gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|list_item: adw::EnumListItem| {
+                        StockSort::try_from(list_item.value()).unwrap().display()
+                    }),
+                )));
+            self.stock_sort_dropdown
+                .set_model(Some(&StockSort::new_model()));
+            let stock_sort_dropdown_selected_item_notify_id = self
+                .stock_sort_dropdown
+                .connect_selected_item_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |dropdown| {
+                        obj.handle_stock_sort_dropdown_selected_item_notify(dropdown);
+                    }
+                ));
+            self.stock_sort_dropdown_selected_item_id
+                .set(stock_sort_dropdown_selected_item_notify_id)
+                .unwrap();
 
             self.selection_model
                 .bind_property("selected-item", &*self.flap, "reveal-flap")
@@ -132,6 +202,7 @@ mod imp {
             self.sort_list_model.set_sorter(Some(fuzzy_filter.sorter()));
             self.fuzzy_filter.set(fuzzy_filter).unwrap();
 
+            obj.update_default_sorter();
             obj.update_stack();
         }
 
@@ -199,7 +270,7 @@ impl StocksView {
     pub fn show_stock(&self, stock_id: &StockId) {
         let imp = self.imp();
 
-        // Clear search filter so we can find the entity
+        // Clear search filter so we can find the stock
         imp.search_entry.set_queries(&SearchQueries::new());
 
         let position = imp
@@ -243,6 +314,118 @@ impl StocksView {
         imp.filter_list_model.set_filter(Some(&every_filter));
     }
 
+    fn handle_stock_sort_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
+        let imp = self.imp();
+
+        let selected_item = dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+
+        let mut queries = imp.search_entry.queries();
+
+        let replaced = &[
+            S::ID_ASC,
+            S::ID_DESC,
+            S::LEAST_COUNT,
+            S::MOST_COUNT,
+            S::FIRST_MODIFIED,
+            S::LAST_MODIFIED,
+        ];
+        match selected_item.value().try_into().unwrap() {
+            StockSort::IdAsc => queries.replace_all_or_insert(S::SORT, replaced, S::ID_ASC),
+            StockSort::IdDesc => queries.replace_all_or_insert(S::SORT, replaced, S::ID_DESC),
+            StockSort::LeastCount => {
+                queries.replace_all_or_insert(S::SORT, replaced, S::LEAST_COUNT)
+            }
+            StockSort::MostCount => queries.replace_all_or_insert(S::SORT, replaced, S::MOST_COUNT),
+            StockSort::FirstModified => {
+                queries.replace_all_or_insert(S::SORT, replaced, S::FIRST_MODIFIED)
+            }
+            StockSort::LastModified => {
+                queries.replace_all_or_insert(S::SORT, replaced, S::LAST_MODIFIED)
+            }
+        }
+
+        imp.search_entry.set_queries(&queries);
+    }
+
+    fn update_default_sorter(&self) {
+        let imp = self.imp();
+
+        let queries = imp.search_entry.queries();
+        let stock_sort = match queries.find_last_match(
+            S::SORT,
+            &[
+                S::ID_ASC,
+                S::ID_DESC,
+                S::LEAST_COUNT,
+                S::MOST_COUNT,
+                S::FIRST_MODIFIED,
+                S::LAST_MODIFIED,
+            ],
+        ) {
+            Some(S::ID_ASC) => StockSort::IdAsc,
+            Some(S::ID_DESC) => StockSort::IdDesc,
+            Some(S::LEAST_COUNT) => StockSort::LeastCount,
+            Some(S::MOST_COUNT) => StockSort::MostCount,
+            Some(S::FIRST_MODIFIED) => StockSort::FirstModified,
+            Some(S::LAST_MODIFIED) => StockSort::LastModified,
+            _ => StockSort::default(),
+        };
+
+        let selected_item_notify_id = imp.stock_sort_dropdown_selected_item_id.get().unwrap();
+        imp.stock_sort_dropdown
+            .block_signal(selected_item_notify_id);
+        imp.stock_sort_dropdown.set_selected(stock_sort.position());
+        imp.stock_sort_dropdown
+            .unblock_signal(selected_item_notify_id);
+
+        let sorter = match stock_sort {
+            StockSort::IdAsc | StockSort::IdDesc => {
+                let (normal, reversed) = new_stock_sorter_pair(|a, b| a.id().cmp(b.id()));
+
+                if matches!(stock_sort, StockSort::IdAsc) {
+                    normal
+                } else {
+                    reversed
+                }
+            }
+            StockSort::LeastCount | StockSort::MostCount => {
+                let (normal, reversed) = new_stock_sorter_pair(|a, b| {
+                    a.timeline().n_inside().cmp(&b.timeline().n_inside())
+                });
+
+                if matches!(stock_sort, StockSort::LeastCount) {
+                    normal
+                } else {
+                    reversed
+                }
+            }
+            StockSort::FirstModified | StockSort::LastModified => {
+                let (normal, reversed) = new_stock_sorter_pair(|a, b| {
+                    a.timeline()
+                        .last()
+                        .map(|i| i.dt())
+                        .cmp(&b.timeline().last().map(|i| i.dt()))
+                });
+
+                if matches!(stock_sort, StockSort::FirstModified) {
+                    normal
+                } else {
+                    reversed
+                }
+            }
+        };
+
+        imp.fuzzy_filter
+            .get()
+            .unwrap()
+            .sorter()
+            .set_default_sorter(Some(sorter));
+    }
+
     fn update_stack(&self) {
         let imp = self.imp();
 
@@ -252,4 +435,23 @@ impl StocksView {
             imp.stack.set_visible_child(&*imp.main_page);
         }
     }
+}
+
+fn new_stock_sorter_pair(
+    predicate: impl Fn(&Stock, &Stock) -> Ordering + Clone + 'static,
+) -> (gtk::CustomSorter, gtk::CustomSorter) {
+    let predicate_clone = predicate.clone();
+    let normal = gtk::CustomSorter::new(move |a, b| {
+        let a = a.downcast_ref::<Stock>().unwrap();
+        let b = b.downcast_ref::<Stock>().unwrap();
+        predicate_clone(a, b).into()
+    });
+
+    let reversed = gtk::CustomSorter::new(move |a, b| {
+        let a = a.downcast_ref::<Stock>().unwrap();
+        let b = b.downcast_ref::<Stock>().unwrap();
+        predicate(a, b).reverse().into()
+    });
+
+    (normal, reversed)
 }

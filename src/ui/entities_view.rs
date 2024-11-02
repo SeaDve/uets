@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use gtk::{
-    glib::{self, clone, closure, closure_local, translate::TryFromGlib},
+    glib::{self, clone, closure, closure_local},
     prelude::*,
     subclass::prelude::*,
 };
@@ -22,21 +22,21 @@ use crate::{
 struct S;
 
 impl S {
-    const IS: &'static str = "is";
+    const IS: &str = "is";
 
-    const INSIDE: &'static str = "inside";
-    const OUTSIDE: &'static str = "outside";
+    const INSIDE: &str = "inside";
+    const OUTSIDE: &str = "outside";
 
-    const STOCK: &'static str = "stock";
+    const STOCK: &str = "stock";
 
-    const SORT: &'static str = "sort";
+    const SORT: &str = "sort";
 
-    const ID_ASC: &'static str = "id-asc";
-    const ID_DESC: &'static str = "id-desc";
-    const STOCK_ID_ASC: &'static str = "stock-asc";
-    const STOCK_ID_DESC: &'static str = "stock-desc";
-    const FIRST_MODIFIED: &'static str = "first-modified";
-    const LAST_MODIFIED: &'static str = "last-modified";
+    const ID_ASC: &str = "id-asc";
+    const ID_DESC: &str = "id-desc";
+    const STOCK_ID_ASC: &str = "stock-asc";
+    const STOCK_ID_DESC: &str = "stock-desc";
+    const FIRST_MODIFIED: &str = "first-modified";
+    const LAST_MODIFIED: &str = "last-modified";
 }
 
 #[derive(Debug, Clone, Copy, glib::Enum)]
@@ -49,9 +49,10 @@ enum EntityZoneFilter {
 
 list_model_enum!(EntityZoneFilter);
 
-#[derive(Debug, Clone, Copy, glib::Enum)]
+#[derive(Debug, Default, Clone, Copy, glib::Enum)]
 #[enum_type(name = "UetsEntitySort")]
 enum EntitySort {
+    #[default]
     IdAsc,
     IdDesc,
     StockIdAsc,
@@ -497,7 +498,7 @@ impl EntitiesView {
             Some(S::STOCK_ID_DESC) => EntitySort::StockIdDesc,
             Some(S::FIRST_MODIFIED) => EntitySort::FirstModified,
             Some(S::LAST_MODIFIED) => EntitySort::LastModified,
-            _ => EntitySort::IdAsc,
+            _ => EntitySort::default(),
         };
 
         let selected_item_notify_id = imp.entity_sort_dropdown_selected_item_id.get().unwrap();

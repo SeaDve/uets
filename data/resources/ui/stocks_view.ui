@@ -33,6 +33,13 @@
                     <property name="placeholder-text">Search Stocks</property>
                   </object>
                 </child>
+                <child>
+                  <object class="GtkCenterBox">
+                    <child type="end">
+                      <object class="GtkDropDown" id="stock_sort_dropdown"/>
+                    </child>
+                  </object>
+                </child>
               </object>
             </child>
             <child>

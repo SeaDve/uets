@@ -80,6 +80,14 @@ impl StockTimeline {
         ListModelExtManual::iter(self).map(|item| item.unwrap())
     }
 
+    pub fn last(&self) -> Option<StockTimelineItem> {
+        self.imp()
+            .list
+            .borrow()
+            .last()
+            .map(|(_, item)| item.clone())
+    }
+
     pub fn insert(&self, item: StockTimelineItem) {
         let imp = self.imp();
 

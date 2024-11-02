@@ -36,14 +36,10 @@
                 <child>
                   <object class="GtkCenterBox">
                     <child type="start">
-                      <object class="GtkDropDown" id="entity_zone_dropdown">
-                        <property name="halign">start</property>
-                      </object>
+                      <object class="GtkDropDown" id="entity_zone_dropdown"/>
                     </child>
                     <child type="end">
-                      <object class="GtkDropDown" id="entity_sort_dropdown">
-                        <property name="halign">end</property>
-                      </object>
+                      <object class="GtkDropDown" id="entity_sort_dropdown"/>
                     </child>
                   </object>
                 </child>

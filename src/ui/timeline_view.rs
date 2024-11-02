@@ -1,5 +1,5 @@
 use gtk::{
-    glib::{self, clone, closure_local, translate::TryFromGlib},
+    glib::{self, clone, closure_local},
     prelude::*,
     subclass::prelude::*,
 };
@@ -18,14 +18,14 @@ use crate::{
 struct S;
 
 impl S {
-    const IS: &'static str = "is";
+    const IS: &str = "is";
 
-    const ENTRY: &'static str = "entry";
-    const EXIT: &'static str = "exit";
+    const ENTRY: &str = "entry";
+    const EXIT: &str = "exit";
 
-    const STOCK: &'static str = "stock";
+    const STOCK: &str = "stock";
 
-    const ENTITY: &'static str = "entity";
+    const ENTITY: &str = "entity";
 }
 
 #[derive(Debug, Clone, Copy, glib::Enum)]
