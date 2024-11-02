@@ -321,6 +321,7 @@ impl TimelineView {
         let imp = self.imp();
 
         let mut queries = imp.search_entry.queries();
+        queries.remove_all_standlones();
         queries.replace_all_iden_or_insert("stock", &stock_id.to_string());
         imp.search_entry.set_queries(&queries);
     }
@@ -329,6 +330,7 @@ impl TimelineView {
         let imp = self.imp();
 
         let mut queries = imp.search_entry.queries();
+        queries.remove_all_standlones();
         queries.replace_all_iden_or_insert("entity", &entity_id.to_string());
         imp.search_entry.set_queries(&queries);
     }

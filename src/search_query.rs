@@ -89,6 +89,11 @@ impl SearchQueries {
             .collect()
     }
 
+    pub fn remove_all_standlones(&mut self) {
+        self.0
+            .retain(|query| !matches!(query, SearchQuery::Standalone(_)));
+    }
+
     /// Returns all unique values without for the given `iden`.
     pub fn all_values(&self, iden: &str) -> HashSet<&str> {
         debug_assert!(!iden.contains(char::is_whitespace));
