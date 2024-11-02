@@ -12,6 +12,7 @@ mod entity_list;
 mod format;
 mod fuzzy_filter;
 mod fuzzy_sorter;
+mod macros;
 mod search_query;
 mod settings;
 mod stock;

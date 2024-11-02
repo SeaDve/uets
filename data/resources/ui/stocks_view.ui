@@ -27,11 +27,9 @@
                 <property name="margin-end">6</property>
                 <property name="orientation">vertical</property>
                 <property name="spacing">6</property>
-                <property name="hexpand">True</property>
                 <child>
                   <object class="UetsSearchEntry" id="search_entry">
-                    <property name="halign">center</property>
-                    <property name="width-chars">48</property>
+                    <property name="hexpand">True</property>
                     <property name="placeholder-text">Search Stocks</property>
                   </object>
                 </child>

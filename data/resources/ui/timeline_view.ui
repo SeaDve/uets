@@ -15,18 +15,15 @@
             <property name="margin-end">6</property>
             <property name="orientation">vertical</property>
             <property name="spacing">6</property>
-            <property name="hexpand">True</property>
             <child>
               <object class="UetsSearchEntry" id="search_entry">
-                <property name="halign">center</property>
-                <property name="width-chars">48</property>
+                <property name="hexpand">True</property>
                 <property name="placeholder-text">Search Timeline</property>
               </object>
             </child>
             <child>
-              <object class="GtkBox">
-                <property name="halign">center</property>
-                <child>
+              <object class="GtkCenterBox">
+                <child type="start">
                   <object class="GtkDropDown" id="item_kind_dropdown"/>
                 </child>
               </object>

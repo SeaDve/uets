@@ -9,7 +9,7 @@ use gtk::{
 
 use crate::search_query::{SearchQueries, SearchQuery};
 
-const DEFAULT_SEARCH_DELAY_MS: u32 = 150;
+const DEFAULT_SEARCH_DELAY_MS: u32 = 200;
 
 const SPACING: i32 = 6;
 

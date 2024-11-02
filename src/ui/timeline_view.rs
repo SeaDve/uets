@@ -7,6 +7,7 @@ use gtk::{
 use crate::{
     entity_id::EntityId,
     fuzzy_filter::FuzzyFilter,
+    list_model_enum,
     stock_id::StockId,
     timeline::Timeline,
     timeline_item::TimelineItem,
@@ -22,19 +23,7 @@ enum TimelineItemKindFilter {
     Exit,
 }
 
-impl TimelineItemKindFilter {
-    fn position(&self) -> u32 {
-        *self as u32
-    }
-}
-
-impl TryFrom<i32> for TimelineItemKindFilter {
-    type Error = i32;
-
-    fn try_from(val: i32) -> Result<Self, Self::Error> {
-        unsafe { Self::try_from_glib(val) }
-    }
-}
+list_model_enum!(TimelineItemKindFilter);
 
 mod imp {
     use std::{
@@ -171,9 +160,7 @@ mod imp {
             self.item_kind_dropdown
                 .set_expression(Some(&adw::EnumListItem::this_expression("name")));
             self.item_kind_dropdown
-                .set_model(Some(&adw::EnumListModel::new(
-                    TimelineItemKindFilter::static_type(),
-                )));
+                .set_model(Some(&TimelineItemKindFilter::new_model()));
             let item_kind_dropdown_selected_item_notify_id =
                 self.item_kind_dropdown.connect_selected_item_notify(clone!(
                     #[weak]
@@ -455,10 +442,10 @@ impl TimelineView {
                 queries.remove_all("is", "exit");
             }
             TimelineItemKindFilter::Entry => {
-                queries.replace_all_or_insert("is", "exit", "entry");
+                queries.replace_all_or_insert("is", &["exit"], "entry");
             }
             TimelineItemKindFilter::Exit => {
-                queries.replace_all_or_insert("is", "entry", "exit");
+                queries.replace_all_or_insert("is", &["entry"], "exit");
             }
         }
 

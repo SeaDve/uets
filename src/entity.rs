@@ -5,9 +5,15 @@ use gtk::{glib, prelude::*, subclass::prelude::*};
 use crate::{date_time::DateTime, db, entity_id::EntityId, stock_id::StockId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct DateTimePair {
+pub struct DateTimePair {
     entry: DateTime,
     exit: Option<DateTime>,
+}
+
+impl DateTimePair {
+    pub fn last_dt(&self) -> DateTime {
+        self.exit.unwrap_or(self.entry)
+    }
 }
 
 mod imp {
@@ -128,6 +134,10 @@ impl Entity {
         }
 
         self.notify_is_inside();
+    }
+
+    pub fn last_dt_pair(&self) -> Option<DateTimePair> {
+        self.imp().dt_pairs.borrow().last().cloned()
     }
 }
 

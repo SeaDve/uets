@@ -1,5 +1,7 @@
+use std::cmp::Ordering;
+
 use gtk::{
-    glib::{self, clone, closure_local, translate::TryFromGlib},
+    glib::{self, clone, closure, closure_local, translate::TryFromGlib},
     prelude::*,
     subclass::prelude::*,
 };
@@ -9,12 +11,33 @@ use crate::{
     entity_id::EntityId,
     entity_list::EntityList,
     fuzzy_filter::FuzzyFilter,
+    list_model_enum,
     search_query::SearchQueries,
     stock_id::StockId,
     ui::{
         entity_details_pane::EntityDetailsPane, entity_row::EntityRow, search_entry::SearchEntry,
     },
 };
+
+struct S;
+
+impl S {
+    const IS: &'static str = "is";
+
+    const INSIDE: &'static str = "inside";
+    const OUTSIDE: &'static str = "outside";
+
+    const STOCK: &'static str = "stock";
+
+    const SORT: &'static str = "sort";
+
+    const ID_ASC: &'static str = "id-asc";
+    const ID_DESC: &'static str = "id-desc";
+    const STOCK_ID_ASC: &'static str = "stock-asc";
+    const STOCK_ID_DESC: &'static str = "stock-desc";
+    const FIRST_MODIFIED: &'static str = "first-modified";
+    const LAST_MODIFIED: &'static str = "last-modified";
+}
 
 #[derive(Debug, Clone, Copy, glib::Enum)]
 #[enum_type(name = "UetsEntityZoneFilter")]
@@ -24,17 +47,31 @@ enum EntityZoneFilter {
     Outside,
 }
 
-impl EntityZoneFilter {
-    fn position(&self) -> u32 {
-        *self as u32
-    }
+list_model_enum!(EntityZoneFilter);
+
+#[derive(Debug, Clone, Copy, glib::Enum)]
+#[enum_type(name = "UetsEntitySort")]
+enum EntitySort {
+    IdAsc,
+    IdDesc,
+    StockIdAsc,
+    StockIdDesc,
+    FirstModified,
+    LastModified,
 }
 
-impl TryFrom<i32> for EntityZoneFilter {
-    type Error = i32;
+list_model_enum!(EntitySort);
 
-    fn try_from(val: i32) -> Result<Self, Self::Error> {
-        unsafe { Self::try_from_glib(val) }
+impl EntitySort {
+    fn display(&self) -> &'static str {
+        match self {
+            EntitySort::IdAsc => "ID (A-Z)",
+            EntitySort::IdDesc => "ID (Z-A)",
+            EntitySort::StockIdAsc => "Stock ID (A-Z)",
+            EntitySort::StockIdDesc => "Stock ID (Z-A)",
+            EntitySort::FirstModified => "First Modified",
+            EntitySort::LastModified => "Last Modified",
+        }
     }
 }
 
@@ -61,6 +98,8 @@ mod imp {
         #[template_child]
         pub(super) entity_zone_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
+        pub(super) entity_sort_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
         pub(super) list_view: TemplateChild<gtk::ListView>,
         #[template_child]
         pub(super) selection_model: TemplateChild<gtk::SingleSelection>,
@@ -72,6 +111,7 @@ mod imp {
         pub(super) details_pane: TemplateChild<EntityDetailsPane>,
 
         pub(super) entity_zone_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
+        pub(super) entity_sort_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
 
         pub(super) fuzzy_filter: OnceCell<FuzzyFilter>,
     }
@@ -104,26 +144,47 @@ mod imp {
                 obj,
                 move |entry| {
                     obj.handle_search_entry_search_changed(entry);
+                    obj.update_default_sorter();
                 }
             ));
 
             self.entity_zone_dropdown
                 .set_expression(Some(&adw::EnumListItem::this_expression("name")));
             self.entity_zone_dropdown
-                .set_model(Some(&adw::EnumListModel::new(
-                    EntityZoneFilter::static_type(),
-                )));
+                .set_model(Some(&EntityZoneFilter::new_model()));
             let entity_zone_dropdown_selected_item_notify_id = self
                 .entity_zone_dropdown
                 .connect_selected_item_notify(clone!(
                     #[weak]
                     obj,
-                    move |drop_down| {
-                        obj.handle_entity_zone_dropdown_selected_item_notify(drop_down);
+                    move |dropdown| {
+                        obj.handle_entity_zone_dropdown_selected_item_notify(dropdown);
                     }
                 ));
             self.entity_zone_dropdown_selected_item_id
                 .set(entity_zone_dropdown_selected_item_notify_id)
+                .unwrap();
+
+            self.entity_sort_dropdown
+                .set_expression(Some(&gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|list_item: adw::EnumListItem| {
+                        EntitySort::try_from(list_item.value()).unwrap().display()
+                    }),
+                )));
+            self.entity_sort_dropdown
+                .set_model(Some(&EntitySort::new_model()));
+            let entity_sort_dropdown_selected_item_notify_id = self
+                .entity_sort_dropdown
+                .connect_selected_item_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |dropdown| {
+                        obj.handle_entity_sort_dropdown_selected_item_notify(dropdown);
+                    }
+                ));
+            self.entity_sort_dropdown_selected_item_id
+                .set(entity_sort_dropdown_selected_item_notify_id)
                 .unwrap();
 
             self.selection_model
@@ -184,6 +245,7 @@ mod imp {
             self.sort_list_model.set_sorter(Some(fuzzy_filter.sorter()));
             self.fuzzy_filter.set(fuzzy_filter).unwrap();
 
+            obj.update_default_sorter();
             obj.update_stack();
         }
 
@@ -275,7 +337,7 @@ impl EntitiesView {
 
         let mut queries = imp.search_entry.queries();
         queries.remove_all_standlones();
-        queries.replace_all_iden_or_insert("stock", &stock_id.to_string());
+        queries.replace_all_iden_or_insert(S::STOCK, &stock_id.to_string());
         imp.search_entry.set_queries(&queries);
     }
 
@@ -284,9 +346,9 @@ impl EntitiesView {
 
         let queries = entry.queries();
 
-        let entity_zone = match queries.find_last_match("is", &["inside", "outside"]) {
-            Some("inside") => EntityZoneFilter::Inside,
-            Some("outside") => EntityZoneFilter::Outside,
+        let entity_zone = match queries.find_last_match(S::IS, &[S::INSIDE, S::OUTSIDE]) {
+            Some(S::INSIDE) => EntityZoneFilter::Inside,
+            Some(S::OUTSIDE) => EntityZoneFilter::Outside,
             _ => EntityZoneFilter::All,
         };
 
@@ -332,7 +394,7 @@ impl EntitiesView {
         }
 
         let any_stock_filter = gtk::AnyFilter::new();
-        for stock_id in queries.all_values("stock").into_iter().map(StockId::new) {
+        for stock_id in queries.all_values(S::STOCK).into_iter().map(StockId::new) {
             any_stock_filter.append(gtk::CustomFilter::new(move |o| {
                 let entity = o.downcast_ref::<Entity>().unwrap();
                 entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
@@ -360,18 +422,132 @@ impl EntitiesView {
 
         match selected_item.value().try_into().unwrap() {
             EntityZoneFilter::All => {
-                queries.remove_all("is", "inside");
-                queries.remove_all("is", "outside");
+                queries.remove_all(S::IS, S::INSIDE);
+                queries.remove_all(S::IS, S::OUTSIDE);
             }
             EntityZoneFilter::Inside => {
-                queries.replace_all_or_insert("is", "outside", "inside");
+                queries.replace_all_or_insert(S::IS, &[S::OUTSIDE], S::INSIDE);
             }
             EntityZoneFilter::Outside => {
-                queries.replace_all_or_insert("is", "inside", "outside");
+                queries.replace_all_or_insert(S::IS, &[S::INSIDE], S::OUTSIDE);
             }
         }
 
         imp.search_entry.set_queries(&queries);
+    }
+
+    fn handle_entity_sort_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
+        let imp = self.imp();
+
+        let selected_item = dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+
+        let mut queries = imp.search_entry.queries();
+
+        let replaced = &[
+            S::ID_ASC,
+            S::ID_DESC,
+            S::STOCK_ID_ASC,
+            S::STOCK_ID_DESC,
+            S::FIRST_MODIFIED,
+            S::LAST_MODIFIED,
+        ];
+        match selected_item.value().try_into().unwrap() {
+            EntitySort::IdAsc => queries.replace_all_or_insert(S::SORT, replaced, S::ID_ASC),
+            EntitySort::IdDesc => queries.replace_all_or_insert(S::SORT, replaced, S::ID_DESC),
+            EntitySort::StockIdAsc => {
+                queries.replace_all_or_insert(S::SORT, replaced, S::STOCK_ID_ASC)
+            }
+            EntitySort::StockIdDesc => {
+                queries.replace_all_or_insert(S::SORT, replaced, S::STOCK_ID_DESC)
+            }
+            EntitySort::FirstModified => {
+                queries.replace_all_or_insert(S::SORT, replaced, S::FIRST_MODIFIED)
+            }
+            EntitySort::LastModified => {
+                queries.replace_all_or_insert(S::SORT, replaced, S::LAST_MODIFIED)
+            }
+        }
+
+        imp.search_entry.set_queries(&queries);
+    }
+
+    fn update_default_sorter(&self) {
+        let imp = self.imp();
+
+        let queries = imp.search_entry.queries();
+
+        let entity_sort = match queries.find_last_match(
+            S::SORT,
+            &[
+                S::ID_ASC,
+                S::ID_DESC,
+                S::STOCK_ID_ASC,
+                S::STOCK_ID_DESC,
+                S::FIRST_MODIFIED,
+                S::LAST_MODIFIED,
+            ],
+        ) {
+            Some(S::ID_ASC) => EntitySort::IdAsc,
+            Some(S::ID_DESC) => EntitySort::IdDesc,
+            Some(S::STOCK_ID_ASC) => EntitySort::StockIdAsc,
+            Some(S::STOCK_ID_DESC) => EntitySort::StockIdDesc,
+            Some(S::FIRST_MODIFIED) => EntitySort::FirstModified,
+            Some(S::LAST_MODIFIED) => EntitySort::LastModified,
+            _ => EntitySort::IdAsc,
+        };
+
+        let selected_item_notify_id = imp.entity_sort_dropdown_selected_item_id.get().unwrap();
+        imp.entity_sort_dropdown
+            .block_signal(selected_item_notify_id);
+        imp.entity_sort_dropdown
+            .set_selected(entity_sort.position());
+        imp.entity_sort_dropdown
+            .unblock_signal(selected_item_notify_id);
+
+        let sorter = match entity_sort {
+            EntitySort::IdAsc | EntitySort::IdDesc => {
+                let (normal, reversed) = new_entity_sorter_pair(|a, b| a.id().cmp(b.id()));
+
+                if matches!(entity_sort, EntitySort::IdAsc) {
+                    normal
+                } else {
+                    reversed
+                }
+            }
+            EntitySort::StockIdAsc | EntitySort::StockIdDesc => {
+                let (normal, reversed) =
+                    new_entity_sorter_pair(|a, b| a.stock_id().cmp(&b.stock_id()));
+
+                if matches!(entity_sort, EntitySort::StockIdAsc) {
+                    normal
+                } else {
+                    reversed
+                }
+            }
+            EntitySort::FirstModified | EntitySort::LastModified => {
+                let (normal, reversed) = new_entity_sorter_pair(|a, b| {
+                    a.last_dt_pair()
+                        .map(|pair| pair.last_dt())
+                        .cmp(&b.last_dt_pair().map(|pair| pair.last_dt()))
+                });
+
+                if matches!(entity_sort, EntitySort::FirstModified) {
+                    normal
+                } else {
+                    reversed
+                }
+            }
+        };
+
+        imp.fuzzy_filter
+            .get()
+            .unwrap()
+            .sorter()
+            .set_default_sorter(Some(sorter));
     }
 
     fn update_stack(&self) {
@@ -383,4 +559,23 @@ impl EntitiesView {
             imp.stack.set_visible_child(&*imp.main_page);
         }
     }
+}
+
+fn new_entity_sorter_pair(
+    predicate: impl Fn(&Entity, &Entity) -> Ordering + Clone + 'static,
+) -> (gtk::CustomSorter, gtk::CustomSorter) {
+    let predicate_clone = predicate.clone();
+    let normal = gtk::CustomSorter::new(move |a, b| {
+        let a = a.downcast_ref::<Entity>().unwrap();
+        let b = b.downcast_ref::<Entity>().unwrap();
+        predicate_clone(a, b).into()
+    });
+
+    let reversed = gtk::CustomSorter::new(move |a, b| {
+        let a = a.downcast_ref::<Entity>().unwrap();
+        let b = b.downcast_ref::<Entity>().unwrap();
+        predicate(a, b).reverse().into()
+    });
+
+    (normal, reversed)
 }

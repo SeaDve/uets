@@ -27,19 +27,23 @@
                 <property name="margin-end">6</property>
                 <property name="orientation">vertical</property>
                 <property name="spacing">6</property>
-                <property name="hexpand">True</property>
                 <child>
                   <object class="UetsSearchEntry" id="search_entry">
-                    <property name="halign">center</property>
-                    <property name="width-chars">48</property>
+                    <property name="hexpand">True</property>
                     <property name="placeholder-text">Search Entities</property>
                   </object>
                 </child>
                 <child>
-                  <object class="GtkBox">
-                    <property name="halign">center</property>
-                    <child>
-                      <object class="GtkDropDown" id="entity_zone_dropdown"/>
+                  <object class="GtkCenterBox">
+                    <child type="start">
+                      <object class="GtkDropDown" id="entity_zone_dropdown">
+                        <property name="halign">start</property>
+                      </object>
+                    </child>
+                    <child type="end">
+                      <object class="GtkDropDown" id="entity_sort_dropdown">
+                        <property name="halign">end</property>
+                      </object>
                     </child>
                   </object>
                 </child>

@@ -115,28 +115,27 @@ impl SearchQueries {
     ///
     /// If there are iden with already the `new_value`, it will remain and the other succeeding
     /// queries with `new_value` and `old_value` will be removed.
-    pub fn replace_all_or_insert(&mut self, iden: &str, old_value: &str, new_value: &str) {
+    pub fn replace_all_or_insert(&mut self, iden: &str, old_values: &[&str], new_value: &str) {
         debug_assert!(!iden.contains(char::is_whitespace));
-        debug_assert!(!old_value.contains(char::is_whitespace));
+        debug_assert!(old_values.iter().all(|v| !v.contains(char::is_whitespace)));
         debug_assert!(!new_value.contains(char::is_whitespace));
-        debug_assert_ne!(old_value, new_value);
 
         let mut is_inserted = false;
         self.0.retain_mut(|query| match query {
-            SearchQuery::IdenValue(i, v) if i == iden && v == old_value => {
+            SearchQuery::IdenValue(i, v) if i == iden && v == new_value => {
                 let retain = !is_inserted;
 
                 if !is_inserted {
-                    *v = new_value.to_string();
                     is_inserted = true;
                 }
 
                 retain
             }
-            SearchQuery::IdenValue(i, v) if i == iden && v == new_value => {
+            SearchQuery::IdenValue(i, v) if i == iden && old_values.contains(&v.as_str()) => {
                 let retain = !is_inserted;
 
                 if !is_inserted {
+                    *v = new_value.to_string();
                     is_inserted = true;
                 }
 
