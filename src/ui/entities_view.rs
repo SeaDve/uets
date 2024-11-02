@@ -509,17 +509,17 @@ impl EntitiesView {
 
         let sorter = match entity_sort {
             EntitySort::IdAsc | EntitySort::IdDesc => {
-                new_entity_sorter_pair(matches!(entity_sort, EntitySort::IdDesc), |a, b| {
+                new_entity_sorter(matches!(entity_sort, EntitySort::IdDesc), |a, b| {
                     a.id().cmp(b.id())
                 })
             }
             EntitySort::StockAsc | EntitySort::StockDesc => {
-                new_entity_sorter_pair(matches!(entity_sort, EntitySort::StockDesc), |a, b| {
+                new_entity_sorter(matches!(entity_sort, EntitySort::StockDesc), |a, b| {
                     a.stock_id().cmp(&b.stock_id())
                 })
             }
             EntitySort::UpdatedAsc | EntitySort::UpdatedDesc => {
-                new_entity_sorter_pair(matches!(entity_sort, EntitySort::UpdatedDesc), |a, b| {
+                new_entity_sorter(matches!(entity_sort, EntitySort::UpdatedDesc), |a, b| {
                     a.last_dt_pair()
                         .map(|pair| pair.last_dt())
                         .cmp(&b.last_dt_pair().map(|pair| pair.last_dt()))
@@ -545,7 +545,7 @@ impl EntitiesView {
     }
 }
 
-fn new_entity_sorter_pair(
+fn new_entity_sorter(
     is_reverse: bool,
     predicate: impl Fn(&Entity, &Entity) -> Ordering + 'static,
 ) -> gtk::CustomSorter {

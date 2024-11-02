@@ -382,17 +382,17 @@ impl StocksView {
 
         let sorter = match stock_sort {
             StockSort::IdAsc | StockSort::IdDesc => {
-                new_stock_sorter_pair(matches!(stock_sort, StockSort::IdDesc), |a, b| {
+                new_stock_sorter(matches!(stock_sort, StockSort::IdDesc), |a, b| {
                     a.id().cmp(b.id())
                 })
             }
             StockSort::CountAsc | StockSort::CountDesc => {
-                new_stock_sorter_pair(matches!(stock_sort, StockSort::CountDesc), |a, b| {
+                new_stock_sorter(matches!(stock_sort, StockSort::CountDesc), |a, b| {
                     a.timeline().n_inside().cmp(&b.timeline().n_inside())
                 })
             }
             StockSort::UpdatedAsc | StockSort::UpdatedDesc => {
-                new_stock_sorter_pair(matches!(stock_sort, StockSort::UpdatedDesc), |a, b| {
+                new_stock_sorter(matches!(stock_sort, StockSort::UpdatedDesc), |a, b| {
                     a.timeline()
                         .last()
                         .map(|i| i.dt())
@@ -419,7 +419,7 @@ impl StocksView {
     }
 }
 
-fn new_stock_sorter_pair(
+fn new_stock_sorter(
     is_reverse: bool,
     predicate: impl Fn(&Stock, &Stock) -> Ordering + 'static,
 ) -> gtk::CustomSorter {
