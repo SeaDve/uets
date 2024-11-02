@@ -66,7 +66,7 @@ mod imp {
             ));
             self.reset_button.connect_clicked(|_button| {
                 if let Err(err) = Application::get().timeline().reset() {
-                    eprintln!("Failed to reset timeline: {:?}", err);
+                    tracing::error!("Failed to reset timeline: {:?}", err);
                 }
             });
 

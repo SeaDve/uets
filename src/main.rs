@@ -1,5 +1,12 @@
 #![allow(clippy::new_without_default, clippy::type_complexity)]
-#![warn(rust_2018_idioms, clippy::unused_async, clippy::dbg_macro)]
+#![warn(
+    rust_2018_idioms,
+    clippy::unused_async,
+    clippy::dbg_macro,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::todo
+)]
 
 mod application;
 mod colors;
