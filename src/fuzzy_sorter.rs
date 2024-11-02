@@ -15,12 +15,12 @@ mod imp {
     #[derive(Default)]
     pub struct FuzzySorter {
         pub(super) search: RefCell<String>,
-        pub(super) default_sorter: RefCell<Option<gtk::Sorter>>,
+        pub(super) fallback_sorter: RefCell<Option<gtk::Sorter>>,
 
         pub(super) fuzzy_matcher: OnceCell<Rc<SkimMatcherV2>>,
         pub(super) obj_choice_getter: OnceCell<Box<dyn Fn(&glib::Object) -> String>>,
 
-        pub(super) default_sorter_changed_id: RefCell<Option<glib::SignalHandlerId>>,
+        pub(super) fallback_sorter_changed_id: RefCell<Option<glib::SignalHandlerId>>,
     }
 
     #[glib::object_subclass]
@@ -37,11 +37,7 @@ mod imp {
             let search = self.search.borrow();
 
             if search.is_empty() {
-                if let Some(default_sorter) = self.default_sorter.borrow().as_ref() {
-                    default_sorter.compare(obj_1, obj_2)
-                } else {
-                    gtk::Ordering::Equal
-                }
+                self.compare_fallback(obj_1, obj_2)
             } else {
                 let choice_getter = self.obj_choice_getter.get().unwrap();
                 let choice_1 = choice_getter(obj_1);
@@ -50,19 +46,33 @@ mod imp {
                 let fuzzy_matcher = self.fuzzy_matcher.get().unwrap();
                 let score_1 = fuzzy_matcher.fuzzy_match(&choice_1, &search);
                 let score_2 = fuzzy_matcher.fuzzy_match(&choice_2, &search);
-                score_2.cmp(&score_1).into()
+
+                score_2
+                    .cmp(&score_1)
+                    .then_with(|| self.compare_fallback(obj_1, obj_2).into())
+                    .into()
             }
         }
 
         fn order(&self) -> gtk::SorterOrder {
             if self.search.borrow().is_empty() {
-                if let Some(default_sorter) = self.default_sorter.borrow().as_ref() {
-                    default_sorter.order()
+                if let Some(fallback_sorter) = self.fallback_sorter.borrow().as_ref() {
+                    fallback_sorter.order()
                 } else {
                     gtk::SorterOrder::None
                 }
             } else {
                 gtk::SorterOrder::Partial
+            }
+        }
+    }
+
+    impl FuzzySorter {
+        fn compare_fallback(&self, obj_1: &glib::Object, obj_2: &glib::Object) -> gtk::Ordering {
+            if let Some(fallback_sorter) = self.fallback_sorter.borrow().as_ref() {
+                fallback_sorter.compare(obj_1, obj_2)
+            } else {
+                gtk::Ordering::Equal
             }
         }
     }
@@ -107,42 +117,37 @@ impl FuzzySorter {
         self.imp().search.borrow().clone()
     }
 
-    pub fn set_default_sorter(&self, default_sorter: Option<impl IsA<gtk::Sorter>>) {
+    pub fn set_fallback_sorter(&self, fallback_sorter: Option<impl IsA<gtk::Sorter>>) {
         let imp = self.imp();
 
-        let default_sorter = default_sorter.map(|s| s.upcast());
+        let fallback_sorter = fallback_sorter.map(|s| s.upcast());
 
-        if default_sorter.as_ref() == imp.default_sorter.borrow().as_ref() {
+        if fallback_sorter.as_ref() == imp.fallback_sorter.borrow().as_ref() {
             return;
         }
 
-        if let Some(prev_default_sorter) = imp.default_sorter.take() {
-            let handler_id = imp.default_sorter_changed_id.take().unwrap();
-            prev_default_sorter.disconnect(handler_id);
+        if let Some(prev_fallback_sorter) = imp.fallback_sorter.take() {
+            let handler_id = imp.fallback_sorter_changed_id.take().unwrap();
+            prev_fallback_sorter.disconnect(handler_id);
         }
 
-        if let Some(default_sorter) = default_sorter {
-            let changed_id = default_sorter.connect_changed(clone!(
+        if let Some(fallback_sorter) = fallback_sorter {
+            let changed_id = fallback_sorter.connect_changed(clone!(
                 #[weak(rename_to = obj)]
                 self,
                 move |_, changed| {
-                    let imp = obj.imp();
-                    if imp.search.borrow().is_empty() {
-                        obj.changed(changed);
-                    }
+                    obj.changed(changed);
                 }
             ));
-            imp.default_sorter_changed_id.replace(Some(changed_id));
+            imp.fallback_sorter_changed_id.replace(Some(changed_id));
 
-            imp.default_sorter.replace(Some(default_sorter));
+            imp.fallback_sorter.replace(Some(fallback_sorter));
         }
 
-        if imp.search.borrow().is_empty() {
-            self.changed(gtk::SorterChange::Different);
-        }
+        self.changed(gtk::SorterChange::Different);
     }
 
-    pub fn default_sorter(&self) -> Option<gtk::Sorter> {
-        self.imp().default_sorter.borrow().clone()
+    pub fn fallback_sorter(&self) -> Option<gtk::Sorter> {
+        self.imp().fallback_sorter.borrow().clone()
     }
 }

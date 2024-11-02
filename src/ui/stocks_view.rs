@@ -122,7 +122,7 @@ mod imp {
                 obj,
                 move |entry| {
                     obj.handle_search_entry_search_changed(entry);
-                    obj.update_default_sorter();
+                    obj.update_fallback_sorter();
                 }
             ));
 
@@ -202,7 +202,7 @@ mod imp {
             self.sort_list_model.set_sorter(Some(fuzzy_filter.sorter()));
             self.fuzzy_filter.set(fuzzy_filter).unwrap();
 
-            obj.update_default_sorter();
+            obj.update_fallback_sorter();
             obj.update_stack();
         }
 
@@ -349,7 +349,7 @@ impl StocksView {
         imp.search_entry.set_queries(&queries);
     }
 
-    fn update_default_sorter(&self) {
+    fn update_fallback_sorter(&self) {
         let imp = self.imp();
 
         let queries = imp.search_entry.queries();
@@ -405,7 +405,7 @@ impl StocksView {
             .get()
             .unwrap()
             .sorter()
-            .set_default_sorter(Some(sorter));
+            .set_fallback_sorter(Some(sorter));
     }
 
     fn update_stack(&self) {
