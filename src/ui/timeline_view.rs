@@ -357,14 +357,10 @@ impl TimelineView {
 
         let queries = entry.queries();
 
-        let item_kind = if let Some(value) = queries.find_last_match("is", &["entry", "exit"]) {
-            match value {
-                "entry" => ItemKind::Entry,
-                "exit" => ItemKind::Exit,
-                _ => unreachable!(),
-            }
-        } else {
-            ItemKind::All
+        let item_kind = match queries.find_last_match("is", &["entry", "exit"]) {
+            Some("entry") => ItemKind::Entry,
+            Some("exit") => ItemKind::Exit,
+            _ => ItemKind::All,
         };
 
         let selected_item_notify_id = imp.item_kind_dropdown_selected_item_id.get().unwrap();

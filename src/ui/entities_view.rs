@@ -282,15 +282,10 @@ impl EntitiesView {
 
         let queries = entry.queries();
 
-        let entity_zone = if let Some(value) = queries.find_last_match("is", &["inside", "outside"])
-        {
-            match value {
-                "inside" => EntityZone::Inside,
-                "outside" => EntityZone::Outside,
-                _ => unreachable!(),
-            }
-        } else {
-            EntityZone::All
+        let entity_zone = match queries.find_last_match("is", &["inside", "outside"]) {
+            Some("inside") => EntityZone::Inside,
+            Some("outside") => EntityZone::Outside,
+            _ => EntityZone::All,
         };
 
         let selected_item_notify_id = imp.entity_zone_dropdown_selected_item_id.get().unwrap();
