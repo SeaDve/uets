@@ -253,7 +253,7 @@ impl EntitiesView {
         imp.search_entry.set_queries(&SearchQueries::new());
 
         let position = imp
-            .filter_list_model
+            .selection_model
             .iter::<glib::Object>()
             .position(|o| {
                 let entity = o.unwrap().downcast::<Entity>().unwrap();
