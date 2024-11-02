@@ -236,7 +236,19 @@ mod imp {
 
             let fuzzy_filter = FuzzyFilter::new(|o| {
                 let item = o.downcast_ref::<TimelineItem>().unwrap();
-                format!("{}", item.entity_id())
+                let entity = Application::get()
+                    .timeline()
+                    .entity_list()
+                    .get(item.entity_id())
+                    .expect("entity must be known");
+                [
+                    Some(item.entity_id().to_string()),
+                    entity.stock_id().map(|s| s.to_string()),
+                ]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .join(" ")
             });
             self.sort_list_model.set_sorter(Some(fuzzy_filter.sorter()));
             self.fuzzy_filter.set(fuzzy_filter).unwrap();
