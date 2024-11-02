@@ -45,6 +45,10 @@ impl fmt::Display for SearchQueries {
             }
         }
 
+        if let Some(SearchQuery::IdenValue(_, _)) = self.0.back() {
+            write!(f, " ")?;
+        }
+
         Ok(())
     }
 }
