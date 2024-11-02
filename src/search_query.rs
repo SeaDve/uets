@@ -50,6 +50,10 @@ impl fmt::Display for SearchQueries {
 }
 
 impl SearchQueries {
+    pub fn new() -> Self {
+        Self(VecDeque::new())
+    }
+
     pub fn parse(text: &str) -> Self {
         Self(text.split_whitespace().map(SearchQuery::parse).collect())
     }

@@ -7,7 +7,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::search_query::SearchQuery;
+use crate::search_query::{SearchQueries, SearchQuery};
 
 const DEFAULT_SEARCH_DELAY_MS: u32 = 150;
 
@@ -316,8 +316,16 @@ impl SearchEntry {
         self.connect_closure("search-changed", false, closure_local!(|obj: &Self| f(obj)))
     }
 
+    pub fn set_queries(&self, queries: &SearchQueries) {
+        self.set_text_instant(&queries.to_string());
+    }
+
+    pub fn queries(&self) -> SearchQueries {
+        SearchQueries::parse(&self.imp().entry.text())
+    }
+
     /// Sets the text without delaying the search-changed signal.
-    pub fn set_text_instant(&self, text: &str) {
+    fn set_text_instant(&self, text: &str) {
         let imp = self.imp();
 
         let entry_changed_id = imp.entry_changed_id.get().unwrap();

@@ -6,7 +6,7 @@ use gtk::{
 
 use crate::{
     entity_id::EntityId,
-    search_query::{SearchQueries, SearchQuery},
+    search_query::SearchQuery,
     stock_id::StockId,
     timeline::Timeline,
     timeline_item::TimelineItem,
@@ -296,23 +296,17 @@ impl TimelineView {
     pub fn show_stock(&self, stock_id: &StockId) {
         let imp = self.imp();
 
-        let text = imp.search_entry.text();
-
-        let mut queries = SearchQueries::parse(&text);
+        let mut queries = imp.search_entry.queries();
         queries.replace_all_iden_or_insert("stock", &stock_id.to_string());
-
-        imp.search_entry.set_text_instant(&queries.to_string());
+        imp.search_entry.set_queries(&queries);
     }
 
     pub fn show_entity(&self, entity_id: &EntityId) {
         let imp = self.imp();
 
-        let text = imp.search_entry.text();
-
-        let mut queries = SearchQueries::parse(&text);
+        let mut queries = imp.search_entry.queries();
         queries.replace_all_iden_or_insert("entity", &entity_id.to_string());
-
-        imp.search_entry.set_text_instant(&queries.to_string());
+        imp.search_entry.set_queries(&queries);
     }
 
     fn scroll_to_bottom(&self) {
@@ -334,8 +328,7 @@ impl TimelineView {
     fn handle_search_entry_search_changed(&self, entry: &SearchEntry) {
         let imp = self.imp();
 
-        let text = entry.text();
-        let queries = SearchQueries::parse(&text);
+        let queries = entry.queries();
 
         let item_kind = if let Some(SearchQuery::IdenValue(iden, value)) =
             queries.find_last_match(&["is:entry", "is:exit"])
@@ -422,8 +415,7 @@ impl TimelineView {
             .downcast::<adw::EnumListItem>()
             .unwrap();
 
-        let text = imp.search_entry.text();
-        let mut queries = SearchQueries::parse(&text);
+        let mut queries = imp.search_entry.queries();
 
         match selected_item.value().try_into().unwrap() {
             ItemKind::All => {
@@ -438,7 +430,7 @@ impl TimelineView {
             }
         }
 
-        imp.search_entry.set_text_instant(&queries.to_string());
+        imp.search_entry.set_queries(&queries);
     }
 
     fn update_stack(&self) {

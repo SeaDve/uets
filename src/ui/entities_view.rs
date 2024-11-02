@@ -232,7 +232,7 @@ impl EntitiesView {
         let imp = self.imp();
 
         // Clear search filter so we can find the entity
-        imp.search_entry.set_text_instant("");
+        imp.search_entry.set_queries(&SearchQueries::new());
 
         let position = imp
             .filter_list_model
@@ -253,19 +253,15 @@ impl EntitiesView {
     pub fn show_entities_with_stock_id(&self, stock_id: &StockId) {
         let imp = self.imp();
 
-        let text = imp.search_entry.text();
-
-        let mut queries = SearchQueries::parse(&text);
+        let mut queries = imp.search_entry.queries();
         queries.replace_all_iden_or_insert("stock", &stock_id.to_string());
-
-        imp.search_entry.set_text_instant(&queries.to_string());
+        imp.search_entry.set_queries(&queries);
     }
 
     fn handle_search_entry_search_changed(&self, entry: &SearchEntry) {
         let imp = self.imp();
 
-        let text = entry.text();
-        let queries = SearchQueries::parse(&text);
+        let queries = entry.queries();
 
         let entity_zone = if let Some(SearchQuery::IdenValue(iden, value)) =
             queries.find_last_match(&["is:inside", "is:outside"])
@@ -336,8 +332,7 @@ impl EntitiesView {
             .downcast::<adw::EnumListItem>()
             .unwrap();
 
-        let text = imp.search_entry.text();
-        let mut queries = SearchQueries::parse(&text);
+        let mut queries = imp.search_entry.queries();
 
         match selected_item.value().try_into().unwrap() {
             EntityZone::All => {
@@ -352,7 +347,7 @@ impl EntitiesView {
             }
         }
 
-        imp.search_entry.set_text_instant(&queries.to_string());
+        imp.search_entry.set_queries(&queries);
     }
 
     fn update_stack(&self) {
