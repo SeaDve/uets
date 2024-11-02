@@ -18,6 +18,18 @@ impl fmt::Display for SearchQuery {
     }
 }
 
+impl SearchQuery {
+    pub fn parse(query: &str) -> Self {
+        debug_assert!(!query.contains(char::is_whitespace));
+
+        if let Some((iden, value)) = query.split_once(':') {
+            SearchQuery::IdenValue(iden.to_string(), value.to_string())
+        } else {
+            SearchQuery::Standalone(query.to_string())
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct SearchQueries(VecDeque<SearchQuery>);
 
@@ -39,17 +51,7 @@ impl fmt::Display for SearchQueries {
 
 impl SearchQueries {
     pub fn parse(text: &str) -> Self {
-        Self(
-            text.split_whitespace()
-                .map(|query| {
-                    if let Some((iden, value)) = query.split_once(':') {
-                        SearchQuery::IdenValue(iden.to_string(), value.to_string())
-                    } else {
-                        SearchQuery::Standalone(query.to_string())
-                    }
-                })
-                .collect(),
-        )
+        Self(text.split_whitespace().map(SearchQuery::parse).collect())
     }
 
     pub fn is_empty(&self) -> bool {

@@ -2,9 +2,12 @@ use std::time::Duration;
 
 use gtk::{
     glib::{self, clone, closure_local},
+    pango,
     prelude::*,
     subclass::prelude::*,
 };
+
+use crate::search_query::SearchQuery;
 
 const DEFAULT_SEARCH_DELAY_MS: u32 = 150;
 
@@ -80,6 +83,7 @@ mod imp {
                         }
 
                         obj.emit_by_name::<()>("search-changed", &[]);
+                        obj.update_entry_attributes();
                     } else {
                         imp.clear_icon.set_child_visible(true);
                         obj.queue_allocate();
@@ -330,6 +334,7 @@ impl SearchEntry {
         }
 
         self.emit_by_name::<()>("search-changed", &[]);
+        self.update_entry_attributes();
     }
 
     fn restart_search_changed_timeout(&self) {
@@ -350,9 +355,52 @@ impl SearchEntry {
                     imp.search_changed_timeout_id.replace(None);
 
                     obj.emit_by_name::<()>("search-changed", &[]);
+                    obj.update_entry_attributes();
                 },
             ),
         );
         imp.search_changed_timeout_id.replace(Some(source_id));
+    }
+
+    fn update_entry_attributes(&self) {
+        let imp = self.imp();
+
+        let text = imp.entry.text();
+
+        let attrs = pango::AttrList::new();
+
+        let mut chars = text.chars().enumerate();
+        while let Some((index, char)) = chars.next() {
+            if char.is_whitespace() {
+                continue;
+            }
+
+            let query_len = chars
+                .by_ref()
+                .take_while(|&(_, c)| !c.is_whitespace())
+                .count()
+                + 1;
+            let query = &text[index..index + query_len];
+
+            if let SearchQuery::IdenValue(i, v) = SearchQuery::parse(query) {
+                let mut attr = pango::AttrInt::new_style(pango::Style::Italic);
+                attr.set_start_index(index as u32);
+                attr.set_end_index((index + i.len()) as u32);
+                attrs.insert(attr);
+
+                let mut attr = pango::AttrInt::new_weight(pango::Weight::Bold);
+                attr.set_start_index((index + i.len() + 1) as u32);
+                attr.set_end_index((index + i.len() + 1 + v.len()) as u32);
+                attrs.insert(attr);
+
+                let mut attr =
+                    pango::AttrInt::new_foreground_alpha((0.40 * u16::MAX as f32) as u16);
+                attr.set_start_index((index) as u32);
+                attr.set_end_index((index + i.len() + 1 + v.len()) as u32);
+                attrs.insert(attr);
+            }
+        }
+
+        imp.entry.set_attributes(Some(&attrs))
     }
 }
