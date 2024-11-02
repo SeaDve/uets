@@ -23,10 +23,10 @@ impl S {
 
     const ID_ASC: &str = "id-asc";
     const ID_DESC: &str = "id-desc";
-    const LEAST_COUNT: &str = "least-count";
-    const MOST_COUNT: &str = "most-count";
-    const FIRST_MODIFIED: &str = "first-modified";
-    const LAST_MODIFIED: &str = "last-modified";
+    const COUNT_ASC: &str = "count-asc";
+    const COUNT_DESC: &str = "count-desc";
+    const UPDATED_ASC: &str = "updated-asc";
+    const UPDATED_DESC: &str = "updated-desc";
 }
 
 #[derive(Debug, Default, Clone, Copy, glib::Enum)]
@@ -35,10 +35,10 @@ enum StockSort {
     #[default]
     IdAsc,
     IdDesc,
-    LeastCount,
-    MostCount,
-    FirstModified,
-    LastModified,
+    CountAsc,
+    CountDesc,
+    UpdatedAsc,
+    UpdatedDesc,
 }
 
 list_model_enum!(StockSort);
@@ -46,12 +46,12 @@ list_model_enum!(StockSort);
 impl StockSort {
     fn display(&self) -> &'static str {
         match self {
-            StockSort::IdAsc => "ID (A-Z)",
-            StockSort::IdDesc => "ID (Z-A)",
-            StockSort::LeastCount => "Least Count",
-            StockSort::MostCount => "Most Count",
-            StockSort::FirstModified => "First Modified",
-            StockSort::LastModified => "Last Modified",
+            StockSort::IdAsc => "A-Z",
+            StockSort::IdDesc => "Z-A",
+            StockSort::CountAsc => "Least Count",
+            StockSort::CountDesc => "Most Count",
+            StockSort::UpdatedAsc => "Least Recently Updated",
+            StockSort::UpdatedDesc => "Recently Updated",
         }
     }
 }
@@ -328,23 +328,21 @@ impl StocksView {
         let replaced = &[
             S::ID_ASC,
             S::ID_DESC,
-            S::LEAST_COUNT,
-            S::MOST_COUNT,
-            S::FIRST_MODIFIED,
-            S::LAST_MODIFIED,
+            S::COUNT_ASC,
+            S::COUNT_DESC,
+            S::UPDATED_ASC,
+            S::UPDATED_DESC,
         ];
         match selected_item.value().try_into().unwrap() {
             StockSort::IdAsc => queries.replace_all_or_insert(S::SORT, replaced, S::ID_ASC),
             StockSort::IdDesc => queries.replace_all_or_insert(S::SORT, replaced, S::ID_DESC),
-            StockSort::LeastCount => {
-                queries.replace_all_or_insert(S::SORT, replaced, S::LEAST_COUNT)
+            StockSort::CountAsc => queries.replace_all_or_insert(S::SORT, replaced, S::COUNT_ASC),
+            StockSort::CountDesc => queries.replace_all_or_insert(S::SORT, replaced, S::COUNT_DESC),
+            StockSort::UpdatedAsc => {
+                queries.replace_all_or_insert(S::SORT, replaced, S::UPDATED_ASC)
             }
-            StockSort::MostCount => queries.replace_all_or_insert(S::SORT, replaced, S::MOST_COUNT),
-            StockSort::FirstModified => {
-                queries.replace_all_or_insert(S::SORT, replaced, S::FIRST_MODIFIED)
-            }
-            StockSort::LastModified => {
-                queries.replace_all_or_insert(S::SORT, replaced, S::LAST_MODIFIED)
+            StockSort::UpdatedDesc => {
+                queries.replace_all_or_insert(S::SORT, replaced, S::UPDATED_DESC)
             }
         }
 
@@ -360,18 +358,18 @@ impl StocksView {
             &[
                 S::ID_ASC,
                 S::ID_DESC,
-                S::LEAST_COUNT,
-                S::MOST_COUNT,
-                S::FIRST_MODIFIED,
-                S::LAST_MODIFIED,
+                S::COUNT_ASC,
+                S::COUNT_DESC,
+                S::UPDATED_ASC,
+                S::UPDATED_DESC,
             ],
         ) {
             Some(S::ID_ASC) => StockSort::IdAsc,
             Some(S::ID_DESC) => StockSort::IdDesc,
-            Some(S::LEAST_COUNT) => StockSort::LeastCount,
-            Some(S::MOST_COUNT) => StockSort::MostCount,
-            Some(S::FIRST_MODIFIED) => StockSort::FirstModified,
-            Some(S::LAST_MODIFIED) => StockSort::LastModified,
+            Some(S::COUNT_ASC) => StockSort::CountAsc,
+            Some(S::COUNT_DESC) => StockSort::CountDesc,
+            Some(S::UPDATED_ASC) => StockSort::UpdatedAsc,
+            Some(S::UPDATED_DESC) => StockSort::UpdatedDesc,
             _ => StockSort::default(),
         };
 
@@ -384,38 +382,22 @@ impl StocksView {
 
         let sorter = match stock_sort {
             StockSort::IdAsc | StockSort::IdDesc => {
-                let (normal, reversed) = new_stock_sorter_pair(|a, b| a.id().cmp(b.id()));
-
-                if matches!(stock_sort, StockSort::IdAsc) {
-                    normal
-                } else {
-                    reversed
-                }
+                new_stock_sorter_pair(matches!(stock_sort, StockSort::IdDesc), |a, b| {
+                    a.id().cmp(b.id())
+                })
             }
-            StockSort::LeastCount | StockSort::MostCount => {
-                let (normal, reversed) = new_stock_sorter_pair(|a, b| {
+            StockSort::CountAsc | StockSort::CountDesc => {
+                new_stock_sorter_pair(matches!(stock_sort, StockSort::CountDesc), |a, b| {
                     a.timeline().n_inside().cmp(&b.timeline().n_inside())
-                });
-
-                if matches!(stock_sort, StockSort::LeastCount) {
-                    normal
-                } else {
-                    reversed
-                }
+                })
             }
-            StockSort::FirstModified | StockSort::LastModified => {
-                let (normal, reversed) = new_stock_sorter_pair(|a, b| {
+            StockSort::UpdatedAsc | StockSort::UpdatedDesc => {
+                new_stock_sorter_pair(matches!(stock_sort, StockSort::UpdatedDesc), |a, b| {
                     a.timeline()
                         .last()
                         .map(|i| i.dt())
                         .cmp(&b.timeline().last().map(|i| i.dt()))
-                });
-
-                if matches!(stock_sort, StockSort::FirstModified) {
-                    normal
-                } else {
-                    reversed
-                }
+                })
             }
         };
 
@@ -438,20 +420,20 @@ impl StocksView {
 }
 
 fn new_stock_sorter_pair(
-    predicate: impl Fn(&Stock, &Stock) -> Ordering + Clone + 'static,
-) -> (gtk::CustomSorter, gtk::CustomSorter) {
-    let predicate_clone = predicate.clone();
-    let normal = gtk::CustomSorter::new(move |a, b| {
-        let a = a.downcast_ref::<Stock>().unwrap();
-        let b = b.downcast_ref::<Stock>().unwrap();
-        predicate_clone(a, b).into()
-    });
-
-    let reversed = gtk::CustomSorter::new(move |a, b| {
-        let a = a.downcast_ref::<Stock>().unwrap();
-        let b = b.downcast_ref::<Stock>().unwrap();
-        predicate(a, b).reverse().into()
-    });
-
-    (normal, reversed)
+    is_reverse: bool,
+    predicate: impl Fn(&Stock, &Stock) -> Ordering + 'static,
+) -> gtk::CustomSorter {
+    if is_reverse {
+        gtk::CustomSorter::new(move |a, b| {
+            let a = a.downcast_ref::<Stock>().unwrap();
+            let b = b.downcast_ref::<Stock>().unwrap();
+            predicate(a, b).reverse().into()
+        })
+    } else {
+        gtk::CustomSorter::new(move |a, b| {
+            let a = a.downcast_ref::<Stock>().unwrap();
+            let b = b.downcast_ref::<Stock>().unwrap();
+            predicate(a, b).into()
+        })
+    }
 }

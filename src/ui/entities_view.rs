@@ -33,10 +33,10 @@ impl S {
 
     const ID_ASC: &str = "id-asc";
     const ID_DESC: &str = "id-desc";
-    const STOCK_ID_ASC: &str = "stock-asc";
-    const STOCK_ID_DESC: &str = "stock-desc";
-    const FIRST_MODIFIED: &str = "first-modified";
-    const LAST_MODIFIED: &str = "last-modified";
+    const STOCK_ASC: &str = "stock-asc";
+    const STOCK_DESC: &str = "stock-desc";
+    const UPDATED_ASC: &str = "updated-asc";
+    const UPDATED_DESC: &str = "updated-desc";
 }
 
 #[derive(Debug, Clone, Copy, glib::Enum)]
@@ -55,10 +55,10 @@ enum EntitySort {
     #[default]
     IdAsc,
     IdDesc,
-    StockIdAsc,
-    StockIdDesc,
-    FirstModified,
-    LastModified,
+    StockAsc,
+    StockDesc,
+    UpdatedAsc,
+    UpdatedDesc,
 }
 
 list_model_enum!(EntitySort);
@@ -66,12 +66,12 @@ list_model_enum!(EntitySort);
 impl EntitySort {
     fn display(&self) -> &'static str {
         match self {
-            EntitySort::IdAsc => "ID (A-Z)",
-            EntitySort::IdDesc => "ID (Z-A)",
-            EntitySort::StockIdAsc => "Stock ID (A-Z)",
-            EntitySort::StockIdDesc => "Stock ID (Z-A)",
-            EntitySort::FirstModified => "First Modified",
-            EntitySort::LastModified => "Last Modified",
+            EntitySort::IdAsc => "A-Z",
+            EntitySort::IdDesc => "Z-A",
+            EntitySort::StockAsc => "Stock (A-Z)",
+            EntitySort::StockDesc => "Stock (Z-A)",
+            EntitySort::UpdatedAsc => "Least Recently Updated",
+            EntitySort::UpdatedDesc => "Recently Updated",
         }
     }
 }
@@ -451,25 +451,23 @@ impl EntitiesView {
         let replaced = &[
             S::ID_ASC,
             S::ID_DESC,
-            S::STOCK_ID_ASC,
-            S::STOCK_ID_DESC,
-            S::FIRST_MODIFIED,
-            S::LAST_MODIFIED,
+            S::STOCK_ASC,
+            S::STOCK_DESC,
+            S::UPDATED_ASC,
+            S::UPDATED_DESC,
         ];
         match selected_item.value().try_into().unwrap() {
             EntitySort::IdAsc => queries.replace_all_or_insert(S::SORT, replaced, S::ID_ASC),
             EntitySort::IdDesc => queries.replace_all_or_insert(S::SORT, replaced, S::ID_DESC),
-            EntitySort::StockIdAsc => {
-                queries.replace_all_or_insert(S::SORT, replaced, S::STOCK_ID_ASC)
+            EntitySort::StockAsc => queries.replace_all_or_insert(S::SORT, replaced, S::STOCK_ASC),
+            EntitySort::StockDesc => {
+                queries.replace_all_or_insert(S::SORT, replaced, S::STOCK_DESC)
             }
-            EntitySort::StockIdDesc => {
-                queries.replace_all_or_insert(S::SORT, replaced, S::STOCK_ID_DESC)
+            EntitySort::UpdatedAsc => {
+                queries.replace_all_or_insert(S::SORT, replaced, S::UPDATED_ASC)
             }
-            EntitySort::FirstModified => {
-                queries.replace_all_or_insert(S::SORT, replaced, S::FIRST_MODIFIED)
-            }
-            EntitySort::LastModified => {
-                queries.replace_all_or_insert(S::SORT, replaced, S::LAST_MODIFIED)
+            EntitySort::UpdatedDesc => {
+                queries.replace_all_or_insert(S::SORT, replaced, S::UPDATED_DESC)
             }
         }
 
@@ -486,18 +484,18 @@ impl EntitiesView {
             &[
                 S::ID_ASC,
                 S::ID_DESC,
-                S::STOCK_ID_ASC,
-                S::STOCK_ID_DESC,
-                S::FIRST_MODIFIED,
-                S::LAST_MODIFIED,
+                S::STOCK_ASC,
+                S::STOCK_DESC,
+                S::UPDATED_ASC,
+                S::UPDATED_DESC,
             ],
         ) {
             Some(S::ID_ASC) => EntitySort::IdAsc,
             Some(S::ID_DESC) => EntitySort::IdDesc,
-            Some(S::STOCK_ID_ASC) => EntitySort::StockIdAsc,
-            Some(S::STOCK_ID_DESC) => EntitySort::StockIdDesc,
-            Some(S::FIRST_MODIFIED) => EntitySort::FirstModified,
-            Some(S::LAST_MODIFIED) => EntitySort::LastModified,
+            Some(S::STOCK_ASC) => EntitySort::StockAsc,
+            Some(S::STOCK_DESC) => EntitySort::StockDesc,
+            Some(S::UPDATED_ASC) => EntitySort::UpdatedAsc,
+            Some(S::UPDATED_DESC) => EntitySort::UpdatedDesc,
             _ => EntitySort::default(),
         };
 
@@ -511,36 +509,21 @@ impl EntitiesView {
 
         let sorter = match entity_sort {
             EntitySort::IdAsc | EntitySort::IdDesc => {
-                let (normal, reversed) = new_entity_sorter_pair(|a, b| a.id().cmp(b.id()));
-
-                if matches!(entity_sort, EntitySort::IdAsc) {
-                    normal
-                } else {
-                    reversed
-                }
+                new_entity_sorter_pair(matches!(entity_sort, EntitySort::IdDesc), |a, b| {
+                    a.id().cmp(b.id())
+                })
             }
-            EntitySort::StockIdAsc | EntitySort::StockIdDesc => {
-                let (normal, reversed) =
-                    new_entity_sorter_pair(|a, b| a.stock_id().cmp(&b.stock_id()));
-
-                if matches!(entity_sort, EntitySort::StockIdAsc) {
-                    normal
-                } else {
-                    reversed
-                }
+            EntitySort::StockAsc | EntitySort::StockDesc => {
+                new_entity_sorter_pair(matches!(entity_sort, EntitySort::StockDesc), |a, b| {
+                    a.stock_id().cmp(&b.stock_id())
+                })
             }
-            EntitySort::FirstModified | EntitySort::LastModified => {
-                let (normal, reversed) = new_entity_sorter_pair(|a, b| {
+            EntitySort::UpdatedAsc | EntitySort::UpdatedDesc => {
+                new_entity_sorter_pair(matches!(entity_sort, EntitySort::UpdatedDesc), |a, b| {
                     a.last_dt_pair()
                         .map(|pair| pair.last_dt())
                         .cmp(&b.last_dt_pair().map(|pair| pair.last_dt()))
-                });
-
-                if matches!(entity_sort, EntitySort::FirstModified) {
-                    normal
-                } else {
-                    reversed
-                }
+                })
             }
         };
 
@@ -563,20 +546,20 @@ impl EntitiesView {
 }
 
 fn new_entity_sorter_pair(
-    predicate: impl Fn(&Entity, &Entity) -> Ordering + Clone + 'static,
-) -> (gtk::CustomSorter, gtk::CustomSorter) {
-    let predicate_clone = predicate.clone();
-    let normal = gtk::CustomSorter::new(move |a, b| {
-        let a = a.downcast_ref::<Entity>().unwrap();
-        let b = b.downcast_ref::<Entity>().unwrap();
-        predicate_clone(a, b).into()
-    });
-
-    let reversed = gtk::CustomSorter::new(move |a, b| {
-        let a = a.downcast_ref::<Entity>().unwrap();
-        let b = b.downcast_ref::<Entity>().unwrap();
-        predicate(a, b).reverse().into()
-    });
-
-    (normal, reversed)
+    is_reverse: bool,
+    predicate: impl Fn(&Entity, &Entity) -> Ordering + 'static,
+) -> gtk::CustomSorter {
+    if is_reverse {
+        gtk::CustomSorter::new(move |a, b| {
+            let a = a.downcast_ref::<Entity>().unwrap();
+            let b = b.downcast_ref::<Entity>().unwrap();
+            predicate(a, b).reverse().into()
+        })
+    } else {
+        gtk::CustomSorter::new(move |a, b| {
+            let a = a.downcast_ref::<Entity>().unwrap();
+            let b = b.downcast_ref::<Entity>().unwrap();
+            predicate(a, b).into()
+        })
+    }
 }
