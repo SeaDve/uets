@@ -15,6 +15,19 @@ use crate::{
     Application,
 };
 
+struct S;
+
+impl S {
+    const IS: &'static str = "is";
+
+    const ENTRY: &'static str = "entry";
+    const EXIT: &'static str = "exit";
+
+    const STOCK: &'static str = "stock";
+
+    const ENTITY: &'static str = "entity";
+}
+
 #[derive(Debug, Clone, Copy, glib::Enum)]
 #[enum_type(name = "UetsTimelineItemKindFilter")]
 enum TimelineItemKindFilter {
@@ -307,21 +320,21 @@ impl TimelineView {
         imp.filter_list_model.set_model(Some(timeline));
     }
 
-    pub fn show_stock(&self, stock_id: &StockId) {
-        let imp = self.imp();
-
-        let mut queries = imp.search_entry.queries();
-        queries.remove_all_standlones();
-        queries.replace_all_iden_or_insert("stock", &stock_id.to_string());
-        imp.search_entry.set_queries(&queries);
-    }
-
     pub fn show_entity(&self, entity_id: &EntityId) {
         let imp = self.imp();
 
         let mut queries = imp.search_entry.queries();
         queries.remove_all_standlones();
-        queries.replace_all_iden_or_insert("entity", &entity_id.to_string());
+        queries.replace_all_iden_or_insert(S::ENTITY, &entity_id.to_string());
+        imp.search_entry.set_queries(&queries);
+    }
+
+    pub fn show_stock(&self, stock_id: &StockId) {
+        let imp = self.imp();
+
+        let mut queries = imp.search_entry.queries();
+        queries.remove_all_standlones();
+        queries.replace_all_iden_or_insert(S::STOCK, &stock_id.to_string());
         imp.search_entry.set_queries(&queries);
     }
 
@@ -346,9 +359,9 @@ impl TimelineView {
 
         let queries = entry.queries();
 
-        let item_kind = match queries.find_last_match("is", &["entry", "exit"]) {
-            Some("entry") => TimelineItemKindFilter::Entry,
-            Some("exit") => TimelineItemKindFilter::Exit,
+        let item_kind = match queries.find_last_match(S::IS, &[S::ENTRY, S::EXIT]) {
+            Some(S::ENTRY) => TimelineItemKindFilter::Entry,
+            Some(S::EXIT) => TimelineItemKindFilter::Exit,
             _ => TimelineItemKindFilter::All,
         };
 
@@ -392,7 +405,7 @@ impl TimelineView {
         }
 
         let any_stock_filter = gtk::AnyFilter::new();
-        for stock_id in queries.all_values("stock").into_iter().map(StockId::new) {
+        for stock_id in queries.all_values(S::STOCK).into_iter().map(StockId::new) {
             any_stock_filter.append(gtk::CustomFilter::new(move |o| {
                 let item = o.downcast_ref::<TimelineItem>().unwrap();
                 let entity = Application::get()
@@ -405,7 +418,7 @@ impl TimelineView {
         }
 
         let any_entity_filter = gtk::AnyFilter::new();
-        for entity_id in queries.all_values("entity").into_iter().map(EntityId::new) {
+        for entity_id in queries.all_values(S::ENTITY).into_iter().map(EntityId::new) {
             any_entity_filter.append(gtk::CustomFilter::new(move |o| {
                 let item = o.downcast_ref::<TimelineItem>().unwrap();
                 item.entity_id() == &entity_id
@@ -438,14 +451,14 @@ impl TimelineView {
 
         match selected_item.value().try_into().unwrap() {
             TimelineItemKindFilter::All => {
-                queries.remove_all("is", "entry");
-                queries.remove_all("is", "exit");
+                queries.remove_all(S::IS, S::ENTRY);
+                queries.remove_all(S::IS, S::EXIT);
             }
             TimelineItemKindFilter::Entry => {
-                queries.replace_all_or_insert("is", &["exit"], "entry");
+                queries.replace_all_or_insert(S::IS, &[S::EXIT], S::ENTRY);
             }
             TimelineItemKindFilter::Exit => {
-                queries.replace_all_or_insert("is", &["entry"], "exit");
+                queries.replace_all_or_insert(S::IS, &[S::ENTRY], S::EXIT);
             }
         }
 
