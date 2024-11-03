@@ -54,6 +54,7 @@
                                 <property name="wrap">True</property>
                                 <property name="justify">center</property>
                                 <property name="halign">center</property>
+                                <property name="selectable">True</property>
                                 <style>
                                   <class name="code-label"/>
                                   <class name="card"/>

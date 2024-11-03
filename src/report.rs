@@ -7,44 +7,67 @@ use genpdf::{
 };
 use gtk::gio;
 
-use crate::{entity::Entity, GRESOURCE_PREFIX};
+use crate::GRESOURCE_PREFIX;
 
 const DOC_LINE_SPACING: f64 = 1.5;
 const DOC_MARGINS: f64 = 10.0;
 
-pub fn gen_entities(entities: &[Entity]) -> Result<Vec<u8>> {
+pub async fn gen(
+    title: impl Into<String>,
+    props: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
+    rows_titles: impl IntoIterator<Item = impl Into<String>>,
+    rows: impl IntoIterator<Item = impl IntoIterator<Item = impl Into<String>>>,
+) -> Result<Vec<u8>> {
+    let title = title.into();
+    let props = props
+        .into_iter()
+        .map(|(key, value)| (key.into(), value.into()))
+        .collect();
+    let rows_titles = rows_titles
+        .into_iter()
+        .map(|title| title.into())
+        .collect::<Vec<_>>();
+    let rows = rows
+        .into_iter()
+        .map(|row| row.into_iter().map(|cell| cell.into()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+
+    gio::spawn_blocking(move || gen_inner(title, props, rows_titles, rows))
+        .await
+        .unwrap()
+}
+
+fn gen_inner(
+    title: String,
+    props: Vec<(String, String)>,
+    rows_titles: Vec<String>,
+    rows: Vec<Vec<String>>,
+) -> Result<Vec<u8>> {
+    debug_assert!(!rows.is_empty());
+    debug_assert!(rows.iter().all(|row| row.len() == rows_titles.len()));
+
     let mut doc = doc()?;
-    doc.set_title("Entities");
+    doc.set_title(title.clone());
 
-    doc.push(p_bold("Entities"));
-    doc.push(p(format!(
-        "Date Generated: {}",
-        chrono::Local::now().to_rfc2822()
-    )));
-    doc.push(p(format!("Total Entities: {}", entities.len())));
+    doc.push(p_bold(title));
 
-    let mut table = table(3);
-    table.push_row(vec![
-        p_bold_centered("ID").b(),
-        p_bold_centered("StockID").b(),
-        p_bold_centered("Zone").b(),
-    ])?;
-    for entity in entities {
-        table.push_row(vec![
-            t(entity.id().to_string()).b(),
-            t(entity
-                .stock_id()
-                .map(|id| id.to_string())
-                .unwrap_or_default())
-            .b(),
-            t(if entity.is_inside() {
-                "Inside"
-            } else {
-                "Outside"
-            })
-            .b(),
-        ])?;
+    for (key, value) in props.iter() {
+        doc.push(p(format!("{}: {}", key, value)));
     }
+
+    let mut table = table(rows_titles.len());
+
+    table.push_row(
+        rows_titles
+            .iter()
+            .map(|title| p_bold_centered(title).b())
+            .collect(),
+    )?;
+
+    for row in rows.iter() {
+        table.push_row(row.iter().map(|cell| t(cell).b()).collect())?;
+    }
+
     doc.push(table);
 
     doc_to_bytes(doc)

@@ -22,6 +22,16 @@
               </object>
             </child>
             <child>
+              <object class="AdwViewStackPage">
+                <property name="name">timeline</property>
+                <property name="title">Timeline</property>
+                <property name="icon-name">view-list-bullet-symbolic</property>
+                <property name="child">
+                  <object class="UetsTimelineView" id="timeline_view"/>
+                </property>
+              </object>
+            </child>
+            <child>
               <object class="AdwViewStackPage" id="stocks_stack_page">
                 <property name="name">stocks</property>
                 <property name="title">Stocks</property>
@@ -36,16 +46,6 @@
                 <property name="title">Entities</property>
                 <property name="child">
                   <object class="UetsEntitiesView" id="entities_view"/>
-                </property>
-              </object>
-            </child>
-            <child>
-              <object class="AdwViewStackPage">
-                <property name="name">timeline</property>
-                <property name="title">Timeline</property>
-                <property name="icon-name">view-list-bullet-symbolic</property>
-                <property name="child">
-                  <object class="UetsTimelineView" id="timeline_view"/>
                 </property>
               </object>
             </child>

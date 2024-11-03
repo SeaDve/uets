@@ -50,11 +50,8 @@
                     </child>
                     <child>
                       <object class="GtkButton">
-                        <property name="icon-name">qr-code-symbolic</property>
+                        <property name="icon-name">share-alt-symbolic</property>
                         <property name="action-name">entities-view.share-report</property>
-                        <style>
-                          <class name="flat"/>
-                        </style>
                       </object>
                     </child>
                   </object>

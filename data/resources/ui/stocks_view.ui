@@ -34,9 +34,19 @@
                   </object>
                 </child>
                 <child>
-                  <object class="GtkCenterBox">
-                    <child type="end">
+                  <object class="GtkBox">
+                    <property name="spacing">6</property>
+                    <child>
                       <object class="GtkDropDown" id="stock_sort_dropdown"/>
+                    </child>
+                    <child>
+                      <object class="GtkSeparator"/>
+                    </child>
+                    <child>
+                      <object class="GtkButton">
+                        <property name="icon-name">share-alt-symbolic</property>
+                        <property name="action-name">stocks-view.share-report</property>
+                      </object>
                     </child>
                   </object>
                 </child>

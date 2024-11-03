@@ -1,3 +1,4 @@
+use anyhow::Result;
 use gtk::{
     glib::{self, clone, closure, closure_local},
     prelude::*,
@@ -146,9 +147,9 @@ mod imp {
                         .iter::<glib::Object>()
                         .map(|o| o.unwrap().downcast::<Entity>().unwrap())
                         .collect::<Vec<_>>();
-                    let report_bytes = report::gen_entities(&entities).unwrap();
+
                     if let Err(err) = WormholeWindow::send(
-                        report_bytes,
+                        async { gen_entities_report(&entities).await.unwrap() },
                         &format!(
                             "Entities Report ({}).pdf",
                             chrono::Local::now().format("%Y-%m-%d-%H-%M-%S")
@@ -568,4 +569,34 @@ impl EntitiesView {
             imp.stack.set_visible_child(&*imp.main_page);
         }
     }
+}
+
+async fn gen_entities_report(entities: &[Entity]) -> Result<Vec<u8>> {
+    report::gen(
+        "Entities",
+        vec![
+            (
+                "Date Generated".to_string(),
+                chrono::Local::now().to_rfc2822().to_string(),
+            ),
+            ("Total Entities".to_string(), entities.len().to_string()),
+        ],
+        vec!["ID", "StockID", "Zone"],
+        entities.iter().map(|entity| {
+            vec![
+                entity.id().to_string(),
+                entity
+                    .stock_id()
+                    .map(|id| id.to_string())
+                    .unwrap_or_default(),
+                if entity.is_inside() {
+                    "Inside"
+                } else {
+                    "Outside"
+                }
+                .to_string(),
+            ]
+        }),
+    )
+    .await
 }

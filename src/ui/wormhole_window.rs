@@ -1,4 +1,4 @@
-use std::future;
+use std::future::{self, Future};
 
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::Result;
@@ -80,7 +80,7 @@ glib::wrapper! {
 
 impl WormholeWindow {
     pub async fn send(
-        bytes: Vec<u8>,
+        bytes: impl Future<Output = Vec<u8>>,
         dest_file_name: &str,
         parent: Option<&impl IsA<gtk::Window>>,
     ) -> Result<()> {
@@ -99,17 +99,27 @@ impl WormholeWindow {
         Ok(())
     }
 
-    async fn start_send(&self, bytes: Vec<u8>, dest_file_name: &str) -> Result<()> {
+    async fn start_send(
+        &self,
+        bytes: impl Future<Output = Vec<u8>>,
+        dest_file_name: &str,
+    ) -> Result<()> {
         let imp = self.imp();
 
-        imp.file_name_label.set_text(&format!(
-            "“{dest_file_name}” ({})",
-            glib::format_size(bytes.len() as u64)
-        ));
+        imp.file_name_label.set_text(dest_file_name);
 
         imp.stack.set_visible_child(&*imp.code_loading_page);
-        imp.title_label.set_label("Loading Code");
+        imp.title_label.set_label("Loading Data");
         imp.close_button.set_label("Cancel");
+
+        let bytes = bytes.await;
+
+        imp.title_label.set_label("Loading Code");
+
+        imp.file_name_label.set_text(&format!(
+            "{dest_file_name} ({})",
+            glib::format_size(bytes.len() as u64)
+        ));
 
         let app_config = AppConfig {
             id: AppID::new(WORMHOLE_APP_ID),

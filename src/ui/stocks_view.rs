@@ -1,3 +1,4 @@
+use anyhow::Result;
 use gtk::{
     glib::{self, clone, closure, closure_local},
     prelude::*,
@@ -6,12 +7,15 @@ use gtk::{
 
 use crate::{
     fuzzy_filter::FuzzyFilter,
-    list_model_enum,
+    list_model_enum, report,
     search_query::SearchQueries,
     stock::Stock,
     stock_id::StockId,
     stock_list::StockList,
-    ui::{search_entry::SearchEntry, stock_details_pane::StockDetailsPane, stock_row::StockRow},
+    ui::{
+        search_entry::SearchEntry, stock_details_pane::StockDetailsPane, stock_row::StockRow,
+        wormhole_window::WormholeWindow,
+    },
     utils::new_sorter,
 };
 
@@ -111,6 +115,34 @@ mod imp {
             StockRow::ensure_type();
 
             klass.bind_template();
+
+            klass.install_action_async("stocks-view.share-report", None, |obj, _, _| async move {
+                let stocks = obj
+                    .imp()
+                    .selection_model
+                    .iter::<glib::Object>()
+                    .map(|o| o.unwrap().downcast::<Stock>().unwrap())
+                    .collect::<Vec<_>>();
+
+                if let Err(err) = WormholeWindow::send(
+                    async { gen_stocks_report(&stocks).await.unwrap() },
+                    &format!(
+                        "Stocks Report ({}).pdf",
+                        chrono::Local::now().format("%Y-%m-%d-%H-%M-%S")
+                    ),
+                    Some(
+                        obj.root()
+                            .as_ref()
+                            .unwrap()
+                            .downcast_ref::<gtk::Window>()
+                            .unwrap(),
+                    ),
+                )
+                .await
+                {
+                    tracing::error!("Failed to present send file window: {}", err);
+                }
+            });
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -410,4 +442,25 @@ impl StocksView {
             imp.stack.set_visible_child(&*imp.main_page);
         }
     }
+}
+
+async fn gen_stocks_report(stocks: &[Stock]) -> Result<Vec<u8>> {
+    report::gen(
+        "Stocks",
+        vec![
+            (
+                "Date Generated".to_string(),
+                chrono::Local::now().to_rfc2822().to_string(),
+            ),
+            ("Total Stocks".to_string(), stocks.len().to_string()),
+        ],
+        vec!["ID", "Count"],
+        stocks.iter().map(|stock| {
+            vec![
+                stock.id().to_string(),
+                stock.timeline().n_inside().to_string(),
+            ]
+        }),
+    )
+    .await
 }
