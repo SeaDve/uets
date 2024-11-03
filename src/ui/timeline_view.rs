@@ -1,3 +1,4 @@
+use anyhow::Result;
 use gtk::{
     glib::{self, clone, closure_local},
     prelude::*,
@@ -7,11 +8,11 @@ use gtk::{
 use crate::{
     entity_id::EntityId,
     fuzzy_filter::FuzzyFilter,
-    list_model_enum,
+    list_model_enum, report,
     stock_id::StockId,
     timeline::Timeline,
     timeline_item::TimelineItem,
-    ui::{search_entry::SearchEntry, timeline_row::TimelineRow},
+    ui::{search_entry::SearchEntry, timeline_row::TimelineRow, wormhole_window::WormholeWindow},
     Application,
 };
 
@@ -92,6 +93,14 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+
+            klass.install_action_async(
+                "timeline-view.share-report",
+                None,
+                |obj, _, _| async move {
+                    obj.handle_share_report().await;
+                },
+            );
 
             klass.install_action("timeline-view.scroll-to-bottom", None, move |obj, _, _| {
                 obj.scroll_to_bottom();
@@ -352,6 +361,53 @@ impl TimelineView {
         let imp = self.imp();
         let vadj = imp.scrolled_window.vadjustment();
         vadj.value() + vadj.page_size() == vadj.upper()
+    }
+
+    async fn handle_share_report(&self) {
+        let imp = self.imp();
+
+        let items = imp
+            .selection_model
+            .iter::<glib::Object>()
+            .map(|o| o.unwrap().downcast::<TimelineItem>().unwrap())
+            .collect::<Vec<_>>();
+
+        let app = Application::get();
+        let timeline = app.timeline();
+
+        let n_inside = timeline.n_inside();
+        let max_n_inside = timeline.max_n_inside();
+        let n_entries = timeline.n_entries();
+        let n_exits = timeline.n_exits();
+
+        let bytes_fut = report::gen(
+            "Timeline",
+            vec![
+                ("Inside Count".to_string(), n_inside.to_string()),
+                ("Max Inside Count".to_string(), max_n_inside.to_string()),
+                ("Total Entries".to_string(), n_entries.to_string()),
+                ("Total Exits".to_string(), n_exits.to_string()),
+                (
+                    "Search Query".to_string(),
+                    imp.search_entry.queries().to_string(),
+                ),
+            ],
+            vec!["Timestamp", "Kind", "Entity ID", "Inside Count"],
+            items.iter().map(|item| {
+                vec![
+                    item.dt().inner().format("%Y-%m-%dT%H:%M:%S").to_string(),
+                    item.kind().to_string(),
+                    item.entity_id().to_string(),
+                    item.n_inside().to_string(),
+                ]
+            }),
+        );
+
+        if let Err(err) =
+            WormholeWindow::send(bytes_fut, &report::file_name("Timeline Report"), self).await
+        {
+            tracing::error!("Failed to send report: {}", err);
+        }
     }
 
     fn handle_search_entry_search_changed(&self, entry: &SearchEntry) {

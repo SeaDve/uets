@@ -141,31 +141,7 @@ mod imp {
                 "entities-view.share-report",
                 None,
                 |obj, _, _| async move {
-                    let entities = obj
-                        .imp()
-                        .selection_model
-                        .iter::<glib::Object>()
-                        .map(|o| o.unwrap().downcast::<Entity>().unwrap())
-                        .collect::<Vec<_>>();
-
-                    if let Err(err) = WormholeWindow::send(
-                        async { gen_entities_report(&entities).await.unwrap() },
-                        &format!(
-                            "Entities Report ({}).pdf",
-                            chrono::Local::now().format("%Y-%m-%d-%H-%M-%S")
-                        ),
-                        Some(
-                            obj.root()
-                                .as_ref()
-                                .unwrap()
-                                .downcast_ref::<gtk::Window>()
-                                .unwrap(),
-                        ),
-                    )
-                    .await
-                    {
-                        tracing::error!("Failed to present send file window: {}", err);
-                    }
+                    obj.handle_share_report().await;
                 },
             );
         }
@@ -383,6 +359,49 @@ impl EntitiesView {
         imp.search_entry.set_queries(&queries);
     }
 
+    async fn handle_share_report(&self) {
+        let imp = self.imp();
+
+        let entities = imp
+            .selection_model
+            .iter::<glib::Object>()
+            .map(|o| o.unwrap().downcast::<Entity>().unwrap())
+            .collect::<Vec<_>>();
+
+        let bytes_fut = report::gen(
+            "Entities",
+            vec![
+                ("Total Entities".to_string(), entities.len().to_string()),
+                (
+                    "Search Query".to_string(),
+                    imp.search_entry.queries().to_string(),
+                ),
+            ],
+            vec!["ID", "StockID", "Zone"],
+            entities.iter().map(|entity| {
+                vec![
+                    entity.id().to_string(),
+                    entity
+                        .stock_id()
+                        .map(|id| id.to_string())
+                        .unwrap_or_default(),
+                    if entity.is_inside() {
+                        "Inside"
+                    } else {
+                        "Outside"
+                    }
+                    .to_string(),
+                ]
+            }),
+        );
+
+        if let Err(err) =
+            WormholeWindow::send(bytes_fut, &report::file_name("Entities Report"), self).await
+        {
+            tracing::error!("Failed to present send report: {}", err);
+        }
+    }
+
     fn handle_search_entry_search_changed(&self, entry: &SearchEntry) {
         let imp = self.imp();
 
@@ -569,34 +588,4 @@ impl EntitiesView {
             imp.stack.set_visible_child(&*imp.main_page);
         }
     }
-}
-
-async fn gen_entities_report(entities: &[Entity]) -> Result<Vec<u8>> {
-    report::gen(
-        "Entities",
-        vec![
-            (
-                "Date Generated".to_string(),
-                chrono::Local::now().to_rfc2822().to_string(),
-            ),
-            ("Total Entities".to_string(), entities.len().to_string()),
-        ],
-        vec!["ID", "StockID", "Zone"],
-        entities.iter().map(|entity| {
-            vec![
-                entity.id().to_string(),
-                entity
-                    .stock_id()
-                    .map(|id| id.to_string())
-                    .unwrap_or_default(),
-                if entity.is_inside() {
-                    "Inside"
-                } else {
-                    "Outside"
-                }
-                .to_string(),
-            ]
-        }),
-    )
-    .await
 }

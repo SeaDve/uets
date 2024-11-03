@@ -117,31 +117,7 @@ mod imp {
             klass.bind_template();
 
             klass.install_action_async("stocks-view.share-report", None, |obj, _, _| async move {
-                let stocks = obj
-                    .imp()
-                    .selection_model
-                    .iter::<glib::Object>()
-                    .map(|o| o.unwrap().downcast::<Stock>().unwrap())
-                    .collect::<Vec<_>>();
-
-                if let Err(err) = WormholeWindow::send(
-                    async { gen_stocks_report(&stocks).await.unwrap() },
-                    &format!(
-                        "Stocks Report ({}).pdf",
-                        chrono::Local::now().format("%Y-%m-%d-%H-%M-%S")
-                    ),
-                    Some(
-                        obj.root()
-                            .as_ref()
-                            .unwrap()
-                            .downcast_ref::<gtk::Window>()
-                            .unwrap(),
-                    ),
-                )
-                .await
-                {
-                    tracing::error!("Failed to present send file window: {}", err);
-                }
+                obj.handle_share_report().await;
             });
         }
 
@@ -353,6 +329,40 @@ impl StocksView {
         imp.filter_list_model.set_filter(Some(&every_filter));
     }
 
+    async fn handle_share_report(&self) {
+        let imp = self.imp();
+
+        let stocks = imp
+            .selection_model
+            .iter::<glib::Object>()
+            .map(|o| o.unwrap().downcast::<Stock>().unwrap())
+            .collect::<Vec<_>>();
+
+        let bytes_fut = report::gen(
+            "Stocks",
+            vec![
+                ("Total Stocks".to_string(), stocks.len().to_string()),
+                (
+                    "Search Query".to_string(),
+                    imp.search_entry.queries().to_string(),
+                ),
+            ],
+            vec!["ID", "Count"],
+            stocks.iter().map(|stock| {
+                vec![
+                    stock.id().to_string(),
+                    stock.timeline().n_inside().to_string(),
+                ]
+            }),
+        );
+
+        if let Err(err) =
+            WormholeWindow::send(bytes_fut, &report::file_name("Stocks Report"), self).await
+        {
+            tracing::error!("Failed to send report: {}", err);
+        }
+    }
+
     fn handle_stock_sort_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
         let imp = self.imp();
 
@@ -442,25 +452,4 @@ impl StocksView {
             imp.stack.set_visible_child(&*imp.main_page);
         }
     }
-}
-
-async fn gen_stocks_report(stocks: &[Stock]) -> Result<Vec<u8>> {
-    report::gen(
-        "Stocks",
-        vec![
-            (
-                "Date Generated".to_string(),
-                chrono::Local::now().to_rfc2822().to_string(),
-            ),
-            ("Total Stocks".to_string(), stocks.len().to_string()),
-        ],
-        vec!["ID", "Count"],
-        stocks.iter().map(|stock| {
-            vec![
-                stock.id().to_string(),
-                stock.timeline().n_inside().to_string(),
-            ]
-        }),
-    )
-    .await
 }

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::Local;
 use genpdf::{
     elements::{FrameCellDecorator, Paragraph, TableLayout, Text},
     fonts,
@@ -11,6 +12,14 @@ use crate::GRESOURCE_PREFIX;
 
 const DOC_LINE_SPACING: f64 = 1.5;
 const DOC_MARGINS: f64 = 10.0;
+
+pub fn file_name(title: &str) -> String {
+    format!(
+        "{} ({}).pdf",
+        title,
+        Local::now().format("%Y-%m-%d-%H-%M-%S")
+    )
+}
 
 pub async fn gen(
     title: impl Into<String>,
@@ -48,9 +57,11 @@ fn gen_inner(
 
     let mut doc = doc()?;
     doc.set_title(title.clone());
+    doc.set_minimal_conformance();
 
     doc.push(p_bold(title));
 
+    doc.push(p(format!("Date Generated: {}", Local::now().to_rfc2822())));
     for (key, value) in props.iter() {
         doc.push(p(format!("{}: {}", key, value)));
     }

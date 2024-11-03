@@ -80,17 +80,19 @@ glib::wrapper! {
 
 impl WormholeWindow {
     pub async fn send(
-        bytes: impl Future<Output = Vec<u8>>,
+        bytes_fut: impl Future<Output = Result<Vec<u8>>>,
         dest_file_name: &str,
-        parent: Option<&impl IsA<gtk::Window>>,
+        parent: &impl IsA<gtk::Widget>,
     ) -> Result<()> {
+        let root = parent.root().map(|r| r.downcast::<gtk::Window>().unwrap());
+
         let this = glib::Object::builder::<WormholeWindow>()
-            .property("transient-for", parent)
+            .property("transient-for", root)
             .property("modal", true)
             .build();
         this.present();
 
-        if let Err(err) = this.start_send(bytes, dest_file_name).await {
+        if let Err(err) = this.start_send(bytes_fut, dest_file_name).await {
             if !err.is::<gio::Cancelled>() {
                 return Err(err);
             }
@@ -101,7 +103,7 @@ impl WormholeWindow {
 
     async fn start_send(
         &self,
-        bytes: impl Future<Output = Vec<u8>>,
+        bytes_fut: impl Future<Output = Result<Vec<u8>>>,
         dest_file_name: &str,
     ) -> Result<()> {
         let imp = self.imp();
@@ -112,7 +114,7 @@ impl WormholeWindow {
         imp.title_label.set_label("Loading Data");
         imp.close_button.set_label("Cancel");
 
-        let bytes = bytes.await;
+        let bytes = gio::CancellableFuture::new(bytes_fut, imp.cancellable.clone()).await??;
 
         imp.title_label.set_label("Loading Code");
 
