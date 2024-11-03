@@ -13,5 +13,6 @@ mod time_graph;
 mod timeline_row;
 mod timeline_view;
 mod window;
+mod wormhole_window;
 
 pub use self::{test_window::TestWindow, window::Window};

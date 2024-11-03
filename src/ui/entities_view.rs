@@ -14,6 +14,7 @@ use crate::{
     stock_id::StockId,
     ui::{
         entity_details_pane::EntityDetailsPane, entity_row::EntityRow, search_entry::SearchEntry,
+        wormhole_window::WormholeWindow,
     },
     utils::new_sorter,
 };
@@ -134,6 +135,28 @@ mod imp {
             EntityRow::ensure_type();
 
             klass.bind_template();
+
+            klass.install_action_async(
+                "entities-view.share-report",
+                None,
+                |obj, _, _| async move {
+                    if let Err(err) = WormholeWindow::send(
+                        "hello, world!".as_bytes().to_owned(),
+                        "hello_world.txt",
+                        Some(
+                            obj.root()
+                                .as_ref()
+                                .unwrap()
+                                .downcast_ref::<gtk::Window>()
+                                .unwrap(),
+                        ),
+                    )
+                    .await
+                    {
+                        tracing::error!("Failed to present send file window: {}", err);
+                    }
+                },
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {

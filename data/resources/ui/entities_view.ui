@@ -34,12 +34,28 @@
                   </object>
                 </child>
                 <child>
-                  <object class="GtkCenterBox">
-                    <child type="start">
+                  <object class="GtkBox">
+                    <property name="spacing">6</property>
+                    <child>
                       <object class="GtkDropDown" id="entity_zone_dropdown"/>
                     </child>
-                    <child type="end">
+                    <child>
+                      <object class="GtkSeparator"/>
+                    </child>
+                    <child>
                       <object class="GtkDropDown" id="entity_sort_dropdown"/>
+                    </child>
+                    <child>
+                      <object class="GtkSeparator"/>
+                    </child>
+                    <child>
+                      <object class="GtkButton">
+                        <property name="icon-name">qr-code-symbolic</property>
+                        <property name="action-name">entities-view.share-report</property>
+                        <style>
+                          <class name="flat"/>
+                        </style>
+                      </object>
                     </child>
                   </object>
                 </child>

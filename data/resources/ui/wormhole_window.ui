@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="UetsWormholeWindow" parent="AdwWindow">
+    <property name="default-width">320</property>
+    <property name="default-height">544</property>
+    <property name="width-request">320</property>
+    <property name="height-request">544</property>
+    <property name="content">
+      <object class="GtkWindowHandle">
+        <property name="child">
+          <object class="AdwClamp">
+            <property name="child">
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <property name="margin-start">24</property>
+                <property name="margin-end">24</property>
+                <property name="margin-top">24</property>
+                <property name="margin-bottom">24</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="vexpand">True</property>
+                    <property name="valign">center</property>
+                    <property name="spacing">12</property>
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkStack" id="stack">
+                        <child>
+                          <object class="GtkSpinner" id="code_loading_page">
+                            <property name="width-request">36</property>
+                            <property name="height-request">36</property>
+                            <property name="halign">center</property>
+                            <property name="valign">center</property>
+                            <property name="spinning">True</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox" id="code_loaded_page">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">6</property>
+                            <property name="halign">center</property>
+                            <child>
+                              <object class="GtkImage" id="qrcode_image">
+                                <property name="width-request">180</property>
+                                <property name="height-request">180</property>
+                                <property name="overflow">hidden</property>
+                                <property name="halign">center</property>
+                                <style>
+                                  <class name="card"/>
+                                </style>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="code_label">
+                                <property name="wrap">True</property>
+                                <property name="justify">center</property>
+                                <property name="halign">center</property>
+                                <style>
+                                  <class name="code-label"/>
+                                  <class name="card"/>
+                                  <class name="caption"/>
+                                </style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkProgressBar" id="sending_page">
+                            <property name="valign">center</property>
+                            <property name="halign">center</property>
+                            <property name="show-text">True</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="title_label">
+                        <property name="wrap">True</property>
+                        <property name="justify">center</property>
+                        <style>
+                          <class name="title-1"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="file_name_label">
+                        <property name="wrap">True</property>
+                        <property name="justify">center</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="close_button">
+                    <property name="action-name">window.close</property>
+                    <property name="halign">center</property>
+                    <style>
+                      <class name="pill"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </property>
+          </object>
+        </property>
+      </object>
+    </property>
+  </template>
+</interface>

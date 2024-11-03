@@ -1,4 +1,13 @@
 use chrono::TimeDelta;
+use gtk::glib;
+
+pub fn transfer_progress(sent_bytes: u64, total_bytes: u64) -> String {
+    format!(
+        "{} / {}",
+        glib::format_size(sent_bytes),
+        glib::format_size(total_bytes)
+    )
+}
 
 /// Formats time as duration.
 pub fn duration(time_span: TimeDelta) -> String {

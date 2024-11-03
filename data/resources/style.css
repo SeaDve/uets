@@ -51,3 +51,9 @@ image.exit-icon {
 .timeline-list-view {
     padding: 6px;
 }
+
+/* WormholeWindow */
+
+.code-label {
+    padding: 6px 12px;
+}
