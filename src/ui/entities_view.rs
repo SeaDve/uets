@@ -18,6 +18,7 @@ use crate::{
         wormhole_window::WormholeWindow,
     },
     utils::new_sorter,
+    Application,
 };
 
 struct S;
@@ -368,37 +369,35 @@ impl EntitiesView {
             .map(|o| o.unwrap().downcast::<Entity>().unwrap())
             .collect::<Vec<_>>();
 
-        let bytes_fut = report::gen(
-            "Entities",
-            vec![
-                ("Total Entities".to_string(), entities.len().to_string()),
-                (
-                    "Search Query".to_string(),
-                    imp.search_entry.queries().to_string(),
-                ),
-            ],
-            vec!["ID", "StockID", "Zone"],
-            entities.iter().map(|entity| {
-                vec![
-                    entity.id().to_string(),
-                    entity
-                        .stock_id()
-                        .map(|id| id.to_string())
-                        .unwrap_or_default(),
-                    if entity.is_inside() {
-                        "Inside"
-                    } else {
-                        "Outside"
-                    }
-                    .to_string(),
-                ]
-            }),
-        );
+        let bytes_fut = report::builder("Entities")
+            .prop("Total Entities", entities.len())
+            .prop("Search Query", imp.search_entry.queries())
+            .table(
+                ["ID", "Stock ID", "Zone"],
+                entities.iter().map(|entity| {
+                    [
+                        entity.id().to_string(),
+                        entity
+                            .stock_id()
+                            .map(|id| id.to_string())
+                            .unwrap_or_default(),
+                        if entity.is_inside() {
+                            "Inside"
+                        } else {
+                            "Outside"
+                        }
+                        .to_string(),
+                    ]
+                }),
+            )
+            .build();
 
         if let Err(err) =
             WormholeWindow::send(bytes_fut, &report::file_name("Entities Report"), self).await
         {
-            tracing::error!("Failed to present send report: {}", err);
+            tracing::error!("Failed to send report: {:?}", err);
+
+            Application::get().add_message_toast("Failed to share report");
         }
     }
 

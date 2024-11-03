@@ -148,6 +148,10 @@ impl Application {
         TestWindow::new(self).present();
     }
 
+    pub fn add_message_toast(&self, message: &str) {
+        self.window().add_toast(adw::Toast::new(message));
+    }
+
     fn window(&self) -> Window {
         self.active_window()
             .map_or_else(|| Window::new(self), |w| w.downcast().unwrap())

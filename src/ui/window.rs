@@ -17,6 +17,8 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/window.ui")]
     pub struct Window {
         #[template_child]
+        pub(super) toast_overlay: TemplateChild<adw::ToastOverlay>,
+        #[template_child]
         pub(super) view_stack: TemplateChild<adw::ViewStack>,
         #[template_child]
         pub(super) dashboard_view: TemplateChild<DashboardView>,
@@ -147,6 +149,10 @@ impl Window {
         glib::Object::builder()
             .property("application", application)
             .build()
+    }
+
+    pub fn add_toast(&self, toast: adw::Toast) {
+        self.imp().toast_overlay.add_toast(toast);
     }
 
     fn update_stocks_entities_stack_pages_display(&self) {

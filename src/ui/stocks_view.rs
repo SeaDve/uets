@@ -17,6 +17,7 @@ use crate::{
         wormhole_window::WormholeWindow,
     },
     utils::new_sorter,
+    Application,
 };
 
 struct S;
@@ -338,28 +339,26 @@ impl StocksView {
             .map(|o| o.unwrap().downcast::<Stock>().unwrap())
             .collect::<Vec<_>>();
 
-        let bytes_fut = report::gen(
-            "Stocks",
-            vec![
-                ("Total Stocks".to_string(), stocks.len().to_string()),
-                (
-                    "Search Query".to_string(),
-                    imp.search_entry.queries().to_string(),
-                ),
-            ],
-            vec!["ID", "Count"],
-            stocks.iter().map(|stock| {
-                vec![
-                    stock.id().to_string(),
-                    stock.timeline().n_inside().to_string(),
-                ]
-            }),
-        );
+        let bytes_fut = report::builder("Stocks")
+            .prop("Total Stocks", stocks.len())
+            .prop("Search Query", imp.search_entry.queries())
+            .table(
+                ["ID", "Count"],
+                stocks.iter().map(|stock| {
+                    [
+                        stock.id().to_string(),
+                        stock.timeline().n_inside().to_string(),
+                    ]
+                }),
+            )
+            .build();
 
         if let Err(err) =
             WormholeWindow::send(bytes_fut, &report::file_name("Stocks Report"), self).await
         {
-            tracing::error!("Failed to send report: {}", err);
+            tracing::error!("Failed to send report: {:?}", err);
+
+            Application::get().add_message_toast("Failed to share report");
         }
     }
 

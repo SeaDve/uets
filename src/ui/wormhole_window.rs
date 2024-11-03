@@ -28,9 +28,9 @@ mod imp {
         #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
-        pub(super) code_loading_page: TemplateChild<gtk::Spinner>,
+        pub(super) loading_page: TemplateChild<gtk::Spinner>,
         #[template_child]
-        pub(super) code_loaded_page: TemplateChild<gtk::Box>,
+        pub(super) loaded_page: TemplateChild<gtk::Box>,
         #[template_child]
         pub(super) qrcode_image: TemplateChild<gtk::Image>,
         #[template_child]
@@ -94,6 +94,7 @@ impl WormholeWindow {
 
         if let Err(err) = this.start_send(bytes_fut, dest_file_name).await {
             if !err.is::<gio::Cancelled>() {
+                this.close();
                 return Err(err);
             }
         }
@@ -110,7 +111,7 @@ impl WormholeWindow {
 
         imp.file_name_label.set_text(dest_file_name);
 
-        imp.stack.set_visible_child(&*imp.code_loading_page);
+        imp.stack.set_visible_child(&*imp.loading_page);
         imp.title_label.set_label("Loading Data");
         imp.close_button.set_label("Cancel");
 
@@ -144,7 +145,7 @@ impl WormholeWindow {
         imp.qrcode_image.set_paintable(Some(&qrcode_texture));
         imp.code_label.set_text(connection.code().as_str());
 
-        imp.stack.set_visible_child(&*imp.code_loaded_page);
+        imp.stack.set_visible_child(&*imp.loaded_page);
         imp.title_label.set_label("Scan or Type Code");
 
         let wormhole =

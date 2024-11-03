@@ -9,15 +9,15 @@ adw = { package = "libadwaita", version = "0.7", features = ["v1_2"] }
 anyhow = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 fuzzy-matcher = "0.3.7"
-genpdf = "0.2.0"
+genpdf = { version = "0.2.0", features = ["images"] }
 gtk = { package = "gtk4", version = "0.9", features = ["gnome_43"] }
 gsettings-macro = "0.2.1"
 gvdb = { version = "0.7", features = ["gresource"] }
 heed = "0.20.5"
+image = "0.23"
 indexmap = { version = "2.6", features = ["serde"] }
 plotters = "0.3.7"
 plotters-cairo = "0.7.0"
-printpdf = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 qrcode = "0.14"

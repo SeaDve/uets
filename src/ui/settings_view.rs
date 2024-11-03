@@ -53,6 +53,8 @@ mod imp {
             self.shutdown_button.connect_clicked(|_| {
                 if let Err(err) = Command::new("shutdown").arg("now").spawn() {
                     tracing::error!("Failed to run shutdown command: {:?}", err);
+
+                    Application::get().add_message_toast("Failed to start shutdown process");
                 }
             });
         }

@@ -27,6 +27,7 @@ mod stock_id;
 mod stock_list;
 mod stock_timeline;
 mod stock_timeline_item;
+mod time_graph;
 mod timeline;
 mod timeline_item;
 mod timeline_item_kind;

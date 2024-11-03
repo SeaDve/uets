@@ -6,71 +6,75 @@
     <property name="default-width">480</property>
     <property name="default-height">816</property>
     <property name="content">
-      <object class="GtkBox">
-        <property name="orientation">vertical</property>
-        <child>
-          <object class="AdwViewStack" id="view_stack">
-            <property name="vexpand">True</property>
+      <object class="AdwToastOverlay" id="toast_overlay">
+        <property name="child">
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
             <child>
-              <object class="AdwViewStackPage">
-                <property name="name">dashboard</property>
-                <property name="title">Dashboard</property>
-                <property name="icon-name">go-home-symbolic</property>
-                <property name="child">
-                  <object class="UetsDashboardView" id="dashboard_view"/>
-                </property>
+              <object class="AdwViewStack" id="view_stack">
+                <property name="vexpand">True</property>
+                <child>
+                  <object class="AdwViewStackPage">
+                    <property name="name">dashboard</property>
+                    <property name="title">Dashboard</property>
+                    <property name="icon-name">go-home-symbolic</property>
+                    <property name="child">
+                      <object class="UetsDashboardView" id="dashboard_view"/>
+                    </property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwViewStackPage">
+                    <property name="name">timeline</property>
+                    <property name="title">Timeline</property>
+                    <property name="icon-name">view-list-bullet-symbolic</property>
+                    <property name="child">
+                      <object class="UetsTimelineView" id="timeline_view"/>
+                    </property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwViewStackPage" id="stocks_stack_page">
+                    <property name="name">stocks</property>
+                    <property name="title">Stocks</property>
+                    <property name="child">
+                      <object class="UetsStocksView" id="stocks_view"/>
+                    </property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwViewStackPage" id="entities_stack_page">
+                    <property name="name">entities</property>
+                    <property name="title">Entities</property>
+                    <property name="child">
+                      <object class="UetsEntitiesView" id="entities_view"/>
+                    </property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwViewStackPage">
+                    <property name="name">settings</property>
+                    <property name="title">Settings</property>
+                    <property name="icon-name">settings-symbolic</property>
+                    <property name="child">
+                      <object class="UetsSettingsView" id="settings_view"/>
+                    </property>
+                  </object>
+                </child>
               </object>
             </child>
             <child>
-              <object class="AdwViewStackPage">
-                <property name="name">timeline</property>
-                <property name="title">Timeline</property>
-                <property name="icon-name">view-list-bullet-symbolic</property>
+              <object class="GtkWindowHandle">
                 <property name="child">
-                  <object class="UetsTimelineView" id="timeline_view"/>
-                </property>
-              </object>
-            </child>
-            <child>
-              <object class="AdwViewStackPage" id="stocks_stack_page">
-                <property name="name">stocks</property>
-                <property name="title">Stocks</property>
-                <property name="child">
-                  <object class="UetsStocksView" id="stocks_view"/>
-                </property>
-              </object>
-            </child>
-            <child>
-              <object class="AdwViewStackPage" id="entities_stack_page">
-                <property name="name">entities</property>
-                <property name="title">Entities</property>
-                <property name="child">
-                  <object class="UetsEntitiesView" id="entities_view"/>
-                </property>
-              </object>
-            </child>
-            <child>
-              <object class="AdwViewStackPage">
-                <property name="name">settings</property>
-                <property name="title">Settings</property>
-                <property name="icon-name">settings-symbolic</property>
-                <property name="child">
-                  <object class="UetsSettingsView" id="settings_view"/>
+                  <object class="AdwViewSwitcherBar">
+                    <property name="reveal">True</property>
+                    <property name="stack">view_stack</property>
+                  </object>
                 </property>
               </object>
             </child>
           </object>
-        </child>
-        <child>
-          <object class="GtkWindowHandle">
-            <property name="child">
-              <object class="AdwViewSwitcherBar">
-                <property name="reveal">True</property>
-                <property name="stack">view_stack</property>
-              </object>
-            </property>
-          </object>
-        </child>
+        </property>
       </object>
     </property>
   </template>

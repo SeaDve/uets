@@ -10,6 +10,7 @@ use crate::{
     fuzzy_filter::FuzzyFilter,
     list_model_enum, report,
     stock_id::StockId,
+    time_graph,
     timeline::Timeline,
     timeline_item::TimelineItem,
     ui::{search_entry::SearchEntry, timeline_row::TimelineRow, wormhole_window::WormholeWindow},
@@ -380,33 +381,44 @@ impl TimelineView {
         let n_entries = timeline.n_entries();
         let n_exits = timeline.n_exits();
 
-        let bytes_fut = report::gen(
-            "Timeline",
-            vec![
-                ("Inside Count".to_string(), n_inside.to_string()),
-                ("Max Inside Count".to_string(), max_n_inside.to_string()),
-                ("Total Entries".to_string(), n_entries.to_string()),
-                ("Total Exits".to_string(), n_exits.to_string()),
-                (
-                    "Search Query".to_string(),
-                    imp.search_entry.queries().to_string(),
-                ),
-            ],
-            vec!["Timestamp", "Kind", "Entity ID", "Inside Count"],
-            items.iter().map(|item| {
-                vec![
-                    item.dt().inner().format("%Y-%m-%dT%H:%M:%S").to_string(),
-                    item.kind().to_string(),
-                    item.entity_id().to_string(),
-                    item.n_inside().to_string(),
-                ]
-            }),
-        );
+        let bytes_fut = async {
+            let time_graph_bytes = time_graph::draw_image(
+                (1280, 720),
+                &Application::get()
+                    .timeline()
+                    .iter()
+                    .map(|item| (item.dt().inner(), item.n_inside()))
+                    .collect::<Vec<_>>(),
+            )?;
+
+            report::builder("Timeline")
+                .prop("Inside Count", n_inside)
+                .prop("Max Inside Count", max_n_inside)
+                .prop("Total Entries", n_entries)
+                .prop("Total Exits", n_exits)
+                .prop("Search Query", imp.search_entry.queries())
+                .image("Time Graph", time_graph_bytes)
+                .table(
+                    ["Timestamp", "Kind", "Entity ID", "Inside Count"],
+                    items.iter().map(|item| {
+                        [
+                            item.dt().inner().format("%Y-%m-%dT%H:%M:%S").to_string(),
+                            item.kind().to_string(),
+                            item.entity_id().to_string(),
+                            item.n_inside().to_string(),
+                        ]
+                    }),
+                )
+                .build()
+                .await
+        };
 
         if let Err(err) =
             WormholeWindow::send(bytes_fut, &report::file_name("Timeline Report"), self).await
         {
-            tracing::error!("Failed to send report: {}", err);
+            tracing::error!("Failed to send report: {:?}", err);
+
+            Application::get().add_message_toast("Failed to share report");
         }
     }
 
