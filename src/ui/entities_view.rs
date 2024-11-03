@@ -369,10 +369,11 @@ impl EntitiesView {
             .map(|o| o.unwrap().downcast::<Entity>().unwrap())
             .collect::<Vec<_>>();
 
-        let bytes_fut = report::builder("Entities")
+        let bytes_fut = report::builder("Entities Report")
             .prop("Total Entities", entities.len())
             .prop("Search Query", imp.search_entry.queries())
             .table(
+                "Entities",
                 ["ID", "Stock ID", "Zone"],
                 entities.iter().map(|entity| {
                     [

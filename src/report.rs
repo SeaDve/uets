@@ -32,8 +32,9 @@ pub fn builder(title: impl Into<String>) -> ReportBuilder {
         title: title.into(),
         props: Vec::new(),
         images: Vec::new(),
-        rows_titles: Vec::new(),
-        rows: Vec::new(),
+        table_title: None,
+        table_rows_titles: Vec::new(),
+        table_rows: Vec::new(),
     }
 }
 
@@ -41,8 +42,9 @@ pub struct ReportBuilder {
     title: String,
     props: Vec<(String, String)>,
     images: Vec<(String, DynamicImage)>,
-    rows_titles: Vec<String>,
-    rows: Vec<Vec<String>>,
+    table_title: Option<String>,
+    table_rows_titles: Vec<String>,
+    table_rows: Vec<Vec<String>>,
 }
 
 impl ReportBuilder {
@@ -58,14 +60,16 @@ impl ReportBuilder {
 
     pub fn table(
         mut self,
-        row_titles: impl IntoIterator<Item = impl Into<String>>,
+        title: impl Into<String>,
+        rows_titles: impl IntoIterator<Item = impl Into<String>>,
         rows: impl IntoIterator<Item = impl IntoIterator<Item = impl Into<String>>>,
     ) -> Self {
-        self.rows_titles = row_titles
+        self.table_title = Some(title.into());
+        self.table_rows_titles = rows_titles
             .into_iter()
             .map(|row_title| row_title.into())
             .collect();
-        self.rows = rows
+        self.table_rows = rows
             .into_iter()
             .map(|row| row.into_iter().map(|cell| cell.into()).collect())
             .collect();
@@ -73,44 +77,32 @@ impl ReportBuilder {
     }
 
     pub async fn build(self) -> Result<Vec<u8>> {
-        gio::spawn_blocking(move || {
-            gen_bytes(
-                self.title,
-                self.props,
-                self.images,
-                self.rows_titles,
-                self.rows,
-            )
-        })
-        .await
-        .unwrap()
+        gio::spawn_blocking(move || build_inner(self))
+            .await
+            .unwrap()
     }
 }
 
-fn gen_bytes(
-    title: String,
-    props: Vec<(String, String)>,
-    images: Vec<(String, DynamicImage)>,
-    rows_titles: Vec<String>,
-    rows: Vec<Vec<String>>,
-) -> Result<Vec<u8>> {
-    debug_assert!(!rows.is_empty());
-    debug_assert!(rows.iter().all(|row| row.len() == rows_titles.len()));
+fn build_inner(b: ReportBuilder) -> Result<Vec<u8>> {
+    debug_assert!(!b.table_rows.is_empty());
+    debug_assert!(b
+        .table_rows
+        .iter()
+        .all(|row| row.len() == b.table_rows_titles.len()));
 
     let mut doc = doc()?;
-    doc.set_title(title.clone());
+    doc.set_title(b.title.clone());
     doc.set_minimal_conformance();
 
-    doc.push(p_bold(title).styled(style::Style::new().with_font_size(24)));
+    doc.push(p_bold(b.title).styled(style::Style::new().with_font_size(24)));
 
     doc.push(p(format!("Date Generated: {}", Local::now().to_rfc2822())));
-    for (key, value) in props.iter() {
+    for (key, value) in b.props.iter() {
         doc.push(p(format!("{}: {}", key, value)));
     }
 
-    for (image_title, image_data) in images {
-        doc.push(b());
-
+    for (image_title, image_data) in b.images {
+        doc.push(br());
         doc.push(p_bold(image_title).aligned(Alignment::Center));
 
         doc.push(
@@ -120,32 +112,37 @@ fn gen_bytes(
         );
     }
 
-    doc.push(b());
+    if let Some(table_title) = b.table_title {
+        doc.push(br());
+        doc.push(p_bold(table_title).aligned(Alignment::Center));
 
-    let mut table = table(rows_titles.len());
-    table.push_row(
-        rows_titles
-            .iter()
-            .map(|title| p_bold(title).aligned(Alignment::Center).boxed())
-            .collect(),
-    )?;
-    for row in rows.iter() {
+        let mut table = table(b.table_rows_titles.len());
+
         table.push_row(
-            row.iter()
-                .map(|cell| {
-                    Text::new(cell)
-                        .padded(Margins::trbl(
-                            TABLE_TOP_BOTTOM_PADDING_MM,
-                            TABLE_LEFT_RIGHT_PADDING_MM,
-                            TABLE_TOP_BOTTOM_PADDING_MM,
-                            TABLE_LEFT_RIGHT_PADDING_MM,
-                        ))
-                        .boxed()
-                })
+            b.table_rows_titles
+                .iter()
+                .map(|title| p_bold(title).aligned(Alignment::Center).boxed())
                 .collect(),
         )?;
+
+        for row in b.table_rows.iter() {
+            table.push_row(
+                row.iter()
+                    .map(|cell| {
+                        Text::new(cell)
+                            .padded(Margins::trbl(
+                                TABLE_TOP_BOTTOM_PADDING_MM,
+                                TABLE_LEFT_RIGHT_PADDING_MM,
+                                TABLE_TOP_BOTTOM_PADDING_MM,
+                                TABLE_LEFT_RIGHT_PADDING_MM,
+                            ))
+                            .boxed()
+                    })
+                    .collect(),
+            )?;
+        }
+        doc.push(table);
     }
-    doc.push(table);
 
     let mut bytes = Vec::new();
     doc.render(&mut bytes)?;
@@ -200,7 +197,7 @@ fn p(text: impl Into<String>) -> Paragraph {
 }
 
 #[must_use]
-fn b() -> Break {
+fn br() -> Break {
     Break::new(1)
 }
 

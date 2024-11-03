@@ -383,7 +383,7 @@ impl TimelineView {
 
         let bytes_fut = async {
             let time_graph_bytes = time_graph::draw_image(
-                (1280, 720),
+                (800, 500),
                 &Application::get()
                     .timeline()
                     .iter()
@@ -391,7 +391,7 @@ impl TimelineView {
                     .collect::<Vec<_>>(),
             )?;
 
-            report::builder("Timeline")
+            report::builder("Timeline Report")
                 .prop("Inside Count", n_inside)
                 .prop("Max Inside Count", max_n_inside)
                 .prop("Total Entries", n_entries)
@@ -399,6 +399,7 @@ impl TimelineView {
                 .prop("Search Query", imp.search_entry.queries())
                 .image("Time Graph", time_graph_bytes)
                 .table(
+                    "Timeline",
                     ["Timestamp", "Kind", "Entity ID", "Inside Count"],
                     items.iter().map(|item| {
                         [

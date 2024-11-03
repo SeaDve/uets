@@ -339,10 +339,11 @@ impl StocksView {
             .map(|o| o.unwrap().downcast::<Stock>().unwrap())
             .collect::<Vec<_>>();
 
-        let bytes_fut = report::builder("Stocks")
+        let bytes_fut = report::builder("Stocks Report")
             .prop("Total Stocks", stocks.len())
             .prop("Search Query", imp.search_entry.queries())
             .table(
+                "Stocks",
                 ["ID", "Count"],
                 stocks.iter().map(|stock| {
                     [
