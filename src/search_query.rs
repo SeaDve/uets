@@ -66,12 +66,10 @@ impl SearchQueries {
         self.0.is_empty()
     }
 
-    /// Returns the last query that matches any of the given needles.
+    /// Returns the last query that matches any of the given values.
     pub fn find_last_match(&self, iden: &str, values: &[&str]) -> Option<&str> {
         debug_assert!(!iden.contains(char::is_whitespace));
-        debug_assert!(values
-            .iter()
-            .all(|needle| !needle.contains(char::is_whitespace)));
+        debug_assert!(values.iter().all(|v| !v.contains(char::is_whitespace)));
 
         self.0.iter().rev().find_map(|query| match query {
             SearchQuery::IdenValue(i, v) if i == iden && values.contains(&v.as_str()) => {

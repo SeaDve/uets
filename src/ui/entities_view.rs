@@ -30,6 +30,14 @@ impl S {
     const STOCK: &str = "stock";
 
     const SORT: &str = "sort";
+    const SORT_VALUES: &[&str] = &[
+        Self::ID_ASC,
+        Self::ID_DESC,
+        Self::STOCK_ASC,
+        Self::STOCK_DESC,
+        Self::UPDATED_ASC,
+        Self::UPDATED_DESC,
+    ];
 
     const ID_ASC: &str = "id-asc";
     const ID_DESC: &str = "id-desc";
@@ -448,26 +456,22 @@ impl EntitiesView {
 
         let mut queries = imp.search_entry.queries();
 
-        let replaced = &[
-            S::ID_ASC,
-            S::ID_DESC,
-            S::STOCK_ASC,
-            S::STOCK_DESC,
-            S::UPDATED_ASC,
-            S::UPDATED_DESC,
-        ];
         match selected_item.value().try_into().unwrap() {
-            EntitySort::IdAsc => queries.replace_all_or_insert(S::SORT, replaced, S::ID_ASC),
-            EntitySort::IdDesc => queries.replace_all_or_insert(S::SORT, replaced, S::ID_DESC),
-            EntitySort::StockAsc => queries.replace_all_or_insert(S::SORT, replaced, S::STOCK_ASC),
+            EntitySort::IdAsc => queries.replace_all_or_insert(S::SORT, S::SORT_VALUES, S::ID_ASC),
+            EntitySort::IdDesc => {
+                queries.replace_all_or_insert(S::SORT, S::SORT_VALUES, S::ID_DESC)
+            }
+            EntitySort::StockAsc => {
+                queries.replace_all_or_insert(S::SORT, S::SORT_VALUES, S::STOCK_ASC)
+            }
             EntitySort::StockDesc => {
-                queries.replace_all_or_insert(S::SORT, replaced, S::STOCK_DESC)
+                queries.replace_all_or_insert(S::SORT, S::SORT_VALUES, S::STOCK_DESC)
             }
             EntitySort::UpdatedAsc => {
-                queries.replace_all_or_insert(S::SORT, replaced, S::UPDATED_ASC)
+                queries.replace_all_or_insert(S::SORT, S::SORT_VALUES, S::UPDATED_ASC)
             }
             EntitySort::UpdatedDesc => {
-                queries.replace_all_or_insert(S::SORT, replaced, S::UPDATED_DESC)
+                queries.replace_all_or_insert(S::SORT, S::SORT_VALUES, S::UPDATED_DESC)
             }
         }
 
@@ -479,17 +483,7 @@ impl EntitiesView {
 
         let queries = imp.search_entry.queries();
 
-        let entity_sort = match queries.find_last_match(
-            S::SORT,
-            &[
-                S::ID_ASC,
-                S::ID_DESC,
-                S::STOCK_ASC,
-                S::STOCK_DESC,
-                S::UPDATED_ASC,
-                S::UPDATED_DESC,
-            ],
-        ) {
+        let entity_sort = match queries.find_last_match(S::SORT, S::SORT_VALUES) {
             Some(S::ID_ASC) => EntitySort::IdAsc,
             Some(S::ID_DESC) => EntitySort::IdDesc,
             Some(S::STOCK_ASC) => EntitySort::StockAsc,

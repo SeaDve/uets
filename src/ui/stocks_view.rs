@@ -20,6 +20,14 @@ struct S;
 
 impl S {
     const SORT: &str = "sort";
+    const SORT_VALUES: &[&str] = &[
+        Self::ID_ASC,
+        Self::ID_DESC,
+        Self::COUNT_ASC,
+        Self::COUNT_DESC,
+        Self::UPDATED_ASC,
+        Self::UPDATED_DESC,
+    ];
 
     const ID_ASC: &str = "id-asc";
     const ID_DESC: &str = "id-desc";
@@ -325,24 +333,20 @@ impl StocksView {
 
         let mut queries = imp.search_entry.queries();
 
-        let replaced = &[
-            S::ID_ASC,
-            S::ID_DESC,
-            S::COUNT_ASC,
-            S::COUNT_DESC,
-            S::UPDATED_ASC,
-            S::UPDATED_DESC,
-        ];
         match selected_item.value().try_into().unwrap() {
-            StockSort::IdAsc => queries.replace_all_or_insert(S::SORT, replaced, S::ID_ASC),
-            StockSort::IdDesc => queries.replace_all_or_insert(S::SORT, replaced, S::ID_DESC),
-            StockSort::CountAsc => queries.replace_all_or_insert(S::SORT, replaced, S::COUNT_ASC),
-            StockSort::CountDesc => queries.replace_all_or_insert(S::SORT, replaced, S::COUNT_DESC),
+            StockSort::IdAsc => queries.replace_all_or_insert(S::SORT, S::SORT_VALUES, S::ID_ASC),
+            StockSort::IdDesc => queries.replace_all_or_insert(S::SORT, S::SORT_VALUES, S::ID_DESC),
+            StockSort::CountAsc => {
+                queries.replace_all_or_insert(S::SORT, S::SORT_VALUES, S::COUNT_ASC)
+            }
+            StockSort::CountDesc => {
+                queries.replace_all_or_insert(S::SORT, S::SORT_VALUES, S::COUNT_DESC)
+            }
             StockSort::UpdatedAsc => {
-                queries.replace_all_or_insert(S::SORT, replaced, S::UPDATED_ASC)
+                queries.replace_all_or_insert(S::SORT, S::SORT_VALUES, S::UPDATED_ASC)
             }
             StockSort::UpdatedDesc => {
-                queries.replace_all_or_insert(S::SORT, replaced, S::UPDATED_DESC)
+                queries.replace_all_or_insert(S::SORT, S::SORT_VALUES, S::UPDATED_DESC)
             }
         }
 
@@ -353,17 +357,7 @@ impl StocksView {
         let imp = self.imp();
 
         let queries = imp.search_entry.queries();
-        let stock_sort = match queries.find_last_match(
-            S::SORT,
-            &[
-                S::ID_ASC,
-                S::ID_DESC,
-                S::COUNT_ASC,
-                S::COUNT_DESC,
-                S::UPDATED_ASC,
-                S::UPDATED_DESC,
-            ],
-        ) {
+        let stock_sort = match queries.find_last_match(S::SORT, S::SORT_VALUES) {
             Some(S::ID_ASC) => StockSort::IdAsc,
             Some(S::ID_DESC) => StockSort::IdDesc,
             Some(S::COUNT_ASC) => StockSort::CountAsc,
