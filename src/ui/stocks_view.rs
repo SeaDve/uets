@@ -340,7 +340,10 @@ impl StocksView {
             .collect::<Vec<_>>();
 
         let bytes_fut = report::builder("Stocks Report")
-            .prop("Total Stocks", stocks.len())
+            .prop(
+                "Total Stock Count",
+                stocks.iter().map(|s| s.timeline().n_inside()).sum::<u32>(),
+            )
             .prop("Search Query", imp.search_entry.queries())
             .table(
                 "Stocks",
