@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use gtk::{
     glib::{self, clone, closure, closure_local},
     prelude::*,
@@ -17,6 +15,7 @@ use crate::{
     ui::{
         entity_details_pane::EntityDetailsPane, entity_row::EntityRow, search_entry::SearchEntry,
     },
+    utils::new_sorter,
 };
 
 struct S;
@@ -502,23 +501,22 @@ impl EntitiesView {
             .unblock_signal(selected_item_notify_id);
 
         let sorter = match entity_sort {
-            EntitySort::IdAsc | EntitySort::IdDesc => {
-                new_entity_sorter(matches!(entity_sort, EntitySort::IdDesc), |a, b| {
-                    a.id().cmp(b.id())
-                })
-            }
-            EntitySort::StockAsc | EntitySort::StockDesc => {
-                new_entity_sorter(matches!(entity_sort, EntitySort::StockDesc), |a, b| {
-                    a.stock_id().cmp(&b.stock_id())
-                })
-            }
-            EntitySort::UpdatedAsc | EntitySort::UpdatedDesc => {
-                new_entity_sorter(matches!(entity_sort, EntitySort::UpdatedDesc), |a, b| {
+            EntitySort::IdAsc | EntitySort::IdDesc => new_sorter(
+                matches!(entity_sort, EntitySort::IdDesc),
+                |a: &Entity, b| a.id().cmp(b.id()),
+            ),
+            EntitySort::StockAsc | EntitySort::StockDesc => new_sorter(
+                matches!(entity_sort, EntitySort::StockDesc),
+                |a: &Entity, b| a.stock_id().cmp(&b.stock_id()),
+            ),
+            EntitySort::UpdatedAsc | EntitySort::UpdatedDesc => new_sorter(
+                matches!(entity_sort, EntitySort::UpdatedDesc),
+                |a: &Entity, b| {
                     a.last_dt_pair()
                         .map(|pair| pair.last_dt())
                         .cmp(&b.last_dt_pair().map(|pair| pair.last_dt()))
-                })
-            }
+                },
+            ),
         };
 
         imp.fuzzy_filter
@@ -536,24 +534,5 @@ impl EntitiesView {
         } else {
             imp.stack.set_visible_child(&*imp.main_page);
         }
-    }
-}
-
-fn new_entity_sorter(
-    is_reverse: bool,
-    predicate: impl Fn(&Entity, &Entity) -> Ordering + 'static,
-) -> gtk::CustomSorter {
-    if is_reverse {
-        gtk::CustomSorter::new(move |a, b| {
-            let a = a.downcast_ref::<Entity>().unwrap();
-            let b = b.downcast_ref::<Entity>().unwrap();
-            predicate(a, b).reverse().into()
-        })
-    } else {
-        gtk::CustomSorter::new(move |a, b| {
-            let a = a.downcast_ref::<Entity>().unwrap();
-            let b = b.downcast_ref::<Entity>().unwrap();
-            predicate(a, b).into()
-        })
     }
 }

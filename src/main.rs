@@ -19,7 +19,6 @@ mod entity_list;
 mod format;
 mod fuzzy_filter;
 mod fuzzy_sorter;
-mod macros;
 mod search_query;
 mod settings;
 mod stock;
@@ -31,6 +30,7 @@ mod timeline;
 mod timeline_item;
 mod timeline_item_kind;
 mod ui;
+mod utils;
 
 use std::path::Path;
 

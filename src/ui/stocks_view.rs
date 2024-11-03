@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use gtk::{
     glib::{self, clone, closure, closure_local},
     prelude::*,
@@ -14,6 +12,7 @@ use crate::{
     stock_id::StockId,
     stock_list::StockList,
     ui::{search_entry::SearchEntry, stock_details_pane::StockDetailsPane, stock_row::StockRow},
+    utils::new_sorter,
 };
 
 struct S;
@@ -376,23 +375,23 @@ impl StocksView {
 
         let sorter = match stock_sort {
             StockSort::IdAsc | StockSort::IdDesc => {
-                new_stock_sorter(matches!(stock_sort, StockSort::IdDesc), |a, b| {
+                new_sorter(matches!(stock_sort, StockSort::IdDesc), |a: &Stock, b| {
                     a.id().cmp(b.id())
                 })
             }
-            StockSort::CountAsc | StockSort::CountDesc => {
-                new_stock_sorter(matches!(stock_sort, StockSort::CountDesc), |a, b| {
-                    a.timeline().n_inside().cmp(&b.timeline().n_inside())
-                })
-            }
-            StockSort::UpdatedAsc | StockSort::UpdatedDesc => {
-                new_stock_sorter(matches!(stock_sort, StockSort::UpdatedDesc), |a, b| {
+            StockSort::CountAsc | StockSort::CountDesc => new_sorter(
+                matches!(stock_sort, StockSort::CountDesc),
+                |a: &Stock, b| a.timeline().n_inside().cmp(&b.timeline().n_inside()),
+            ),
+            StockSort::UpdatedAsc | StockSort::UpdatedDesc => new_sorter(
+                matches!(stock_sort, StockSort::UpdatedDesc),
+                |a: &Stock, b| {
                     a.timeline()
                         .last()
                         .map(|i| i.dt())
                         .cmp(&b.timeline().last().map(|i| i.dt()))
-                })
-            }
+                },
+            ),
         };
 
         imp.fuzzy_filter
@@ -410,24 +409,5 @@ impl StocksView {
         } else {
             imp.stack.set_visible_child(&*imp.main_page);
         }
-    }
-}
-
-fn new_stock_sorter(
-    is_reverse: bool,
-    predicate: impl Fn(&Stock, &Stock) -> Ordering + 'static,
-) -> gtk::CustomSorter {
-    if is_reverse {
-        gtk::CustomSorter::new(move |a, b| {
-            let a = a.downcast_ref::<Stock>().unwrap();
-            let b = b.downcast_ref::<Stock>().unwrap();
-            predicate(a, b).reverse().into()
-        })
-    } else {
-        gtk::CustomSorter::new(move |a, b| {
-            let a = a.downcast_ref::<Stock>().unwrap();
-            let b = b.downcast_ref::<Stock>().unwrap();
-            predicate(a, b).into()
-        })
     }
 }
