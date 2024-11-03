@@ -55,7 +55,7 @@
             <child>
               <object class="AdwActionRow">
                 <property name="title">Attendance</property>
-                <property name="subtitle">Used for tracking attendance, alerting when unathorized entity is detected (e.g., meeting rooms, establishment entry)</property>
+                <property name="subtitle">Used for tracking attendance, alerting when unauthorized entity is detected (e.g., meeting rooms, establishment entry)</property>
                 <property name="activatable-widget">attendance_check_button</property>
                 <child type="prefix">
                   <object class="GtkCheckButton" id="attendance_check_button">

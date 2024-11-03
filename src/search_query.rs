@@ -90,7 +90,7 @@ impl SearchQueries {
             .collect()
     }
 
-    pub fn remove_all_standlones(&mut self) {
+    pub fn remove_all_standalones(&mut self) {
         self.0
             .retain(|query| !matches!(query, SearchQuery::Standalone(_)));
     }
