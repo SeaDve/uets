@@ -9,7 +9,7 @@ use crate::{
     entity_id::EntityId,
     entity_list::EntityList,
     fuzzy_filter::FuzzyFilter,
-    list_model_enum,
+    list_model_enum, report,
     search_query::SearchQueries,
     stock_id::StockId,
     ui::{
@@ -140,9 +140,19 @@ mod imp {
                 "entities-view.share-report",
                 None,
                 |obj, _, _| async move {
+                    let entities = obj
+                        .imp()
+                        .selection_model
+                        .iter::<glib::Object>()
+                        .map(|o| o.unwrap().downcast::<Entity>().unwrap())
+                        .collect::<Vec<_>>();
+                    let report_bytes = report::gen_entities(&entities).unwrap();
                     if let Err(err) = WormholeWindow::send(
-                        "hello, world!".as_bytes().to_owned(),
-                        "hello_world.txt",
+                        report_bytes,
+                        &format!(
+                            "Entities Report ({}).pdf",
+                            chrono::Local::now().format("%Y-%m-%d-%H-%M-%S")
+                        ),
                         Some(
                             obj.root()
                                 .as_ref()
