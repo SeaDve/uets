@@ -32,9 +32,7 @@ pub fn builder(title: impl Into<String>) -> ReportBuilder {
         title: title.into(),
         props: Vec::new(),
         images: Vec::new(),
-        table_title: None,
-        table_rows_titles: Vec::new(),
-        table_rows: Vec::new(),
+        table: None,
     }
 }
 
@@ -42,9 +40,7 @@ pub struct ReportBuilder {
     title: String,
     props: Vec<(String, String)>,
     images: Vec<(String, DynamicImage)>,
-    table_title: Option<String>,
-    table_rows_titles: Vec<String>,
-    table_rows: Vec<Vec<String>>,
+    table: Option<(String, Vec<String>, Vec<Vec<String>>)>,
 }
 
 impl ReportBuilder {
@@ -64,15 +60,18 @@ impl ReportBuilder {
         rows_titles: impl IntoIterator<Item = impl Into<String>>,
         rows: impl IntoIterator<Item = impl IntoIterator<Item = impl Into<String>>>,
     ) -> Self {
-        self.table_title = Some(title.into());
-        self.table_rows_titles = rows_titles
+        let rows_titles = rows_titles
             .into_iter()
             .map(|row_title| row_title.into())
-            .collect();
-        self.table_rows = rows
+            .collect::<Vec<_>>();
+        let rows = rows
             .into_iter()
-            .map(|row| row.into_iter().map(|cell| cell.into()).collect())
-            .collect();
+            .map(|row| row.into_iter().map(|cell| cell.into()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+
+        debug_assert!(rows.iter().all(|row| row.len() == rows_titles.len()));
+
+        self.table = Some((title.into(), rows_titles, rows));
         self
     }
 
@@ -84,12 +83,6 @@ impl ReportBuilder {
 }
 
 fn build_inner(b: ReportBuilder) -> Result<Vec<u8>> {
-    debug_assert!(!b.table_rows.is_empty());
-    debug_assert!(b
-        .table_rows
-        .iter()
-        .all(|row| row.len() == b.table_rows_titles.len()));
-
     let font_family = fonts::FontFamily {
         regular: font_data_from_resource("times.ttf")?,
         bold: font_data_from_resource("timesbd.ttf")?,
@@ -124,23 +117,23 @@ fn build_inner(b: ReportBuilder) -> Result<Vec<u8>> {
         );
     }
 
-    if let Some(table_title) = b.table_title {
+    if let Some((table_title, rows_titles, rows)) = b.table {
         doc.push(br());
         doc.push(p_bold(table_title).aligned(Alignment::Center));
 
-        let mut table = TableLayout::new(vec![1; b.table_rows_titles.len()]);
+        let mut table = TableLayout::new(vec![1; rows_titles.len()]);
 
         let cell_decorator = FrameCellDecorator::new(true, true, true);
         table.set_cell_decorator(cell_decorator);
 
         table.push_row(
-            b.table_rows_titles
+            rows_titles
                 .iter()
                 .map(|title| p_bold(title).aligned(Alignment::Center).boxed())
                 .collect(),
         )?;
 
-        for row in b.table_rows.iter() {
+        for row in rows.iter() {
             table.push_row(
                 row.iter()
                     .map(|cell| {
