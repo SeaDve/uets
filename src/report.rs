@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, time::Instant};
 
 use anyhow::Result;
 use chrono::Local;
@@ -76,9 +76,17 @@ impl ReportBuilder {
     }
 
     pub async fn build(self) -> Result<Vec<u8>> {
-        gio::spawn_blocking(move || build_inner(self))
-            .await
-            .unwrap()
+        gio::spawn_blocking(move || {
+            let now = Instant::now();
+
+            let ret = build_inner(self);
+
+            tracing::info!("Built report in {:?}", now.elapsed());
+
+            ret
+        })
+        .await
+        .unwrap()
     }
 }
 
