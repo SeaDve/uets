@@ -10,7 +10,7 @@ use crate::{
     detector::Detector,
     settings::Settings,
     timeline::Timeline,
-    ui::{TestWindow, Window},
+    ui::{TestWindow, Window, WormholeWindow},
     APP_ID, GRESOURCE_PREFIX,
 };
 
@@ -62,6 +62,8 @@ mod imp {
                     obj.quit();
                 }
             }
+
+            WormholeWindow::init_premade_connection();
 
             obj.setup_actions();
             obj.setup_accels();

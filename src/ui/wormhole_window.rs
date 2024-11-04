@@ -2,6 +2,7 @@ use std::future::{self, Future};
 
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::Result;
+use async_lock::Mutex;
 use gtk::{
     gdk, gio,
     glib::{self, clone},
@@ -18,6 +19,9 @@ const WORMHOLE_CODE_LENGTH: usize = 4;
 const WORMHOLE_APP_RENDEZVOUS_URL: &str = "ws://relay.magic-wormhole.io:4000/v1";
 const WORMHOLE_TRANSIT_RELAY_URL: &str = "tcp://transit.magic-wormhole.io:4001";
 const WORMHOLE_TRANSIT_ABILITIES: transit::Abilities = transit::Abilities::FORCE_DIRECT;
+
+static PREMADE_CONNECTION: Mutex<Option<MailboxConnection<transfer::AppVersion>>> =
+    Mutex::new(None);
 
 mod imp {
     use super::*;
@@ -65,6 +69,8 @@ mod imp {
     impl ObjectImpl for WormholeWindow {
         fn dispose(&self) {
             self.cancellable.cancel();
+
+            tracing::debug!("Window disposed");
         }
     }
 
@@ -79,6 +85,14 @@ glib::wrapper! {
 }
 
 impl WormholeWindow {
+    pub fn init_premade_connection() {
+        glib::spawn_future_local(async {
+            if let Err(err) = init_premade_connection_inner().await {
+                tracing::error!("Failed to init premade connection: {:?}", err);
+            }
+        });
+    }
+
     pub async fn send(
         bytes_fut: impl Future<Output = Result<Vec<u8>>>,
         dest_file_name: &str,
@@ -124,13 +138,8 @@ impl WormholeWindow {
             glib::format_size(bytes.len() as u64)
         ));
 
-        let app_config = AppConfig {
-            id: AppID::new(WORMHOLE_APP_ID),
-            rendezvous_url: WORMHOLE_APP_RENDEZVOUS_URL.into(),
-            app_version: transfer::AppVersion::default(),
-        };
         let connection = gio::CancellableFuture::new(
-            MailboxConnection::create(app_config, WORMHOLE_CODE_LENGTH),
+            take_and_replace_premade_connection(),
             imp.cancellable.clone(),
         )
         .await??;
@@ -206,4 +215,48 @@ fn qrcode_texture_for_uri(uri: &WormholeTransferUri) -> Result<gdk::Texture> {
     let svg_bytes = qrcode.render::<svg::Color<'_>>().build();
     let texture = gdk::Texture::from_bytes(&svg_bytes.as_bytes().into())?;
     Ok(texture)
+}
+
+async fn take_and_replace_premade_connection() -> Result<MailboxConnection<transfer::AppVersion>> {
+    if let Some(connection) = PREMADE_CONNECTION.lock().await.take() {
+        // Reinitialize a new premade connection for the next time.
+        WormholeWindow::init_premade_connection();
+
+        tracing::trace!("Connection taken");
+
+        return Ok(connection);
+    }
+
+    init_premade_connection_inner().await?;
+    let connection = PREMADE_CONNECTION
+        .lock()
+        .await
+        .take()
+        .expect("premade connection must have been initialized");
+
+    // Reinitialize a new premade connection for the next time.
+    WormholeWindow::init_premade_connection();
+
+    tracing::trace!("Connection taken");
+
+    Ok(connection)
+}
+
+async fn init_premade_connection_inner() -> Result<()> {
+    let mut stored = PREMADE_CONNECTION.lock().await;
+
+    if stored.is_none() {
+        let app_config = AppConfig {
+            id: AppID::new(WORMHOLE_APP_ID),
+            rendezvous_url: WORMHOLE_APP_RENDEZVOUS_URL.into(),
+            app_version: transfer::AppVersion::default(),
+        };
+        let connection = MailboxConnection::create(app_config, WORMHOLE_CODE_LENGTH).await?;
+
+        tracing::trace!("Connection initialized");
+
+        *stored = Some(connection);
+    }
+
+    Ok(())
 }

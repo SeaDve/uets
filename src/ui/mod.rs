@@ -15,4 +15,4 @@ mod timeline_view;
 mod window;
 mod wormhole_window;
 
-pub use self::{test_window::TestWindow, window::Window};
+pub use self::{test_window::TestWindow, window::Window, wormhole_window::WormholeWindow};
