@@ -57,6 +57,18 @@
                     </child>
                   </object>
                 </child>
+                <child>
+                  <object class="AdwActionRow">
+                    <property name="title">Share Report</property>
+                    <property name="activatable">True</property>
+                    <property name="action-name">stock-details-pane.share-report</property>
+                    <child type="suffix">
+                      <object class="GtkImage">
+                        <property name="icon-name">go-next-symbolic</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
               </object>
             </child>
             <child>

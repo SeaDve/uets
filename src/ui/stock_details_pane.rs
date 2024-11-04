@@ -5,9 +5,12 @@ use gtk::{
 };
 
 use crate::{
+    report,
     stock::Stock,
     stock_timeline::StockTimeline,
-    ui::{information_row::InformationRow, time_graph::TimeGraph},
+    time_graph,
+    ui::{information_row::InformationRow, time_graph::TimeGraph, wormhole_window::WormholeWindow},
+    Application,
 };
 
 mod imp {
@@ -51,18 +54,17 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
 
-            klass.install_action(
-                "stock-details-pane.show-timeline",
+            klass.install_action("stock-details-pane.show-timeline", None, |obj, _, _| {
+                obj.emit_by_name::<()>("show-timeline-request", &[]);
+            });
+            klass.install_action("stock-details-pane.show-entities", None, |obj, _, _| {
+                obj.emit_by_name::<()>("show-entities-request", &[]);
+            });
+            klass.install_action_async(
+                "stock-details-pane.share-report",
                 None,
-                move |obj, _, _| {
-                    obj.emit_by_name::<()>("show-timeline-request", &[]);
-                },
-            );
-            klass.install_action(
-                "stock-details-pane.show-entities",
-                None,
-                move |obj, _, _| {
-                    obj.emit_by_name::<()>("show-entities-request", &[]);
+                |obj, _, _| async move {
+                    obj.handle_share_report().await;
                 },
             );
         }
@@ -203,6 +205,50 @@ impl StockDetailsPane {
         F: Fn(&Self) + 'static,
     {
         self.connect_closure("close-request", false, closure_local!(|obj: &Self| f(obj)))
+    }
+
+    async fn handle_share_report(&self) {
+        let imp = self.imp();
+
+        let stock = imp.stock.borrow().as_ref().unwrap().clone();
+        let stock_id = stock.id();
+        let n_inside = stock.timeline().n_inside();
+        let timeline_items = stock.timeline().iter().collect::<Vec<_>>();
+
+        let bytes_fut = async {
+            let time_graph_image = time_graph::draw_image(
+                (800, 500),
+                &timeline_items
+                    .iter()
+                    .map(|item| (item.dt().inner(), item.n_inside()))
+                    .collect::<Vec<_>>(),
+            )?;
+
+            report::builder("Stock Report")
+                .prop("Name", stock_id)
+                .prop("Current Stock Count", n_inside)
+                .image("Time Graph", time_graph_image)
+                .table(
+                    "Timeline",
+                    ["Timestamp", "Stock Count"],
+                    timeline_items.iter().map(|item| {
+                        [
+                            item.dt().inner().format("%Y-%m-%dT%H:%M:%S").to_string(),
+                            item.n_inside().to_string(),
+                        ]
+                    }),
+                )
+                .build()
+                .await
+        };
+
+        if let Err(err) =
+            WormholeWindow::send(bytes_fut, &report::file_name("Stock Report"), self).await
+        {
+            tracing::error!("Failed to send report: {:?}", err);
+
+            Application::get().add_message_toast("Failed to share report");
+        }
     }
 
     fn update_graph_data(&self) {

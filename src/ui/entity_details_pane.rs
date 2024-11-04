@@ -43,13 +43,9 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
 
-            klass.install_action(
-                "entity-details-pane.show-timeline",
-                None,
-                move |obj, _, _| {
-                    obj.emit_by_name::<()>("show-timeline-request", &[]);
-                },
-            );
+            klass.install_action("entity-details-pane.show-timeline", None, |obj, _, _| {
+                obj.emit_by_name::<()>("show-timeline-request", &[]);
+            });
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {

@@ -102,8 +102,7 @@ mod imp {
                     obj.handle_share_report().await;
                 },
             );
-
-            klass.install_action("timeline-view.scroll-to-bottom", None, move |obj, _, _| {
+            klass.install_action("timeline-view.scroll-to-bottom", None, |obj, _, _| {
                 obj.scroll_to_bottom();
             });
         }
@@ -384,8 +383,7 @@ impl TimelineView {
         let bytes_fut = async {
             let time_graph_image = time_graph::draw_image(
                 (800, 500),
-                &Application::get()
-                    .timeline()
+                &items
                     .iter()
                     .map(|item| (item.dt().inner(), item.n_inside()))
                     .collect::<Vec<_>>(),
