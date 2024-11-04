@@ -90,10 +90,22 @@ fn build_inner(b: ReportBuilder) -> Result<Vec<u8>> {
         .iter()
         .all(|row| row.len() == b.table_rows_titles.len()));
 
-    let mut doc = doc()?;
-    doc.set_title(b.title.clone());
-    doc.set_minimal_conformance();
+    let font_family = fonts::FontFamily {
+        regular: font_data_from_resource("times.ttf")?,
+        bold: font_data_from_resource("timesbd.ttf")?,
+        italic: font_data_from_resource("timesi.ttf")?,
+        bold_italic: font_data_from_resource("timesbi.ttf")?,
+    };
 
+    let mut doc = Document::new(font_family);
+    doc.set_minimal_conformance();
+    doc.set_line_spacing(DOC_LINE_SPACING_MM);
+
+    let mut decorator = SimplePageDecorator::new();
+    decorator.set_margins(DOC_MARGINS_MM);
+    doc.set_page_decorator(decorator);
+
+    doc.set_title(b.title.clone());
     doc.push(p_bold(b.title).styled(style::Style::new().with_font_size(24)));
 
     doc.push(p(format!("Date Generated: {}", Local::now().to_rfc2822())));
@@ -156,24 +168,6 @@ fn font_data_from_resource(file_name: &str) -> Result<fonts::FontData> {
     )?;
     let data = fonts::FontData::new(bytes.to_vec(), None)?;
     Ok(data)
-}
-
-fn doc() -> Result<Document> {
-    let font_family = fonts::FontFamily {
-        regular: font_data_from_resource("times.ttf")?,
-        bold: font_data_from_resource("timesbd.ttf")?,
-        italic: font_data_from_resource("timesi.ttf")?,
-        bold_italic: font_data_from_resource("timesbi.ttf")?,
-    };
-
-    let mut doc = Document::new(font_family);
-    doc.set_line_spacing(DOC_LINE_SPACING_MM);
-
-    let mut decorator = SimplePageDecorator::new();
-    decorator.set_margins(DOC_MARGINS_MM);
-    doc.set_page_decorator(decorator);
-
-    Ok(doc)
 }
 
 #[must_use]
