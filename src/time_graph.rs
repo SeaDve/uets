@@ -38,8 +38,14 @@ where
         root.fill(&fill)?;
     }
 
-    let x_min = *data.first().map(|(x, _)| x).unwrap();
-    let x_max = *data.last().map(|(x, _)| x).unwrap();
+    let x_min = data
+        .first()
+        .map(|(x, _)| *x)
+        .unwrap_or(chrono::DateTime::<Utc>::MIN_UTC);
+    let x_max = data
+        .last()
+        .map(|(x, _)| *x)
+        .unwrap_or(chrono::DateTime::<Utc>::MIN_UTC);
 
     let diff = x_max.signed_duration_since(x_min);
     let formatter = if diff.num_weeks() > 0 {
@@ -50,8 +56,8 @@ where
         |dt: &chrono::DateTime<Utc>| dt.format("%H:%M:%S").to_string()
     };
 
-    let y_min = *data.iter().map(|(_, y)| y).min().unwrap();
-    let y_max = *data.iter().map(|(_, y)| y).max().unwrap();
+    let y_min = data.iter().map(|(_, y)| *y).min().unwrap_or(0);
+    let y_max = data.iter().map(|(_, y)| *y).max().unwrap_or(0);
 
     let mut chart = ChartBuilder::on(&root)
         .margin(20)
