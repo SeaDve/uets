@@ -382,7 +382,7 @@ impl TimelineView {
         let n_exits = timeline.n_exits();
 
         let bytes_fut = async {
-            let time_graph_bytes = time_graph::draw_image(
+            let time_graph_image = time_graph::draw_image(
                 (800, 500),
                 &Application::get()
                     .timeline()
@@ -397,7 +397,7 @@ impl TimelineView {
                 .prop("Total Entries", n_entries)
                 .prop("Total Exits", n_exits)
                 .prop("Search Query", imp.search_entry.queries())
-                .image("Time Graph", time_graph_bytes)
+                .image("Time Graph", time_graph_image)
                 .table(
                     "Timeline",
                     ["Timestamp", "Kind", "Entity ID", "Inside Count"],

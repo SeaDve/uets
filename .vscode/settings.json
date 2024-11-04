@@ -1,5 +1,5 @@
 {
-    "rust-analyzer.server.path": "${workspaceFolder}/.toolbox/rust-analyzer.sh",
+    // "rust-analyzer.server.path": "${workspaceFolder}/.toolbox/rust-analyzer.sh",
     "terminal.integrated.defaultProfile.linux": "runtime",
     "terminal.integrated.profiles.linux": {
         "runtime": {
