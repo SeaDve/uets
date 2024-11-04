@@ -32,10 +32,6 @@ where
     DB: DrawingBackend,
     <DB as DrawingBackend>::ErrorType: 'static,
 {
-    if data.is_empty() {
-        return Ok(());
-    }
-
     let root = backend.into_drawing_area();
 
     if let Some(fill) = fill {

@@ -54,8 +54,11 @@ mod imp {
             let cr = snapshot.append_cairo(&bounds);
             let backend = CairoBackend::new(&cr, (width as u32, height as u32)).unwrap();
 
-            if let Err(err) = time_graph::draw(backend, None, &self.data.borrow()) {
-                tracing::error!("Failed to draw graph: {:?}", err);
+            let data = self.data.borrow();
+            if !data.is_empty() {
+                if let Err(err) = time_graph::draw(backend, None, &data) {
+                    tracing::error!("Failed to draw graph: {:?}", err);
+                }
             }
 
             self.parent_snapshot(snapshot);
