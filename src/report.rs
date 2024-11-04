@@ -128,7 +128,10 @@ fn build_inner(b: ReportBuilder) -> Result<Vec<u8>> {
         doc.push(br());
         doc.push(p_bold(table_title).aligned(Alignment::Center));
 
-        let mut table = table(b.table_rows_titles.len());
+        let mut table = TableLayout::new(vec![1; b.table_rows_titles.len()]);
+
+        let cell_decorator = FrameCellDecorator::new(true, true, true);
+        table.set_cell_decorator(cell_decorator);
 
         table.push_row(
             b.table_rows_titles
@@ -168,16 +171,6 @@ fn font_data_from_resource(file_name: &str) -> Result<fonts::FontData> {
     )?;
     let data = fonts::FontData::new(bytes.to_vec(), None)?;
     Ok(data)
-}
-
-#[must_use]
-fn table(n_columns: usize) -> TableLayout {
-    let mut table = TableLayout::new(vec![1; n_columns]);
-
-    let cell_decorator = FrameCellDecorator::new(true, true, true);
-    table.set_cell_decorator(cell_decorator);
-
-    table
 }
 
 #[must_use]
