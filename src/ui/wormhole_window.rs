@@ -9,15 +9,16 @@ use gtk::{
 };
 use qrcode::{render::svg, QrCode};
 use wormhole::{
-    transfer, transit, uri::WormholeTransferUri, AppConfig, AppID, MailboxConnection, Wormhole,
+    rendezvous, transfer, transit, uri::WormholeTransferUri, AppConfig, AppID, MailboxConnection,
+    Wormhole,
 };
 
 use crate::format;
 
-const WORMHOLE_APP_ID: &str = "lothar.com/wormhole/text-or-file-xfer";
 const WORMHOLE_CODE_LENGTH: usize = 4;
-const WORMHOLE_APP_RENDEZVOUS_URL: &str = "ws://relay.magic-wormhole.io:4000/v1";
-const WORMHOLE_TRANSIT_RELAY_URL: &str = "tcp://transit.magic-wormhole.io:4001";
+const WORMHOLE_APP_ID: &str = "lothar.com/wormhole/text-or-file-xfer";
+const WORMHOLE_APP_RENDEZVOUS_URL: &str = rendezvous::DEFAULT_RENDEZVOUS_SERVER;
+const WORMHOLE_TRANSIT_RELAY_URL: &str = transit::DEFAULT_RELAY_SERVER;
 const WORMHOLE_TRANSIT_ABILITIES: transit::Abilities = transit::Abilities::FORCE_DIRECT;
 
 static PREMADE_CONNECTION: Mutex<Option<MailboxConnection<transfer::AppVersion>>> =
