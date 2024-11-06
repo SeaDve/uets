@@ -242,8 +242,12 @@ impl StockDetailsPane {
                 .await
         };
 
-        if let Err(err) =
-            WormholeWindow::send(bytes_fut, &report::file_name("Stock Report"), self).await
+        if let Err(err) = WormholeWindow::send(
+            bytes_fut,
+            &report::file_name(&format!("Stock Report for “{}”", stock_id)),
+            self,
+        )
+        .await
         {
             tracing::error!("Failed to send report: {:?}", err);
 
