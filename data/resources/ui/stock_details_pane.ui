@@ -59,9 +59,23 @@
                 </child>
                 <child>
                   <object class="AdwActionRow">
-                    <property name="title">Share Report</property>
+                    <property name="title">Share Report As PDF</property>
                     <property name="activatable">True</property>
                     <property name="action-name">stock-details-pane.share-report</property>
+                    <property name="action-target">"pdf"</property>
+                    <child type="suffix">
+                      <object class="GtkImage">
+                        <property name="icon-name">go-next-symbolic</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow">
+                    <property name="title">Share Report As Spreadsheet</property>
+                    <property name="activatable">True</property>
+                    <property name="action-name">stock-details-pane.share-report</property>
+                    <property name="action-target">"spreadsheet"</property>
                     <child type="suffix">
                       <object class="GtkImage">
                         <property name="icon-name">go-next-symbolic</property>

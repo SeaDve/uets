@@ -98,9 +98,10 @@ mod imp {
 
             klass.install_action_async(
                 "timeline-view.share-report",
-                None,
-                |obj, _, _| async move {
-                    obj.handle_share_report().await;
+                Some(&ReportKind::static_variant_type()),
+                |obj, _, kind| async move {
+                    let kind = kind.unwrap().get::<ReportKind>().unwrap();
+                    obj.handle_share_report(kind).await;
                 },
             );
             klass.install_action("timeline-view.scroll-to-bottom", None, |obj, _, _| {
@@ -364,7 +365,7 @@ impl TimelineView {
         vadj.value() + vadj.page_size() == vadj.upper()
     }
 
-    async fn handle_share_report(&self) {
+    async fn handle_share_report(&self, kind: ReportKind) {
         let imp = self.imp();
 
         let items = imp
@@ -390,7 +391,7 @@ impl TimelineView {
                     .collect::<Vec<_>>(),
             )?;
 
-            report::builder(ReportKind::Pdf, "Timeline Report")
+            report::builder(kind, "Timeline Report")
                 .prop("Inside Count", n_inside)
                 .prop("Max Inside Count", max_n_inside)
                 .prop("Total Entries", n_entries)
@@ -413,12 +414,8 @@ impl TimelineView {
                 .await
         };
 
-        if let Err(err) = WormholeWindow::send(
-            bytes_fut,
-            &report::file_name("Timeline Report", ReportKind::Pdf),
-            self,
-        )
-        .await
+        if let Err(err) =
+            WormholeWindow::send(bytes_fut, &report::file_name("Timeline Report", kind), self).await
         {
             tracing::error!("Failed to send report: {:?}", err);
 

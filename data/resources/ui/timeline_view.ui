@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
+  <menu id="share_report_menu">
+    <section>
+      <item>
+        <attribute name="label">Share As PDF</attribute>
+        <attribute name="action">timeline-view.share-report</attribute>
+        <attribute name="target">pdf</attribute>
+      </item>
+      <item>
+        <attribute name="label">Share As Spreadsheet</attribute>
+        <attribute name="action">timeline-view.share-report</attribute>
+        <attribute name="target">spreadsheet</attribute>
+      </item>
+    </section>
+  </menu>
   <template class="UetsTimelineView">
     <property name="layout-manager">
       <object class="GtkBinLayout"/>
@@ -31,9 +45,9 @@
                   <object class="GtkSeparator"/>
                 </child>
                 <child>
-                  <object class="GtkButton">
+                  <object class="GtkMenuButton">
                     <property name="icon-name">share-alt-symbolic</property>
-                    <property name="action-name">timeline-view.share-report</property>
+                    <property name="menu-model">share_report_menu</property>
                   </object>
                 </child>
               </object>

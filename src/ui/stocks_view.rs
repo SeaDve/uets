@@ -120,9 +120,14 @@ mod imp {
 
             klass.bind_template();
 
-            klass.install_action_async("stocks-view.share-report", None, |obj, _, _| async move {
-                obj.handle_share_report().await;
-            });
+            klass.install_action_async(
+                "stocks-view.share-report",
+                Some(&ReportKind::static_variant_type()),
+                |obj, _, kind| async move {
+                    let kind = kind.unwrap().get::<ReportKind>().unwrap();
+                    obj.handle_share_report(kind).await;
+                },
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -336,7 +341,7 @@ impl StocksView {
         imp.filter_list_model.set_filter(Some(&every_filter));
     }
 
-    async fn handle_share_report(&self) {
+    async fn handle_share_report(&self, kind: ReportKind) {
         let imp = self.imp();
 
         let stocks = imp
@@ -345,7 +350,7 @@ impl StocksView {
             .map(|o| o.unwrap().downcast::<Stock>().unwrap())
             .collect::<Vec<_>>();
 
-        let bytes_fut = report::builder(ReportKind::Pdf, "Stocks Report")
+        let bytes_fut = report::builder(kind, "Stocks Report")
             .prop(
                 "Total Stock Count",
                 stocks.iter().map(|s| s.timeline().n_inside()).sum::<u32>(),
@@ -363,12 +368,8 @@ impl StocksView {
             )
             .build();
 
-        if let Err(err) = WormholeWindow::send(
-            bytes_fut,
-            &report::file_name("Stocks Report", ReportKind::Pdf),
-            self,
-        )
-        .await
+        if let Err(err) =
+            WormholeWindow::send(bytes_fut, &report::file_name("Stocks Report", kind), self).await
         {
             tracing::error!("Failed to send report: {:?}", err);
 

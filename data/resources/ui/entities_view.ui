@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
+  <menu id="share_report_menu">
+    <section>
+      <item>
+        <attribute name="label">Share As PDF</attribute>
+        <attribute name="action">entities-view.share-report</attribute>
+        <attribute name="target">pdf</attribute>
+      </item>
+      <item>
+        <attribute name="label">Share As Spreadsheet</attribute>
+        <attribute name="action">entities-view.share-report</attribute>
+        <attribute name="target">spreadsheet</attribute>
+      </item>
+    </section>
+  </menu>
   <template class="UetsEntitiesView">
     <property name="layout-manager">
       <object class="GtkBinLayout"/>
@@ -49,18 +63,9 @@
                       <object class="GtkSeparator"/>
                     </child>
                     <child>
-                      <object class="GtkButton">
+                      <object class="GtkMenuButton">
                         <property name="icon-name">share-alt-symbolic</property>
-                        <property name="action-name">entities-view.share-report</property>
-                        <property name="action-target">"pdf"</property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <!-- FIXME use proper icon -->
-                        <property name="icon-name">open-menu-symbolic</property>
-                        <property name="action-name">entities-view.share-report</property>
-                        <property name="action-target">"spreadsheet"</property>
+                        <property name="menu-model">share_report_menu</property>
                       </object>
                     </child>
                     <child>

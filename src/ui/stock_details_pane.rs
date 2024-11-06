@@ -62,9 +62,10 @@ mod imp {
             });
             klass.install_action_async(
                 "stock-details-pane.share-report",
-                None,
-                |obj, _, _| async move {
-                    obj.handle_share_report().await;
+                Some(&ReportKind::static_variant_type()),
+                |obj, _, kind| async move {
+                    let kind = kind.unwrap().get::<ReportKind>().unwrap();
+                    obj.handle_share_report(kind).await;
                 },
             );
         }
@@ -207,7 +208,7 @@ impl StockDetailsPane {
         self.connect_closure("close-request", false, closure_local!(|obj: &Self| f(obj)))
     }
 
-    async fn handle_share_report(&self) {
+    async fn handle_share_report(&self, kind: ReportKind) {
         let imp = self.imp();
 
         let stock = imp.stock.borrow().as_ref().unwrap().clone();
@@ -224,7 +225,7 @@ impl StockDetailsPane {
                     .collect::<Vec<_>>(),
             )?;
 
-            report::builder(ReportKind::Pdf, "Stock Report")
+            report::builder(kind, "Stock Report")
                 .prop("Name", stock_id)
                 .prop("Current Stock Count", n_inside)
                 .image("Time Graph", time_graph_image)
@@ -244,7 +245,7 @@ impl StockDetailsPane {
 
         if let Err(err) = WormholeWindow::send(
             bytes_fut,
-            &report::file_name(&format!("Stock Report for “{}”", stock_id), ReportKind::Pdf),
+            &report::file_name(&format!("Stock Report for “{}”", stock_id), kind),
             self,
         )
         .await
