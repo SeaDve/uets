@@ -226,7 +226,8 @@ mod pdf {
 mod spreadsheet {
     use anyhow::Result;
     use spreadsheet::{
-        helper::coordinate::coordinate_from_index, writer, HorizontalAlignmentValues, Style,
+        helper::coordinate::{coordinate_from_index, CellCoordinates},
+        writer, HorizontalAlignmentValues, Style,
     };
 
     use crate::report::ReportBuilder;
@@ -234,55 +235,92 @@ mod spreadsheet {
     pub fn build(b: ReportBuilder) -> Result<Vec<u8>> {
         let mut spreadsheet = spreadsheet::new_file();
 
-        // TODO handle title, props, and images (graphs).
+        let cur_col_idx = 1;
+        let mut cur_row_idx = 1;
+
+        let n_columns = b
+            .table
+            .as_ref()
+            .map_or(0, |(_, col_titles, _)| col_titles.len());
+
+        let title_style = {
+            let mut style = Style::default();
+            style
+                .get_alignment_mut()
+                .set_horizontal(HorizontalAlignmentValues::Center);
+            style.get_font_mut().set_bold(true);
+            style
+        };
+
+        let worksheet = spreadsheet.get_active_sheet_mut();
+
+        let title_coord = (cur_col_idx as u32, cur_row_idx as u32);
+        worksheet.add_merge_cells(cell_range(
+            title_coord,
+            (n_columns as u32, cur_row_idx as u32),
+        ));
+        let table_title_cell = worksheet.get_cell_mut(title_coord);
+        table_title_cell.set_value_string(&b.title);
+        table_title_cell.set_style(title_style.clone());
+        cur_row_idx += 1;
+
+        for (name, value) in b.props {
+            let name_cell = worksheet.get_cell_mut((cur_col_idx as u32, cur_row_idx as u32));
+            name_cell.set_value_string(&name);
+
+            let value_cell = worksheet.get_cell_mut((cur_col_idx as u32 + 1, cur_row_idx as u32));
+            value_cell.set_value_string(&value);
+
+            cur_row_idx += 1;
+        }
+
+        cur_row_idx += 1;
+
+        // TODO handle images (graphs).
 
         if let Some((table_title, col_titles, rows)) = b.table {
-            let worksheet = spreadsheet.get_active_sheet_mut();
-
-            let col_start = 1;
-            let mut row_start = 1;
-
-            let title_style = {
-                let mut style = Style::default();
-                style
-                    .get_alignment_mut()
-                    .set_horizontal(HorizontalAlignmentValues::Center);
-                style.get_font_mut().set_bold(true);
-                style
-            };
-
-            let title_start_coord = coordinate_from_index(&(col_start as u32), &(row_start as u32));
-            let title_end_coord =
-                coordinate_from_index(&(col_titles.len() as u32), &(row_start as u32));
-            worksheet.add_merge_cells(format!("{title_start_coord}:{title_end_coord}"));
-            let title_cell = worksheet.get_cell_mut(title_start_coord);
-            title_cell.set_value_string(table_title);
-            title_cell.set_style(title_style.clone());
-            row_start += 1;
+            let table_title_coord = (cur_col_idx as u32, cur_row_idx as u32);
+            worksheet.add_merge_cells(cell_range(
+                table_title_coord,
+                (n_columns as u32, cur_row_idx as u32),
+            ));
+            let table_title_cell = worksheet.get_cell_mut(table_title_coord);
+            table_title_cell.set_value_string(table_title);
+            table_title_cell.set_style(title_style.clone());
+            cur_row_idx += 1;
 
             for (col_idx, col_title) in col_titles.into_iter().enumerate() {
-                let col_idx = col_idx + col_start;
+                let col_idx = col_idx + cur_col_idx;
 
-                let cell = worksheet.get_cell_mut((col_idx as u32, row_start as u32));
+                let cell = worksheet.get_cell_mut((col_idx as u32, cur_row_idx as u32));
                 cell.set_style(title_style.clone());
                 cell.set_value_string(col_title);
             }
-            row_start += 1;
+            cur_row_idx += 1;
 
-            for (row_idx, row) in rows.into_iter().enumerate() {
-                let row_idx = row_idx + row_start;
-
+            for row in rows.into_iter() {
                 for (col_idx, value) in row.into_iter().enumerate() {
-                    let col_idx = col_idx + col_start;
+                    let col_idx = col_idx + cur_col_idx;
 
-                    let cell = worksheet.get_cell_mut((col_idx as u32, row_idx as u32));
+                    let cell = worksheet.get_cell_mut((col_idx as u32, cur_row_idx as u32));
                     cell.set_value_string(value);
                 }
+
+                cur_row_idx += 1;
             }
         }
 
         let mut bytes = Vec::new();
         writer::xlsx::write_writer(&spreadsheet, &mut bytes)?;
         Ok(bytes)
+    }
+
+    fn cell_range(start: impl Into<CellCoordinates>, end: impl Into<CellCoordinates>) -> String {
+        let start = start.into();
+        let end = end.into();
+
+        let start_str = coordinate_from_index(&(start.col), &(start.row));
+        let end_str = coordinate_from_index(&(end.col), &(end.row));
+        format!("{start_str}:{end_str}")
     }
 }
