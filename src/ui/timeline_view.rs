@@ -10,8 +10,8 @@ use crate::{
     fuzzy_filter::FuzzyFilter,
     list_model_enum,
     report::{self, ReportKind},
+    report_table,
     stock_id::StockId,
-    time_graph,
     timeline::Timeline,
     timeline_item::TimelineItem,
     ui::{search_entry::SearchEntry, timeline_row::TimelineRow, wormhole_window::WormholeWindow},
@@ -383,32 +383,28 @@ impl TimelineView {
         let n_exits = timeline.n_exits();
 
         let bytes_fut = async {
-            let time_graph_image = time_graph::draw_image(
-                (800, 500),
-                &items
-                    .iter()
-                    .map(|item| (item.dt().inner(), item.n_inside()))
-                    .collect::<Vec<_>>(),
-            )?;
-
             report::builder(kind, "Timeline Report")
                 .prop("Inside Count", n_inside)
                 .prop("Max Inside Count", max_n_inside)
                 .prop("Total Entries", n_entries)
                 .prop("Total Exits", n_exits)
                 .prop("Search Query", imp.search_entry.queries())
-                .image("Time Graph", time_graph_image)
                 .table(
-                    "Timeline",
-                    ["Timestamp", "Kind", "Entity ID", "Inside Count"],
-                    items.iter().map(|item| {
-                        [
-                            item.dt().inner().format("%Y-%m-%dT%H:%M:%S").to_string(),
-                            item.kind().to_string(),
-                            item.entity_id().to_string(),
-                            item.n_inside().to_string(),
-                        ]
-                    }),
+                    report_table::builder("Timeline")
+                        .column("Timestamp")
+                        .column("Kind")
+                        .column("Entity ID")
+                        .column("Inside Count")
+                        .rows(items.iter().map(|item| {
+                            report_table::row_builder()
+                                .cell(item.dt().inner())
+                                .cell(item.kind().to_string())
+                                .cell(item.entity_id().to_string())
+                                .cell(item.n_inside())
+                                .build()
+                        }))
+                        .graph("Time Graph", 0, 3)
+                        .build(),
                 )
                 .build()
                 .await

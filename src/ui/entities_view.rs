@@ -12,6 +12,7 @@ use crate::{
     fuzzy_filter::FuzzyFilter,
     list_model_enum,
     report::{self, ReportKind},
+    report_table,
     search_query::SearchQueries,
     stock_id::StockId,
     ui::{
@@ -380,23 +381,27 @@ impl EntitiesView {
             .prop("Total Entities", entities.len())
             .prop("Search Query", imp.search_entry.queries())
             .table(
-                "Entities",
-                ["ID", "Stock ID", "Zone"],
-                entities.iter().map(|entity| {
-                    [
-                        entity.id().to_string(),
-                        entity
+                report_table::builder("Entities")
+                    .column("ID")
+                    .column("Stock ID")
+                    .column("Zone")
+                    .rows(entities.iter().map(|entity| {
+                        let stock_id = entity
                             .stock_id()
                             .map(|id| id.to_string())
-                            .unwrap_or_default(),
-                        if entity.is_inside() {
+                            .unwrap_or_default();
+                        let zone = if entity.is_inside() {
                             "Inside"
                         } else {
                             "Outside"
-                        }
-                        .to_string(),
-                    ]
-                }),
+                        };
+                        report_table::row_builder()
+                            .cell(entity.id().to_string())
+                            .cell(stock_id)
+                            .cell(zone.to_string())
+                            .build()
+                    }))
+                    .build(),
             )
             .build();
 

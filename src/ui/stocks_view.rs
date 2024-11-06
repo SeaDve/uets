@@ -9,6 +9,7 @@ use crate::{
     fuzzy_filter::FuzzyFilter,
     list_model_enum,
     report::{self, ReportKind},
+    report_table,
     search_query::SearchQueries,
     stock::Stock,
     stock_id::StockId,
@@ -357,14 +358,16 @@ impl StocksView {
             )
             .prop("Search Query", imp.search_entry.queries())
             .table(
-                "Stocks",
-                ["ID", "Count"],
-                stocks.iter().map(|stock| {
-                    [
-                        stock.id().to_string(),
-                        stock.timeline().n_inside().to_string(),
-                    ]
-                }),
+                report_table::builder("Stocks")
+                    .column("ID")
+                    .column("Count")
+                    .rows(stocks.iter().map(|stock| {
+                        report_table::row_builder()
+                            .cell(stock.id().to_string())
+                            .cell(stock.timeline().n_inside())
+                            .build()
+                    }))
+                    .build(),
             )
             .build();
 

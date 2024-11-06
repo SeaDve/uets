@@ -21,6 +21,7 @@ mod format;
 mod fuzzy_filter;
 mod fuzzy_sorter;
 mod report;
+mod report_table;
 mod search_query;
 mod settings;
 mod stock;

@@ -4,7 +4,8 @@ use anyhow::Result;
 use chrono::Local;
 
 use gtk::{gio, glib};
-use image::DynamicImage;
+
+use crate::report_table::ReportTable;
 
 pub fn file_name(title: &str, kind: ReportKind) -> String {
     let timestamp = Local::now().format("%Y-%m-%d-%H-%M-%S");
@@ -21,7 +22,6 @@ pub fn builder(kind: ReportKind, title: impl Into<String>) -> ReportBuilder {
         kind,
         title: title.into(),
         props: Vec::new(),
-        images: Vec::new(),
         table: None,
     }
 }
@@ -36,8 +36,7 @@ pub struct ReportBuilder {
     kind: ReportKind,
     title: String,
     props: Vec<(String, String)>,
-    images: Vec<(String, DynamicImage)>,
-    table: Option<(String, Vec<String>, Vec<Vec<String>>)>,
+    table: Option<ReportTable>,
 }
 
 impl ReportBuilder {
@@ -46,29 +45,8 @@ impl ReportBuilder {
         self
     }
 
-    pub fn image(mut self, title: impl Into<String>, image: DynamicImage) -> Self {
-        self.images.push((title.into(), image));
-        self
-    }
-
-    pub fn table(
-        mut self,
-        title: impl Into<String>,
-        col_titles: impl IntoIterator<Item = impl Into<String>>,
-        rows: impl IntoIterator<Item = impl IntoIterator<Item = impl Into<String>>>,
-    ) -> Self {
-        let col_titles = col_titles
-            .into_iter()
-            .map(|col_title| col_title.into())
-            .collect::<Vec<_>>();
-        let rows = rows
-            .into_iter()
-            .map(|row| row.into_iter().map(|cell| cell.into()).collect::<Vec<_>>())
-            .collect::<Vec<_>>();
-
-        debug_assert!(rows.iter().all(|row| row.len() == col_titles.len()));
-
-        self.table = Some((title.into(), col_titles, rows));
+    pub fn table(mut self, table: ReportTable) -> Self {
+        self.table = Some(table);
         self
     }
 
@@ -104,7 +82,7 @@ mod pdf {
     };
     use gtk::gio;
 
-    use crate::{report::ReportBuilder, GRESOURCE_PREFIX};
+    use crate::{report::ReportBuilder, time_graph, GRESOURCE_PREFIX};
 
     const DOC_LINE_SPACING_MM: f64 = 1.5;
     const DOC_MARGINS_MM: f64 = 10.0;
@@ -147,38 +125,43 @@ mod pdf {
             doc.push(p(format!("{}: {}", key, value)));
         }
 
-        for (image_title, image_data) in b.images {
+        if let Some(t) = b.table {
+            for (graph_title, dt_col_idx, val_col_idx) in t.graphs {
+                doc.push(br());
+                doc.push(p_bold(graph_title).aligned(Alignment::Center));
+
+                let dts = t.rows.iter().map(|row| row[dt_col_idx].as_date().unwrap());
+                let vals = t.rows.iter().map(|row| row[val_col_idx].as_u32().unwrap());
+                let image_data =
+                    time_graph::draw_image((800, 500), &dts.zip(vals).collect::<Vec<_>>())?;
+
+                doc.push(
+                    Image::from_dynamic_image(image_data)?
+                        .with_alignment(Alignment::Center)
+                        .with_scale((2.0, 2.0)),
+                );
+            }
+
             doc.push(br());
-            doc.push(p_bold(image_title).aligned(Alignment::Center));
+            doc.push(p_bold(t.title).aligned(Alignment::Center));
 
-            doc.push(
-                Image::from_dynamic_image(image_data)?
-                    .with_alignment(Alignment::Center)
-                    .with_scale((2.0, 2.0)),
-            );
-        }
-
-        if let Some((table_title, col_titles, rows)) = b.table {
-            doc.push(br());
-            doc.push(p_bold(table_title).aligned(Alignment::Center));
-
-            let mut table = TableLayout::new(vec![1; col_titles.len()]);
+            let mut table = TableLayout::new(vec![1; t.columns.len()]);
 
             let cell_decorator = FrameCellDecorator::new(true, true, true);
             table.set_cell_decorator(cell_decorator);
 
             table.push_row(
-                col_titles
+                t.columns
                     .iter()
                     .map(|title| p_bold(title).aligned(Alignment::Center).boxed())
                     .collect(),
             )?;
 
-            for row in rows.iter() {
+            for row in t.rows.iter() {
                 table.push_row(
                     row.iter()
                         .map(|cell| {
-                            Text::new(cell)
+                            Text::new(cell.to_string())
                                 .padded(Margins::trbl(
                                     TABLE_TOP_BOTTOM_PADDING_MM,
                                     TABLE_LEFT_RIGHT_PADDING_MM,
@@ -226,22 +209,30 @@ mod pdf {
 mod spreadsheet {
     use anyhow::Result;
     use spreadsheet::{
+        drawing::{
+            charts::{AxisId, LineChart, Values},
+            spreadsheet::MarkerType,
+        },
         helper::coordinate::{coordinate_from_index, CellCoordinates},
-        writer, HorizontalAlignmentValues, Style,
+        writer, Chart, ChartType, HorizontalAlignmentValues, Style,
     };
 
     use crate::report::ReportBuilder;
 
-    pub fn build(b: ReportBuilder) -> Result<Vec<u8>> {
-        let mut spreadsheet = spreadsheet::new_file();
+    const WORKSHEET_NAME: &str = "Sheet1";
 
-        let cur_col_idx = 1;
-        let mut cur_row_idx = 1;
+    pub fn build(b: ReportBuilder) -> Result<Vec<u8>> {
+        let mut spreadsheet = spreadsheet::new_file_empty_worksheet();
+        spreadsheet.new_sheet(WORKSHEET_NAME).unwrap();
+        spreadsheet.set_active_sheet(0);
+
+        let cur_col_idx = 1_u32;
+        let mut cur_row_idx = 1_u32;
 
         let n_columns = b
             .table
             .as_ref()
-            .map_or(0, |(_, col_titles, _)| col_titles.len());
+            .map_or(0, |table| table.columns.len() as u32);
 
         let title_style = {
             let mut style = Style::default();
@@ -254,21 +245,18 @@ mod spreadsheet {
 
         let worksheet = spreadsheet.get_active_sheet_mut();
 
-        let title_coord = (cur_col_idx as u32, cur_row_idx as u32);
-        worksheet.add_merge_cells(cell_range(
-            title_coord,
-            (n_columns as u32, cur_row_idx as u32),
-        ));
+        let title_coord = (cur_col_idx, cur_row_idx);
+        worksheet.add_merge_cells(cell_range(title_coord, (n_columns, cur_row_idx)));
         let table_title_cell = worksheet.get_cell_mut(title_coord);
         table_title_cell.set_value_string(&b.title);
         table_title_cell.set_style(title_style.clone());
         cur_row_idx += 1;
 
         for (name, value) in b.props {
-            let name_cell = worksheet.get_cell_mut((cur_col_idx as u32, cur_row_idx as u32));
+            let name_cell = worksheet.get_cell_mut((cur_col_idx, cur_row_idx));
             name_cell.set_value_string(&name);
 
-            let value_cell = worksheet.get_cell_mut((cur_col_idx as u32 + 1, cur_row_idx as u32));
+            let value_cell = worksheet.get_cell_mut((cur_col_idx + 1, cur_row_idx));
             value_cell.set_value_string(&value);
 
             cur_row_idx += 1;
@@ -276,38 +264,70 @@ mod spreadsheet {
 
         cur_row_idx += 1;
 
-        // TODO handle images (graphs).
-
-        if let Some((table_title, col_titles, rows)) = b.table {
-            let table_title_coord = (cur_col_idx as u32, cur_row_idx as u32);
-            worksheet.add_merge_cells(cell_range(
-                table_title_coord,
-                (n_columns as u32, cur_row_idx as u32),
-            ));
+        if let Some(t) = b.table {
+            let table_title_coord = (cur_col_idx, cur_row_idx);
+            worksheet.add_merge_cells(cell_range(table_title_coord, (n_columns, cur_row_idx)));
             let table_title_cell = worksheet.get_cell_mut(table_title_coord);
-            table_title_cell.set_value_string(table_title);
+            table_title_cell.set_value_string(t.title);
             table_title_cell.set_style(title_style.clone());
             cur_row_idx += 1;
 
-            for (col_idx, col_title) in col_titles.into_iter().enumerate() {
-                let col_idx = col_idx + cur_col_idx;
+            let table_row_start = cur_row_idx;
 
-                let cell = worksheet.get_cell_mut((col_idx as u32, cur_row_idx as u32));
+            for (col_idx, col_title) in t.columns.into_iter().enumerate() {
+                let col_idx = col_idx as u32 + cur_col_idx;
+
+                let cell = worksheet.get_cell_mut((col_idx, cur_row_idx));
                 cell.set_style(title_style.clone());
                 cell.set_value_string(col_title);
             }
             cur_row_idx += 1;
 
-            for row in rows.into_iter() {
+            for row in t.rows.into_iter() {
                 for (col_idx, value) in row.into_iter().enumerate() {
-                    let col_idx = col_idx + cur_col_idx;
+                    let col_idx = col_idx as u32 + cur_col_idx;
 
-                    let cell = worksheet.get_cell_mut((col_idx as u32, cur_row_idx as u32));
-                    cell.set_value_string(value);
+                    let cell = worksheet.get_cell_mut((col_idx, cur_row_idx));
+                    cell.set_value(value.to_string());
                 }
 
                 cur_row_idx += 1;
             }
+
+            let table_row_end = cur_row_idx - 1;
+
+            // TODO add graphs
+            // for (graph_title, dt_col_idx, val_col_idx) in t.graphs {
+            //     let mut from_marker = MarkerType::default();
+            //     from_marker.set_coordinate(cell((cur_col_idx, cur_row_idx)));
+
+            //     let mut to_marker = MarkerType::default();
+            //     to_marker.set_coordinate(cell((cur_col_idx + 10, cur_row_idx + 10)));
+
+            //     // let axis_id = AxisId::default();
+
+            //     // let mut chart = LineChart::default();
+            //     // chart.set_axis_id(value)
+
+            //     Values::default().get_number_reference_mut();
+
+            //     let mut chart = Chart::default();
+            //     chart.new_chart(
+            //         ChartType::LineChart,
+            //         from_marker,
+            //         to_marker,
+            //         vec![&sheet_cell_range(
+            //             WORKSHEET_NAME,
+            //             ((val_col_idx + 1) as u32, table_row_start),
+            //             ((val_col_idx + 1) as u32, table_row_end),
+            //         )],
+            //     );
+            //     chart.set_title(graph_title);
+
+            //     worksheet.add_chart(chart);
+
+            //     cur_row_idx += 12;
+            // }
         }
 
         let mut bytes = Vec::new();
@@ -315,12 +335,30 @@ mod spreadsheet {
         Ok(bytes)
     }
 
-    fn cell_range(start: impl Into<CellCoordinates>, end: impl Into<CellCoordinates>) -> String {
+    fn sheet_cell_range(
+        sheet_name: &str,
+        start: impl Into<CellCoordinates>,
+        end: impl Into<CellCoordinates>,
+    ) -> String {
         let start = start.into();
         let end = end.into();
 
-        let start_str = coordinate_from_index(&(start.col), &(start.row));
-        let end_str = coordinate_from_index(&(end.col), &(end.row));
-        format!("{start_str}:{end_str}")
+        format!("{}!{}", sheet_name, cell_range(start, end))
+    }
+
+    fn cell_range(start: impl Into<CellCoordinates>, end: impl Into<CellCoordinates>) -> String {
+        let start_coords = start.into();
+        let end_coords = end.into();
+
+        format!(
+            "{}:{}",
+            coordinate_from_index(&(start_coords.col), &(start_coords.row)),
+            coordinate_from_index(&(end_coords.col), &(end_coords.row))
+        )
+    }
+
+    fn cell(coords: impl Into<CellCoordinates>) -> String {
+        let coords = coords.into();
+        coordinate_from_index(&(coords.col), &(coords.row))
     }
 }

@@ -6,9 +6,9 @@ use gtk::{
 
 use crate::{
     report::{self, ReportKind},
+    report_table,
     stock::Stock,
     stock_timeline::StockTimeline,
-    time_graph,
     ui::{information_row::InformationRow, time_graph::TimeGraph, wormhole_window::WormholeWindow},
     Application,
 };
@@ -217,27 +217,21 @@ impl StockDetailsPane {
         let timeline_items = stock.timeline().iter().collect::<Vec<_>>();
 
         let bytes_fut = async {
-            let time_graph_image = time_graph::draw_image(
-                (800, 500),
-                &timeline_items
-                    .iter()
-                    .map(|item| (item.dt().inner(), item.n_inside()))
-                    .collect::<Vec<_>>(),
-            )?;
-
             report::builder(kind, "Stock Report")
                 .prop("Name", stock_id)
                 .prop("Current Stock Count", n_inside)
-                .image("Time Graph", time_graph_image)
                 .table(
-                    "Timeline",
-                    ["Timestamp", "Stock Count"],
-                    timeline_items.iter().map(|item| {
-                        [
-                            item.dt().inner().format("%Y-%m-%dT%H:%M:%S").to_string(),
-                            item.n_inside().to_string(),
-                        ]
-                    }),
+                    report_table::builder("Timeline")
+                        .column("Timestamp")
+                        .column("Stock Count")
+                        .rows(timeline_items.iter().map(|item| {
+                            report_table::row_builder()
+                                .cell(item.dt().inner())
+                                .cell(item.n_inside())
+                                .build()
+                        }))
+                        .graph("Time Graph", 0, 1)
+                        .build(),
                 )
                 .build()
                 .await

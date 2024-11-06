@@ -48,10 +48,10 @@ where
         .unwrap_or(chrono::DateTime::<Utc>::MIN_UTC);
 
     let diff = x_max.signed_duration_since(x_min);
-    let formatter = if diff.num_weeks() > 0 {
+    let formatter = if diff.num_weeks() > 4 {
+        |dt: &chrono::DateTime<Utc>| dt.format("%Y/%m/%d").to_string()
+    } else if diff.num_days() > 0 {
         |dt: &chrono::DateTime<Utc>| dt.format("%m/%d").to_string()
-    } else if diff.num_hours() > 0 {
-        |dt: &chrono::DateTime<Utc>| dt.format("%H:%M").to_string()
     } else {
         |dt: &chrono::DateTime<Utc>| dt.format("%H:%M:%S").to_string()
     };
@@ -68,9 +68,9 @@ where
     chart
         .configure_mesh()
         .disable_mesh()
-        .x_label_style(("Cantarell", 12))
+        .x_label_style(("Cantarell", 10))
         .x_label_formatter(&formatter)
-        .x_labels(8)
+        .x_labels(10)
         .y_label_style(("Cantarell", 12))
         .y_labels(8)
         .draw()?;
