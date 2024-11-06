@@ -225,7 +225,9 @@ mod pdf {
 
 mod spreadsheet {
     use anyhow::Result;
-    use spreadsheet::{helper::coordinate::coordinate_from_index, writer};
+    use spreadsheet::{
+        helper::coordinate::coordinate_from_index, writer, HorizontalAlignmentValues, Style,
+    };
 
     use crate::report::ReportBuilder;
 
@@ -240,18 +242,29 @@ mod spreadsheet {
             let col_start = 1;
             let mut row_start = 1;
 
+            let title_style = {
+                let mut style = Style::default();
+                style
+                    .get_alignment_mut()
+                    .set_horizontal(HorizontalAlignmentValues::Center);
+                style.get_font_mut().set_bold(true);
+                style
+            };
+
             let title_start_coord = coordinate_from_index(&(col_start as u32), &(row_start as u32));
             let title_end_coord =
                 coordinate_from_index(&(col_titles.len() as u32), &(row_start as u32));
             worksheet.add_merge_cells(format!("{title_start_coord}:{title_end_coord}"));
             let title_cell = worksheet.get_cell_mut(title_start_coord);
             title_cell.set_value_string(table_title);
+            title_cell.set_style(title_style.clone());
             row_start += 1;
 
             for (col_idx, col_title) in col_titles.into_iter().enumerate() {
                 let col_idx = col_idx + col_start;
 
                 let cell = worksheet.get_cell_mut((col_idx as u32, row_start as u32));
+                cell.set_style(title_style.clone());
                 cell.set_value_string(col_title);
             }
             row_start += 1;
