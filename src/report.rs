@@ -82,7 +82,7 @@ impl ReportBuilder {
                 ReportKind::Spreadsheet => spreadsheet::build(self),
             };
 
-            tracing::info!("Built {:?} report in {:?}", kind, now.elapsed());
+            tracing::debug!("Built {:?} report in {:?}", kind, now.elapsed());
 
             ret
         })
