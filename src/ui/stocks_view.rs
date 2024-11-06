@@ -457,12 +457,9 @@ impl StocksView {
         let n_total = imp
             .selection_model
             .iter::<glib::Object>()
-            .map(|s| {
-                s.unwrap()
-                    .downcast::<Stock>()
-                    .unwrap()
-                    .timeline()
-                    .n_inside()
+            .map(|o| {
+                let stock = o.unwrap().downcast::<Stock>().unwrap();
+                stock.timeline().n_inside()
             })
             .sum::<u32>();
         let text = if imp.search_entry.queries().is_empty() {
