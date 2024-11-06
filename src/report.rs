@@ -92,11 +92,13 @@ impl ReportBuilder {
 }
 
 mod pdf {
+    use std::sync::LazyLock;
+
     use anyhow::Result;
     use chrono::Local;
     use genpdf::{
         elements::{Break, FrameCellDecorator, Image, Paragraph, TableLayout, Text},
-        fonts,
+        fonts::{self, FontData, FontFamily},
         style::{self, StyledString},
         Alignment, Document, Element, Margins, SimplePageDecorator,
     };
@@ -110,6 +112,14 @@ mod pdf {
     const TABLE_TOP_BOTTOM_PADDING_MM: f64 = 0.0;
     const TABLE_LEFT_RIGHT_PADDING_MM: f64 = 1.0;
 
+    static DEFAULT_FONT_FAMILY: LazyLock<FontFamily<FontData>> =
+        LazyLock::new(|| fonts::FontFamily {
+            regular: font_data_from_resource("times.ttf").unwrap(),
+            bold: font_data_from_resource("timesbd.ttf").unwrap(),
+            italic: font_data_from_resource("timesi.ttf").unwrap(),
+            bold_italic: font_data_from_resource("timesbi.ttf").unwrap(),
+        });
+
     trait Boxed {
         fn boxed(self) -> Box<dyn Element>;
     }
@@ -121,14 +131,7 @@ mod pdf {
     }
 
     pub fn build(b: ReportBuilder) -> Result<Vec<u8>> {
-        let font_family = fonts::FontFamily {
-            regular: font_data_from_resource("times.ttf")?,
-            bold: font_data_from_resource("timesbd.ttf")?,
-            italic: font_data_from_resource("timesi.ttf")?,
-            bold_italic: font_data_from_resource("timesbi.ttf")?,
-        };
-
-        let mut doc = Document::new(font_family);
+        let mut doc = Document::new(DEFAULT_FONT_FAMILY.clone());
         doc.set_minimal_conformance();
         doc.set_line_spacing(DOC_LINE_SPACING_MM);
 
