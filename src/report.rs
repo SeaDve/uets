@@ -2,33 +2,23 @@ use std::{fmt, time::Instant};
 
 use anyhow::Result;
 use chrono::Local;
-use genpdf::{
-    elements::{Break, FrameCellDecorator, Image, Paragraph, TableLayout, Text},
-    fonts,
-    style::{self, StyledString},
-    Alignment, Document, Element, Margins, SimplePageDecorator,
-};
-use gtk::gio;
+
+use gtk::{gio, glib};
 use image::DynamicImage;
 
-use crate::GRESOURCE_PREFIX;
+pub fn file_name(title: &str, kind: ReportKind) -> String {
+    let timestamp = Local::now().format("%Y-%m-%d-%H-%M-%S");
+    let extension = match kind {
+        ReportKind::Pdf => "pdf",
+        ReportKind::Spreadsheet => "xlsx",
+    };
 
-const DOC_LINE_SPACING_MM: f64 = 1.5;
-const DOC_MARGINS_MM: f64 = 10.0;
-
-const TABLE_TOP_BOTTOM_PADDING_MM: f64 = 0.0;
-const TABLE_LEFT_RIGHT_PADDING_MM: f64 = 1.0;
-
-pub fn file_name(title: &str) -> String {
-    format!(
-        "{} ({}).pdf",
-        title,
-        Local::now().format("%Y-%m-%d-%H-%M-%S")
-    )
+    format!("{title} ({timestamp}).{extension}")
 }
 
-pub fn builder(title: impl Into<String>) -> ReportBuilder {
+pub fn builder(kind: ReportKind, title: impl Into<String>) -> ReportBuilder {
     ReportBuilder {
+        kind,
         title: title.into(),
         props: Vec::new(),
         images: Vec::new(),
@@ -36,7 +26,14 @@ pub fn builder(title: impl Into<String>) -> ReportBuilder {
     }
 }
 
+#[derive(Debug, Clone, Copy, glib::Variant)]
+pub enum ReportKind {
+    Pdf,
+    Spreadsheet,
+}
+
 pub struct ReportBuilder {
+    kind: ReportKind,
     title: String,
     props: Vec<(String, String)>,
     images: Vec<(String, DynamicImage)>,
@@ -57,21 +54,21 @@ impl ReportBuilder {
     pub fn table(
         mut self,
         title: impl Into<String>,
-        rows_titles: impl IntoIterator<Item = impl Into<String>>,
+        col_titles: impl IntoIterator<Item = impl Into<String>>,
         rows: impl IntoIterator<Item = impl IntoIterator<Item = impl Into<String>>>,
     ) -> Self {
-        let rows_titles = rows_titles
+        let col_titles = col_titles
             .into_iter()
-            .map(|row_title| row_title.into())
+            .map(|col_title| col_title.into())
             .collect::<Vec<_>>();
         let rows = rows
             .into_iter()
             .map(|row| row.into_iter().map(|cell| cell.into()).collect::<Vec<_>>())
             .collect::<Vec<_>>();
 
-        debug_assert!(rows.iter().all(|row| row.len() == rows_titles.len()));
+        debug_assert!(rows.iter().all(|row| row.len() == col_titles.len()));
 
-        self.table = Some((title.into(), rows_titles, rows));
+        self.table = Some((title.into(), col_titles, rows));
         self
     }
 
@@ -79,9 +76,13 @@ impl ReportBuilder {
         gio::spawn_blocking(move || {
             let now = Instant::now();
 
-            let ret = build_inner(self);
+            let kind = self.kind;
+            let ret = match kind {
+                ReportKind::Pdf => pdf::build(self),
+                ReportKind::Spreadsheet => spreadsheet::build(self),
+            };
 
-            tracing::info!("Built report in {:?}", now.elapsed());
+            tracing::info!("Built {:?} report in {:?}", kind, now.elapsed());
 
             ret
         })
@@ -90,111 +91,182 @@ impl ReportBuilder {
     }
 }
 
-fn build_inner(b: ReportBuilder) -> Result<Vec<u8>> {
-    let font_family = fonts::FontFamily {
-        regular: font_data_from_resource("times.ttf")?,
-        bold: font_data_from_resource("timesbd.ttf")?,
-        italic: font_data_from_resource("timesi.ttf")?,
-        bold_italic: font_data_from_resource("timesbi.ttf")?,
+mod pdf {
+    use anyhow::Result;
+    use chrono::Local;
+    use genpdf::{
+        elements::{Break, FrameCellDecorator, Image, Paragraph, TableLayout, Text},
+        fonts,
+        style::{self, StyledString},
+        Alignment, Document, Element, Margins, SimplePageDecorator,
     };
+    use gtk::gio;
 
-    let mut doc = Document::new(font_family);
-    doc.set_minimal_conformance();
-    doc.set_line_spacing(DOC_LINE_SPACING_MM);
+    use crate::{report::ReportBuilder, GRESOURCE_PREFIX};
 
-    let mut decorator = SimplePageDecorator::new();
-    decorator.set_margins(DOC_MARGINS_MM);
-    doc.set_page_decorator(decorator);
+    const DOC_LINE_SPACING_MM: f64 = 1.5;
+    const DOC_MARGINS_MM: f64 = 10.0;
 
-    doc.set_title(b.title.clone());
-    doc.push(p_bold(b.title).styled(style::Style::new().with_font_size(24)));
+    const TABLE_TOP_BOTTOM_PADDING_MM: f64 = 0.0;
+    const TABLE_LEFT_RIGHT_PADDING_MM: f64 = 1.0;
 
-    doc.push(p(format!("Date Generated: {}", Local::now().to_rfc2822())));
-    for (key, value) in b.props.iter() {
-        doc.push(p(format!("{}: {}", key, value)));
+    trait Boxed {
+        fn boxed(self) -> Box<dyn Element>;
     }
 
-    for (image_title, image_data) in b.images {
-        doc.push(br());
-        doc.push(p_bold(image_title).aligned(Alignment::Center));
-
-        doc.push(
-            Image::from_dynamic_image(image_data)?
-                .with_alignment(Alignment::Center)
-                .with_scale((2.0, 2.0)),
-        );
+    impl<T: Element + 'static> Boxed for T {
+        fn boxed(self) -> Box<dyn Element> {
+            Box::new(self)
+        }
     }
 
-    if let Some((table_title, rows_titles, rows)) = b.table {
-        doc.push(br());
-        doc.push(p_bold(table_title).aligned(Alignment::Center));
+    pub fn build(b: ReportBuilder) -> Result<Vec<u8>> {
+        let font_family = fonts::FontFamily {
+            regular: font_data_from_resource("times.ttf")?,
+            bold: font_data_from_resource("timesbd.ttf")?,
+            italic: font_data_from_resource("timesi.ttf")?,
+            bold_italic: font_data_from_resource("timesbi.ttf")?,
+        };
 
-        let mut table = TableLayout::new(vec![1; rows_titles.len()]);
+        let mut doc = Document::new(font_family);
+        doc.set_minimal_conformance();
+        doc.set_line_spacing(DOC_LINE_SPACING_MM);
 
-        let cell_decorator = FrameCellDecorator::new(true, true, true);
-        table.set_cell_decorator(cell_decorator);
+        let mut decorator = SimplePageDecorator::new();
+        decorator.set_margins(DOC_MARGINS_MM);
+        doc.set_page_decorator(decorator);
 
-        table.push_row(
-            rows_titles
-                .iter()
-                .map(|title| p_bold(title).aligned(Alignment::Center).boxed())
-                .collect(),
-        )?;
+        doc.set_title(b.title.clone());
+        doc.push(p_bold(b.title).styled(style::Style::new().with_font_size(24)));
 
-        for row in rows.iter() {
+        doc.push(p(format!("Date Generated: {}", Local::now().to_rfc2822())));
+        for (key, value) in b.props.iter() {
+            doc.push(p(format!("{}: {}", key, value)));
+        }
+
+        for (image_title, image_data) in b.images {
+            doc.push(br());
+            doc.push(p_bold(image_title).aligned(Alignment::Center));
+
+            doc.push(
+                Image::from_dynamic_image(image_data)?
+                    .with_alignment(Alignment::Center)
+                    .with_scale((2.0, 2.0)),
+            );
+        }
+
+        if let Some((table_title, col_titles, rows)) = b.table {
+            doc.push(br());
+            doc.push(p_bold(table_title).aligned(Alignment::Center));
+
+            let mut table = TableLayout::new(vec![1; col_titles.len()]);
+
+            let cell_decorator = FrameCellDecorator::new(true, true, true);
+            table.set_cell_decorator(cell_decorator);
+
             table.push_row(
-                row.iter()
-                    .map(|cell| {
-                        Text::new(cell)
-                            .padded(Margins::trbl(
-                                TABLE_TOP_BOTTOM_PADDING_MM,
-                                TABLE_LEFT_RIGHT_PADDING_MM,
-                                TABLE_TOP_BOTTOM_PADDING_MM,
-                                TABLE_LEFT_RIGHT_PADDING_MM,
-                            ))
-                            .boxed()
-                    })
+                col_titles
+                    .iter()
+                    .map(|title| p_bold(title).aligned(Alignment::Center).boxed())
                     .collect(),
             )?;
+
+            for row in rows.iter() {
+                table.push_row(
+                    row.iter()
+                        .map(|cell| {
+                            Text::new(cell)
+                                .padded(Margins::trbl(
+                                    TABLE_TOP_BOTTOM_PADDING_MM,
+                                    TABLE_LEFT_RIGHT_PADDING_MM,
+                                    TABLE_TOP_BOTTOM_PADDING_MM,
+                                    TABLE_LEFT_RIGHT_PADDING_MM,
+                                ))
+                                .boxed()
+                        })
+                        .collect(),
+                )?;
+            }
+            doc.push(table);
         }
-        doc.push(table);
+
+        let mut bytes = Vec::new();
+        doc.render(&mut bytes)?;
+        Ok(bytes)
     }
 
-    let mut bytes = Vec::new();
-    doc.render(&mut bytes)?;
-    Ok(bytes)
+    fn font_data_from_resource(file_name: &str) -> Result<fonts::FontData> {
+        let bytes = gio::resources_lookup_data(
+            &format!("{}fonts/{}", GRESOURCE_PREFIX, file_name),
+            gio::ResourceLookupFlags::NONE,
+        )?;
+        let data = fonts::FontData::new(bytes.to_vec(), None)?;
+        Ok(data)
+    }
+
+    #[must_use]
+    fn p_bold(text: impl Into<String>) -> Paragraph {
+        Paragraph::new(StyledString::new(text, style::Effect::Bold))
+    }
+
+    #[must_use]
+    fn p(text: impl Into<String>) -> Paragraph {
+        Paragraph::new(text.into())
+    }
+
+    #[must_use]
+    fn br() -> Break {
+        Break::new(1)
+    }
 }
 
-fn font_data_from_resource(file_name: &str) -> Result<fonts::FontData> {
-    let bytes = gio::resources_lookup_data(
-        &format!("{}fonts/{}", GRESOURCE_PREFIX, file_name),
-        gio::ResourceLookupFlags::NONE,
-    )?;
-    let data = fonts::FontData::new(bytes.to_vec(), None)?;
-    Ok(data)
-}
+mod spreadsheet {
+    use anyhow::Result;
+    use spreadsheet::{helper::coordinate::coordinate_from_index, writer};
 
-#[must_use]
-fn p_bold(text: impl Into<String>) -> Paragraph {
-    Paragraph::new(StyledString::new(text, style::Effect::Bold))
-}
+    use crate::report::ReportBuilder;
 
-#[must_use]
-fn p(text: impl Into<String>) -> Paragraph {
-    Paragraph::new(text.into())
-}
+    pub fn build(b: ReportBuilder) -> Result<Vec<u8>> {
+        let mut spreadsheet = spreadsheet::new_file();
 
-#[must_use]
-fn br() -> Break {
-    Break::new(1)
-}
+        // TODO handle title, props, and images (graphs).
 
-trait Boxed {
-    fn boxed(self) -> Box<dyn Element>;
-}
+        if let Some((table_title, col_titles, rows)) = b.table {
+            let worksheet = spreadsheet.get_active_sheet_mut();
 
-impl<T: Element + 'static> Boxed for T {
-    fn boxed(self) -> Box<dyn Element> {
-        Box::new(self)
+            let col_start = 1;
+            let mut row_start = 1;
+
+            let title_start_coord = coordinate_from_index(&(col_start as u32), &(row_start as u32));
+            let title_end_coord =
+                coordinate_from_index(&(col_titles.len() as u32), &(row_start as u32));
+            worksheet.add_merge_cells(format!("{title_start_coord}:{title_end_coord}"));
+            let title_cell = worksheet.get_cell_mut(title_start_coord);
+            title_cell.set_value_string(table_title);
+            row_start += 1;
+
+            for (col_idx, col_title) in col_titles.into_iter().enumerate() {
+                let col_idx = col_idx + col_start;
+
+                let cell = worksheet.get_cell_mut((col_idx as u32, row_start as u32));
+                cell.set_value_string(col_title);
+            }
+            row_start += 1;
+
+            for (row_idx, row) in rows.into_iter().enumerate() {
+                let row_idx = row_idx + row_start;
+
+                for (col_idx, value) in row.into_iter().enumerate() {
+                    let col_idx = col_idx + col_start;
+
+                    let cell = worksheet.get_cell_mut((col_idx as u32, row_idx as u32));
+                    cell.set_value_string(value);
+                }
+            }
+        }
+
+        let mut bytes = Vec::new();
+        writer::xlsx::write_writer(&spreadsheet, &mut bytes)?;
+        Ok(bytes)
     }
 }

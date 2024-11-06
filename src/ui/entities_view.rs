@@ -10,7 +10,8 @@ use crate::{
     entity_id::EntityId,
     entity_list::EntityList,
     fuzzy_filter::FuzzyFilter,
-    list_model_enum, report,
+    list_model_enum,
+    report::{self, ReportKind},
     search_query::SearchQueries,
     stock_id::StockId,
     ui::{
@@ -142,9 +143,10 @@ mod imp {
 
             klass.install_action_async(
                 "entities-view.share-report",
-                None,
-                |obj, _, _| async move {
-                    obj.handle_share_report().await;
+                Some(&ReportKind::static_variant_type()),
+                |obj, _, kind| async move {
+                    let kind = kind.unwrap().get::<ReportKind>().unwrap();
+                    obj.handle_share_report(kind).await;
                 },
             );
         }
@@ -365,7 +367,7 @@ impl EntitiesView {
         imp.search_entry.set_queries(&queries);
     }
 
-    async fn handle_share_report(&self) {
+    async fn handle_share_report(&self, kind: ReportKind) {
         let imp = self.imp();
 
         let entities = imp
@@ -374,7 +376,7 @@ impl EntitiesView {
             .map(|o| o.unwrap().downcast::<Entity>().unwrap())
             .collect::<Vec<_>>();
 
-        let bytes_fut = report::builder("Entities Report")
+        let bytes_fut = report::builder(kind, "Entities Report")
             .prop("Total Entities", entities.len())
             .prop("Search Query", imp.search_entry.queries())
             .table(
@@ -399,7 +401,7 @@ impl EntitiesView {
             .build();
 
         if let Err(err) =
-            WormholeWindow::send(bytes_fut, &report::file_name("Entities Report"), self).await
+            WormholeWindow::send(bytes_fut, &report::file_name("Entities Report", kind), self).await
         {
             tracing::error!("Failed to send report: {:?}", err);
 

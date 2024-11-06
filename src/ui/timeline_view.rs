@@ -8,7 +8,8 @@ use gtk::{
 use crate::{
     entity_id::EntityId,
     fuzzy_filter::FuzzyFilter,
-    list_model_enum, report,
+    list_model_enum,
+    report::{self, ReportKind},
     stock_id::StockId,
     time_graph,
     timeline::Timeline,
@@ -389,7 +390,7 @@ impl TimelineView {
                     .collect::<Vec<_>>(),
             )?;
 
-            report::builder("Timeline Report")
+            report::builder(ReportKind::Pdf, "Timeline Report")
                 .prop("Inside Count", n_inside)
                 .prop("Max Inside Count", max_n_inside)
                 .prop("Total Entries", n_entries)
@@ -412,8 +413,12 @@ impl TimelineView {
                 .await
         };
 
-        if let Err(err) =
-            WormholeWindow::send(bytes_fut, &report::file_name("Timeline Report"), self).await
+        if let Err(err) = WormholeWindow::send(
+            bytes_fut,
+            &report::file_name("Timeline Report", ReportKind::Pdf),
+            self,
+        )
+        .await
         {
             tracing::error!("Failed to send report: {:?}", err);
 

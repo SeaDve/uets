@@ -7,7 +7,8 @@ use gtk::{
 
 use crate::{
     fuzzy_filter::FuzzyFilter,
-    list_model_enum, report,
+    list_model_enum,
+    report::{self, ReportKind},
     search_query::SearchQueries,
     stock::Stock,
     stock_id::StockId,
@@ -344,7 +345,7 @@ impl StocksView {
             .map(|o| o.unwrap().downcast::<Stock>().unwrap())
             .collect::<Vec<_>>();
 
-        let bytes_fut = report::builder("Stocks Report")
+        let bytes_fut = report::builder(ReportKind::Pdf, "Stocks Report")
             .prop(
                 "Total Stock Count",
                 stocks.iter().map(|s| s.timeline().n_inside()).sum::<u32>(),
@@ -362,8 +363,12 @@ impl StocksView {
             )
             .build();
 
-        if let Err(err) =
-            WormholeWindow::send(bytes_fut, &report::file_name("Stocks Report"), self).await
+        if let Err(err) = WormholeWindow::send(
+            bytes_fut,
+            &report::file_name("Stocks Report", ReportKind::Pdf),
+            self,
+        )
+        .await
         {
             tracing::error!("Failed to send report: {:?}", err);
 

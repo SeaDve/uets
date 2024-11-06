@@ -5,7 +5,7 @@ use gtk::{
 };
 
 use crate::{
-    report,
+    report::{self, ReportKind},
     stock::Stock,
     stock_timeline::StockTimeline,
     time_graph,
@@ -224,7 +224,7 @@ impl StockDetailsPane {
                     .collect::<Vec<_>>(),
             )?;
 
-            report::builder("Stock Report")
+            report::builder(ReportKind::Pdf, "Stock Report")
                 .prop("Name", stock_id)
                 .prop("Current Stock Count", n_inside)
                 .image("Time Graph", time_graph_image)
@@ -244,7 +244,7 @@ impl StockDetailsPane {
 
         if let Err(err) = WormholeWindow::send(
             bytes_fut,
-            &report::file_name(&format!("Stock Report for “{}”", stock_id)),
+            &report::file_name(&format!("Stock Report for “{}”", stock_id), ReportKind::Pdf),
             self,
         )
         .await

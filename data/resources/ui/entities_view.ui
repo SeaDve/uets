@@ -52,6 +52,15 @@
                       <object class="GtkButton">
                         <property name="icon-name">share-alt-symbolic</property>
                         <property name="action-name">entities-view.share-report</property>
+                        <property name="action-target">"pdf"</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton">
+                        <!-- FIXME use proper icon -->
+                        <property name="icon-name">open-menu-symbolic</property>
+                        <property name="action-name">entities-view.share-report</property>
+                        <property name="action-target">"spreadsheet"</property>
                       </object>
                     </child>
                     <child>
