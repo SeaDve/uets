@@ -27,11 +27,11 @@ impl DateTime {
         let this_local = self.0.with_timezone(&Local);
 
         if this.year() == now.year() && this.month() == now.month() && this.day() == now.day() {
-            this_local.format("today at %R").to_string()
+            this_local.format("today at %r").to_string() // today at 13:21:16 AM
         } else if (now - this).num_hours() <= 30 {
-            this_local.format("yesterday at %R").to_string()
+            this_local.format("yesterday at %r").to_string() // yesterday at 13:21:16 AM
         } else {
-            this_local.format("%F").to_string() // ISO 8601 (e.g., `2001-07-08`)
+            this_local.format("%a, %-d %b %Y at %r").to_string() // Sun, 3 Nov 2024 at 13:21:16 AM
         }
     }
 }
