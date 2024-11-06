@@ -54,6 +54,16 @@
                         <property name="action-name">entities-view.share-report</property>
                       </object>
                     </child>
+                    <child>
+                      <object class="GtkSeparator"/>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="n_results_label">
+                        <style>
+                          <class name="dim-label"/>
+                        </style>
+                      </object>
+                    </child>
                   </object>
                 </child>
               </object>

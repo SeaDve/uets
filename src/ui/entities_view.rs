@@ -111,6 +111,8 @@ mod imp {
         #[template_child]
         pub(super) entity_sort_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
+        pub(super) n_results_label: TemplateChild<gtk::Label>,
+        #[template_child]
         pub(super) list_view: TemplateChild<gtk::ListView>,
         #[template_child]
         pub(super) selection_model: TemplateChild<gtk::SingleSelection>,
@@ -164,6 +166,7 @@ mod imp {
                 move |entry| {
                     obj.handle_search_entry_search_changed(entry);
                     obj.update_fallback_sorter();
+                    obj.update_n_results_label();
                 }
             ));
 
@@ -220,6 +223,7 @@ mod imp {
                 obj,
                 move |_, _, _, _| {
                     obj.update_stack();
+                    obj.update_n_results_label();
                 }
             ));
 
@@ -266,6 +270,7 @@ mod imp {
 
             obj.update_fallback_sorter();
             obj.update_stack();
+            obj.update_n_results_label();
         }
 
         fn dispose(&self) {
@@ -587,5 +592,18 @@ impl EntitiesView {
         } else {
             imp.stack.set_visible_child(&*imp.main_page);
         }
+    }
+
+    fn update_n_results_label(&self) {
+        let imp = self.imp();
+
+        let n_total = imp.selection_model.n_items();
+        let text = if imp.search_entry.queries().is_empty() {
+            format!("Total: {}", n_total)
+        } else {
+            format!("Results: {}", n_total)
+        };
+
+        imp.n_results_label.set_label(&text);
     }
 }

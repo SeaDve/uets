@@ -85,6 +85,8 @@ mod imp {
         #[template_child]
         pub(super) stock_sort_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
+        pub(super) n_results_label: TemplateChild<gtk::Label>,
+        #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
         pub(super) empty_page: TemplateChild<adw::StatusPage>,
@@ -139,6 +141,7 @@ mod imp {
                 move |entry| {
                     obj.handle_search_entry_search_changed(entry);
                     obj.update_fallback_sorter();
+                    obj.update_n_results_label();
                 }
             ));
 
@@ -177,6 +180,7 @@ mod imp {
                 #[weak]
                 obj,
                 move |_, _, _, _| {
+                    obj.update_n_results_label();
                     obj.update_stack();
                 }
             ));
@@ -219,6 +223,7 @@ mod imp {
             self.fuzzy_filter.set(fuzzy_filter).unwrap();
 
             obj.update_fallback_sorter();
+            obj.update_n_results_label();
             obj.update_stack();
         }
 
@@ -444,6 +449,29 @@ impl StocksView {
             .unwrap()
             .sorter()
             .set_fallback_sorter(Some(sorter));
+    }
+
+    fn update_n_results_label(&self) {
+        let imp = self.imp();
+
+        let n_total = imp
+            .selection_model
+            .iter::<glib::Object>()
+            .map(|s| {
+                s.unwrap()
+                    .downcast::<Stock>()
+                    .unwrap()
+                    .timeline()
+                    .n_inside()
+            })
+            .sum::<u32>();
+        let text = if imp.search_entry.queries().is_empty() {
+            format!("Total: {}", n_total)
+        } else {
+            format!("Results: {}", n_total)
+        };
+
+        imp.n_results_label.set_label(&text);
     }
 
     fn update_stack(&self) {
