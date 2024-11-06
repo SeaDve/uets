@@ -10,6 +10,7 @@
 
 mod application;
 mod colors;
+mod config;
 mod date_time;
 mod db;
 mod detector;

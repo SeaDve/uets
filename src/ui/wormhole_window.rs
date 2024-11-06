@@ -1,7 +1,7 @@
 use std::future::{self, Future};
 
 use adw::{prelude::*, subclass::prelude::*};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_lock::Mutex;
 use gtk::{
     gdk, gio,
@@ -13,7 +13,7 @@ use wormhole::{
     Wormhole,
 };
 
-use crate::format;
+use crate::{config::bypass_wormhole, format};
 
 const WORMHOLE_CODE_LENGTH: usize = 4;
 const WORMHOLE_APP_ID: &str = "lothar.com/wormhole/text-or-file-xfer";
@@ -100,6 +100,26 @@ impl WormholeWindow {
         parent: &impl IsA<gtk::Widget>,
     ) -> Result<()> {
         let root = parent.root().map(|r| r.downcast::<gtk::Window>().unwrap());
+
+        if bypass_wormhole() {
+            let bytes = bytes_fut.await?;
+
+            gio::File::for_path(
+                glib::user_special_dir(glib::UserDirectory::Downloads)
+                    .context("Missing Downloads dir")?
+                    .join(dest_file_name),
+            )
+            .replace_contents_future(
+                bytes,
+                None,
+                false,
+                gio::FileCreateFlags::REPLACE_DESTINATION,
+            )
+            .await
+            .map_err(|(_, err)| err)?;
+
+            return Ok(());
+        }
 
         let this = glib::Object::builder::<WormholeWindow>()
             .property("transient-for", root)
