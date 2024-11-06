@@ -288,7 +288,7 @@ mod spreadsheet {
                     let col_idx = col_idx as u32 + cur_col_idx;
 
                     let cell = worksheet.get_cell_mut((col_idx, cur_row_idx));
-                    cell.set_value(value.to_string());
+                    cell.set_value_string(value.to_string());
                 }
 
                 cur_row_idx += 1;
