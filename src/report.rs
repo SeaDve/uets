@@ -336,6 +336,7 @@ mod spreadsheet {
                 let mut chart = Chart::new(ChartType::ScatterStraightWithMarkers);
                 chart.set_width(CHART_WIDTH_PX).set_height(CHART_HEIGHT_PX);
                 chart.title().set_name(&graph_title);
+                chart.legend().set_hidden();
                 chart
                     .add_series()
                     .set_values((
