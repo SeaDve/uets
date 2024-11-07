@@ -241,10 +241,10 @@ mod spreadsheet {
         let cur_col_idx = 1_u32;
         let mut cur_row_idx = 1_u32;
 
-        let n_columns = b
-            .table
-            .as_ref()
-            .map_or(0, |table| table.columns.len() as u32);
+        let min_n_columns = if b.props.is_empty() { 1_u32 } else { 2 };
+        let n_columns = b.table.as_ref().map_or(min_n_columns, |table| {
+            (table.columns.len() as u32).clamp(min_n_columns, u32::MAX)
+        });
 
         let title_style = {
             let mut style = Style::default();
