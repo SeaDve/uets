@@ -223,14 +223,22 @@ impl StockDetailsPane {
                 .table(
                     report_table::builder("Timeline")
                         .column("Timestamp")
+                        .column("Kind")
+                        .column("Entity ID")
                         .column("Count")
                         .rows(timeline_items.iter().map(|item| {
+                            let parent_item = Application::get()
+                                .timeline()
+                                .get(&item.dt())
+                                .expect("stock timeline must match with global timeline");
                             report_table::row_builder()
                                 .cell(item.dt().inner())
+                                .cell(parent_item.kind().to_string())
+                                .cell(parent_item.entity_id().to_string())
                                 .cell(item.n_inside())
                                 .build()
                         }))
-                        .graph("Count Over Time", 0, 1)
+                        .graph("Count Over Time", 0, 3)
                         .build(),
                 )
                 .build()

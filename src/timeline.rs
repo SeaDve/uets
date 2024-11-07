@@ -266,6 +266,10 @@ impl Timeline {
         self.imp().stock_list.get().unwrap()
     }
 
+    pub fn get(&self, dt: &DateTime) -> Option<TimelineItem> {
+        self.imp().list.borrow().get(dt).cloned()
+    }
+
     pub fn handle_detected(
         &self,
         provided_entity_id: &EntityId,
