@@ -217,198 +217,146 @@ mod pdf {
 
 mod spreadsheet {
     use anyhow::Result;
-    use chrono::{DateTime, Local, Utc};
-    use spreadsheet::{
-        drawing::spreadsheet::MarkerType,
-        helper::coordinate::{coordinate_from_index, CellCoordinates},
-        writer, Chart, ChartType, HorizontalAlignmentValues, Style,
-    };
+    use chrono::Local;
+    use xlsxwriter::{Chart, ChartType, ColNum, Format, FormatAlign, Workbook, Worksheet};
 
     use crate::{report::ReportBuilder, report_table::ReportTableCell};
 
-    const WORKSHEET_NAME: &str = "Sheet1";
+    const SHEET_NAME: &str = "Sheet1";
 
-    const COLUMN_WIDTH: f64 = 18.0;
+    const ROW_HEIGHT_PX: u16 = 20;
+    const COLUMN_WIDTH_PX: u16 = 140;
 
-    const CHART_CELL_WIDTH: u32 = 12;
-    const CHART_CELL_HEIGHT: u32 = 12;
+    const CHART_WIDTH_COLUMNS: u32 = 10;
+    const CHART_HEIGHT_ROWS: u32 = 22;
+
+    const CHART_WIDTH_PX: u32 = COLUMN_WIDTH_PX as u32 * CHART_WIDTH_COLUMNS;
+    const CHART_HEIGHT_PX: u32 = ROW_HEIGHT_PX as u32 * CHART_HEIGHT_ROWS;
 
     pub fn build(b: ReportBuilder) -> Result<Vec<u8>> {
-        let mut spreadsheet = spreadsheet::new_file_empty_worksheet();
-        spreadsheet.new_sheet(WORKSHEET_NAME).unwrap();
-        spreadsheet.set_active_sheet(0);
+        let mut book = Workbook::new();
 
-        let cur_col_idx = 1_u32;
-        let mut cur_row_idx = 1_u32;
+        let sheet = {
+            let mut sheet = Worksheet::new();
+            sheet.set_name(SHEET_NAME)?;
+            sheet.set_default_row_height_pixels(ROW_HEIGHT_PX);
 
-        let min_n_columns = if b.props.is_empty() { 1_u32 } else { 2 };
-        let n_columns = b.table.as_ref().map_or(min_n_columns, |table| {
-            (table.columns.len() as u32).clamp(min_n_columns, u32::MAX)
-        });
-
-        let title_style = {
-            let mut style = Style::default();
-            style
-                .get_alignment_mut()
-                .set_horizontal(HorizontalAlignmentValues::Center);
-            style.get_font_mut().set_bold(true);
-            style
+            book.push_worksheet(sheet);
+            book.worksheet_from_index(0).unwrap()
         };
 
-        let worksheet = spreadsheet.get_active_sheet_mut();
+        let bold_format = Format::new().set_bold();
+        let title_format = Format::new().set_align(FormatAlign::Center).set_bold();
+        let dt_format = Format::new().set_num_format("yyyy/mm/dd hh:mm:ss");
 
-        let title_coord = (cur_col_idx, cur_row_idx);
-        worksheet.add_merge_cells(cell_range(title_coord, (n_columns, cur_row_idx)));
-        worksheet
-            .get_cell_mut(title_coord)
-            .set_value_string(&b.title)
-            .set_style(title_style.clone());
-        cur_row_idx += 1;
+        let last_col_idx = {
+            let min_last_col_idx = if b.props.is_empty() { 0 } else { 1 };
+            b.table.as_ref().map_or(min_last_col_idx, |table| {
+                (table.columns.len() as ColNum - 1).clamp(min_last_col_idx, ColNum::MAX)
+            })
+        };
 
-        for (name, value) in b.props {
-            worksheet
-                .get_cell_mut((cur_col_idx, cur_row_idx))
-                .set_value_string(&name);
-            worksheet
-                .get_cell_mut((cur_col_idx + 1, cur_row_idx))
-                .set_value_string(&value);
-            cur_row_idx += 1;
+        for col_idx in 0..=last_col_idx {
+            sheet.set_column_width_pixels(col_idx, COLUMN_WIDTH_PX)?;
         }
 
+        let mut cur_row_idx = 0;
+
+        sheet.merge_range(
+            cur_row_idx,
+            0,
+            cur_row_idx,
+            last_col_idx,
+            &b.title,
+            &title_format,
+        )?;
+        cur_row_idx += 1;
+
+        for (name, val) in b.props {
+            sheet.write_string_with_format(cur_row_idx, 0, &name, &bold_format)?;
+            sheet.write_string(cur_row_idx, 1, &val)?;
+            cur_row_idx += 1;
+        }
         cur_row_idx += 1;
 
         if let Some(t) = b.table {
-            let table_title_coord = (cur_col_idx, cur_row_idx);
-            worksheet.add_merge_cells(cell_range(table_title_coord, (n_columns, cur_row_idx)));
-            worksheet
-                .get_cell_mut(table_title_coord)
-                .set_value_string(t.title)
-                .set_style(title_style.clone());
+            sheet.merge_range(
+                cur_row_idx,
+                0,
+                cur_row_idx,
+                last_col_idx,
+                &t.title,
+                &title_format,
+            )?;
             cur_row_idx += 1;
 
             for (col_idx, col_title) in t.columns.into_iter().enumerate() {
-                let col_idx = col_idx as u32 + cur_col_idx;
-                worksheet
-                    .get_cell_mut((col_idx, cur_row_idx))
-                    .set_value_string(col_title)
-                    .set_style(title_style.clone());
+                sheet.write_string_with_format(
+                    cur_row_idx,
+                    col_idx as ColNum,
+                    &col_title,
+                    &title_format,
+                )?;
             }
             cur_row_idx += 1;
 
-            let table_row_start = cur_row_idx;
+            let table_start_row_idx = cur_row_idx;
 
-            for row in t.rows.into_iter() {
-                for (col_idx, cell) in row.into_iter().enumerate() {
-                    let col_idx = col_idx as u32 + cur_col_idx;
-                    let cell_coords = (col_idx, cur_row_idx);
-
+            for row in t.rows.iter() {
+                for (col_idx, cell) in row.iter().enumerate() {
                     match cell {
                         ReportTableCell::DateTime(dt) => {
-                            worksheet
-                                .get_cell_value_mut(cell_coords)
-                                .set_value_number(dt_to_value(dt));
-                            worksheet
-                                .get_style_mut(cell_coords)
-                                .get_number_format_mut()
-                                .set_format_code("yyyy/mm/dd hh:mm:ss");
+                            sheet.write_datetime_with_format(
+                                cur_row_idx,
+                                col_idx as ColNum,
+                                dt.with_timezone(&Local).naive_local(),
+                                &dt_format,
+                            )?;
                         }
                         ReportTableCell::U32(u32) => {
-                            worksheet
-                                .get_cell_value_mut(cell_coords)
-                                .set_value_number(u32);
+                            sheet.write_number(cur_row_idx, col_idx as ColNum, *u32 as f64)?;
                         }
                         ReportTableCell::String(string) => {
-                            worksheet
-                                .get_cell_value_mut(cell_coords)
-                                .set_value_string(string);
+                            sheet.write_string(cur_row_idx, col_idx as ColNum, string)?;
                         }
                     }
                 }
-
                 cur_row_idx += 1;
             }
 
-            let table_row_end = cur_row_idx - 1;
+            let table_end_row_idx = if t.rows.is_empty() {
+                table_start_row_idx
+            } else {
+                cur_row_idx - 1
+            };
 
             cur_row_idx += 1;
 
             for (graph_title, dt_col_idx, val_col_idx) in t.graphs {
-                let mut from_marker = MarkerType::default();
-                from_marker.set_coordinate(cell((cur_col_idx, cur_row_idx)));
-
-                let mut to_marker = MarkerType::default();
-                to_marker.set_coordinate(cell((
-                    cur_col_idx + CHART_CELL_WIDTH,
-                    cur_row_idx + CHART_CELL_HEIGHT,
-                )));
-
-                let mut chart = Chart::default();
+                let mut chart = Chart::new(ChartType::ScatterStraightWithMarkers);
+                chart.set_width(CHART_WIDTH_PX).set_height(CHART_HEIGHT_PX);
+                chart.title().set_name(&graph_title);
                 chart
-                    .new_chart(
-                        ChartType::ScatterChart,
-                        from_marker,
-                        to_marker,
-                        vec![
-                            &sheet_cell_range(
-                                WORKSHEET_NAME,
-                                ((dt_col_idx + 1) as u32, table_row_start),
-                                ((dt_col_idx + 1) as u32, table_row_end),
-                            ),
-                            &sheet_cell_range(
-                                WORKSHEET_NAME,
-                                ((val_col_idx + 1) as u32, table_row_start),
-                                ((val_col_idx + 1) as u32, table_row_end),
-                            ),
-                        ],
-                    )
-                    .set_title(graph_title);
-
-                worksheet.add_chart(chart);
-
-                cur_row_idx += CHART_CELL_HEIGHT + 1;
+                    .add_series()
+                    .set_values((
+                        SHEET_NAME,
+                        table_start_row_idx,
+                        val_col_idx as ColNum,
+                        table_end_row_idx,
+                        val_col_idx as ColNum,
+                    ))
+                    .set_categories((
+                        SHEET_NAME,
+                        table_start_row_idx,
+                        dt_col_idx as ColNum,
+                        table_end_row_idx,
+                        dt_col_idx as ColNum,
+                    ));
+                sheet.insert_chart(cur_row_idx, 0, &chart)?;
+                cur_row_idx += CHART_HEIGHT_ROWS + 1;
             }
         }
 
-        for column in worksheet.get_column_dimensions_mut() {
-            column.set_width(COLUMN_WIDTH);
-        }
-
-        let mut bytes = Vec::new();
-        writer::xlsx::write_writer(&spreadsheet, &mut bytes)?;
-        Ok(bytes)
-    }
-
-    fn dt_to_value(dt: DateTime<Utc>) -> f64 {
-        dt.with_timezone(&Local)
-            .signed_duration_since(DateTime::<Utc>::from_timestamp(-2208988800, 0).unwrap())
-            .num_seconds() as f64
-            / 86400.0
-    }
-
-    fn sheet_cell_range(
-        sheet_name: &str,
-        start: impl Into<CellCoordinates>,
-        end: impl Into<CellCoordinates>,
-    ) -> String {
-        let start = start.into();
-        let end = end.into();
-
-        format!("{}!{}", sheet_name, cell_range(start, end))
-    }
-
-    fn cell_range(start: impl Into<CellCoordinates>, end: impl Into<CellCoordinates>) -> String {
-        let start_coords = start.into();
-        let end_coords = end.into();
-
-        format!(
-            "{}:{}",
-            coordinate_from_index(&(start_coords.col), &(start_coords.row)),
-            coordinate_from_index(&(end_coords.col), &(end_coords.row))
-        )
-    }
-
-    fn cell(coords: impl Into<CellCoordinates>) -> String {
-        let coords = coords.into();
-        coordinate_from_index(&(coords.col), &(coords.row))
+        Ok(book.save_to_buffer()?)
     }
 }
