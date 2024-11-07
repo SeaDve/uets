@@ -1,4 +1,7 @@
-use std::future::{self, Future};
+use std::{
+    future::{self, Future},
+    process::Command,
+};
 
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::{Context, Result};
@@ -104,12 +107,12 @@ impl WormholeWindow {
         if bypass_wormhole() {
             let bytes = bytes_fut.await?;
 
-            gio::File::for_path(
+            let file = gio::File::for_path(
                 glib::user_special_dir(glib::UserDirectory::Downloads)
                     .context("Missing Downloads dir")?
                     .join(dest_file_name),
-            )
-            .replace_contents_future(
+            );
+            file.replace_contents_future(
                 bytes,
                 None,
                 false,
@@ -117,6 +120,11 @@ impl WormholeWindow {
             )
             .await
             .map_err(|(_, err)| err)?;
+
+            Command::new("xdg-open")
+                .arg(file.uri())
+                .spawn()?
+                .wait_with_output()?;
 
             return Ok(());
         }
