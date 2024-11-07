@@ -222,7 +222,7 @@ mod spreadsheet {
 
     use crate::{report::ReportBuilder, report_table::ReportTableCell};
 
-    const SHEET_NAME: &str = "Sheet1";
+    const WORKSHEET_NAME: &str = "Sheet1";
 
     const ROW_HEIGHT_PX: u16 = 20;
     const COLUMN_WIDTH_PX: u16 = 140;
@@ -238,7 +238,7 @@ mod spreadsheet {
 
         let sheet = {
             let mut sheet = Worksheet::new();
-            sheet.set_name(SHEET_NAME)?;
+            sheet.set_name(WORKSHEET_NAME)?;
             sheet.set_default_row_height_pixels(ROW_HEIGHT_PX);
 
             book.push_worksheet(sheet);
@@ -339,14 +339,14 @@ mod spreadsheet {
                 chart
                     .add_series()
                     .set_values((
-                        SHEET_NAME,
+                        WORKSHEET_NAME,
                         table_start_row_idx,
                         val_col_idx as ColNum,
                         table_end_row_idx,
                         val_col_idx as ColNum,
                     ))
                     .set_categories((
-                        SHEET_NAME,
+                        WORKSHEET_NAME,
                         table_start_row_idx,
                         dt_col_idx as ColNum,
                         table_end_row_idx,
