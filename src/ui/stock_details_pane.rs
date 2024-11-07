@@ -223,7 +223,7 @@ impl StockDetailsPane {
                 .table(
                     report_table::builder("Timeline")
                         .column("Timestamp")
-                        .column("Kind")
+                        .column("Action")
                         .column("Entity ID")
                         .column("Count")
                         .rows(timeline_items.iter().map(|item| {

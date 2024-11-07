@@ -392,7 +392,7 @@ impl TimelineView {
                 .table(
                     report_table::builder("Timeline")
                         .column("Timestamp")
-                        .column("Kind")
+                        .column("Action")
                         .column("Entity ID")
                         .column("Inside Count")
                         .rows(items.iter().map(|item| {
