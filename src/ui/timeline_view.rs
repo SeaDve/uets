@@ -403,7 +403,7 @@ impl TimelineView {
                                 .cell(item.n_inside())
                                 .build()
                         }))
-                        .graph("Time Graph", 0, 3)
+                        .graph("Inside Count Over Time", 0, 3)
                         .build(),
                 )
                 .build()

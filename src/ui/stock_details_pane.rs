@@ -219,18 +219,18 @@ impl StockDetailsPane {
         let bytes_fut = async {
             report::builder(kind, "Stock Report")
                 .prop("Name", stock_id)
-                .prop("Current Stock Count", n_inside)
+                .prop("Current Count", n_inside)
                 .table(
                     report_table::builder("Timeline")
                         .column("Timestamp")
-                        .column("Stock Count")
+                        .column("Count")
                         .rows(timeline_items.iter().map(|item| {
                             report_table::row_builder()
                                 .cell(item.dt().inner())
                                 .cell(item.n_inside())
                                 .build()
                         }))
-                        .graph("Time Graph", 0, 1)
+                        .graph("Count Over Time", 0, 1)
                         .build(),
                 )
                 .build()

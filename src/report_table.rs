@@ -1,5 +1,3 @@
-use std::fmt;
-
 use chrono::{DateTime, Utc};
 
 pub fn builder(title: impl Into<String>) -> ReportTableBuilder {
@@ -107,16 +105,6 @@ pub enum ReportTableCell {
     DateTime(DateTime<Utc>),
     U32(u32),
     String(String),
-}
-
-impl fmt::Display for ReportTableCell {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ReportTableCell::DateTime(date) => write!(f, "{}", date.format("%Y/%m/%d %H:%M:%S")),
-            ReportTableCell::U32(u32) => fmt::Display::fmt(u32, f),
-            ReportTableCell::String(string) => fmt::Display::fmt(string, f),
-        }
-    }
 }
 
 impl ReportTableCell {

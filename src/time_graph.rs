@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chrono::Utc;
+use chrono::{Local, Utc};
 use image::{DynamicImage, RgbImage};
 use plotters::{
     backend::{PixelFormat, RGBPixel},
@@ -49,11 +49,11 @@ where
 
     let diff = x_max.signed_duration_since(x_min);
     let formatter = if diff.num_weeks() > 4 {
-        |dt: &chrono::DateTime<Utc>| dt.format("%Y/%m/%d").to_string()
+        |dt: &chrono::DateTime<Utc>| dt.with_timezone(&Local).format("%Y/%m/%d").to_string()
     } else if diff.num_days() > 0 {
-        |dt: &chrono::DateTime<Utc>| dt.format("%m/%d").to_string()
+        |dt: &chrono::DateTime<Utc>| dt.with_timezone(&Local).format("%m/%d").to_string()
     } else {
-        |dt: &chrono::DateTime<Utc>| dt.format("%H:%M:%S").to_string()
+        |dt: &chrono::DateTime<Utc>| dt.with_timezone(&Local).format("%H:%M:%S").to_string()
     };
 
     let y_min = data.iter().map(|(_, y)| *y).min().unwrap_or(0);
