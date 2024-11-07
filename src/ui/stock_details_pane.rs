@@ -218,7 +218,7 @@ impl StockDetailsPane {
 
         let bytes_fut = async {
             report::builder(kind, "Stock Report")
-                .prop("Name", stock_id)
+                .prop("Stock Name", stock_id)
                 .prop("Current Count", n_inside)
                 .table(
                     report_table::builder("Timeline")
