@@ -6,7 +6,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::search_query::{self, SearchQueries};
+use crate::search_query::SearchQueries;
 
 const DEFAULT_SEARCH_DELAY_MS: u32 = 200;
 
@@ -37,6 +37,8 @@ mod imp {
 
         pub(super) search_changed_timeout_id: RefCell<Option<glib::SourceId>>,
         pub(super) entry_changed_id: OnceCell<glib::SignalHandlerId>,
+
+        pub(super) queries: RefCell<SearchQueries>,
     }
 
     #[glib::object_subclass]
@@ -81,8 +83,8 @@ mod imp {
                             source_id.remove();
                         }
 
+                        obj.update_queries();
                         obj.emit_by_name::<()>("search-changed", &[]);
-                        obj.update_entry_attributes();
                     } else {
                         imp.clear_icon.set_child_visible(true);
                         obj.queue_allocate();
@@ -315,12 +317,14 @@ impl SearchEntry {
         self.connect_closure("search-changed", false, closure_local!(|obj: &Self| f(obj)))
     }
 
-    pub fn set_queries(&self, queries: &SearchQueries) {
+    pub fn set_queries(&self, queries: SearchQueries) {
+        let imp = self.imp();
         self.set_text_instant(&queries.to_string());
+        imp.queries.replace(queries);
     }
 
     pub fn queries(&self) -> SearchQueries {
-        SearchQueries::parse(&self.imp().entry.text())
+        self.imp().queries.borrow().clone()
     }
 
     /// Sets the text without delaying the search-changed signal.
@@ -340,8 +344,8 @@ impl SearchEntry {
             source_id.remove();
         }
 
+        self.update_queries();
         self.emit_by_name::<()>("search-changed", &[]);
-        self.update_entry_attributes();
     }
 
     fn restart_search_changed_timeout(&self) {
@@ -361,19 +365,21 @@ impl SearchEntry {
                     let imp = obj.imp();
                     imp.search_changed_timeout_id.replace(None);
 
+                    obj.update_queries();
                     obj.emit_by_name::<()>("search-changed", &[]);
-                    obj.update_entry_attributes();
                 },
             ),
         );
         imp.search_changed_timeout_id.replace(Some(source_id));
     }
 
-    fn update_entry_attributes(&self) {
+    fn update_queries(&self) {
         let imp = self.imp();
 
         let text = imp.entry.text();
-        let attrs = search_query::attr_list_for(&text);
+        let queries = SearchQueries::parse(&text);
+        let attrs = queries.attr_list();
+        imp.queries.replace(queries);
         imp.entry.set_attributes(Some(&attrs));
     }
 }

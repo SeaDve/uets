@@ -341,7 +341,7 @@ impl EntitiesView {
         let imp = self.imp();
 
         // Clear search filter so we can find the entity
-        imp.search_entry.set_queries(&SearchQueries::new());
+        imp.search_entry.set_queries(SearchQueries::new());
 
         let position = imp
             .selection_model
@@ -365,7 +365,7 @@ impl EntitiesView {
         let mut queries = imp.search_entry.queries();
         queries.remove_all_standalones();
         queries.replace_all_iden_or_insert(S::STOCK, &stock_id.to_string());
-        imp.search_entry.set_queries(&queries);
+        imp.search_entry.set_queries(queries);
     }
 
     async fn handle_share_report(&self, kind: ReportKind) {
@@ -506,7 +506,7 @@ impl EntitiesView {
             }
         }
 
-        imp.search_entry.set_queries(&queries);
+        imp.search_entry.set_queries(queries);
     }
 
     fn handle_entity_sort_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
@@ -539,7 +539,7 @@ impl EntitiesView {
             }
         }
 
-        imp.search_entry.set_queries(&queries);
+        imp.search_entry.set_queries(queries);
     }
 
     fn update_fallback_sorter(&self) {

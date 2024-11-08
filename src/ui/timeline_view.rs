@@ -337,7 +337,7 @@ impl TimelineView {
         let mut queries = imp.search_entry.queries();
         queries.remove_all_standalones();
         queries.replace_all_iden_or_insert(S::ENTITY, &entity_id.to_string());
-        imp.search_entry.set_queries(&queries);
+        imp.search_entry.set_queries(queries);
     }
 
     pub fn show_stock(&self, stock_id: &StockId) {
@@ -346,7 +346,7 @@ impl TimelineView {
         let mut queries = imp.search_entry.queries();
         queries.remove_all_standalones();
         queries.replace_all_iden_or_insert(S::STOCK, &stock_id.to_string());
-        imp.search_entry.set_queries(&queries);
+        imp.search_entry.set_queries(queries);
     }
 
     fn scroll_to_bottom(&self) {
@@ -527,7 +527,7 @@ impl TimelineView {
             }
         }
 
-        imp.search_entry.set_queries(&queries);
+        imp.search_entry.set_queries(queries);
     }
 
     fn update_stack(&self) {
