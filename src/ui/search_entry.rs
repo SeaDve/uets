@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use gtk::{
     glib::{self, clone, closure_local},
-    pango,
     prelude::*,
     subclass::prelude::*,
 };
@@ -374,44 +373,7 @@ impl SearchEntry {
         let imp = self.imp();
 
         let text = imp.entry.text();
-
-        let attrs = pango::AttrList::new();
-
-        search_query::parse_raw(&text, |index, iden, value| {
-            if let Some(iden) = iden {
-                let start_index = index as u32;
-                let end_index = (index + iden.len() + 1 + value.len()) as u32;
-
-                let is_value_in_quotes = search_query::is_value_in_quotes(value);
-                let value_start_index = if is_value_in_quotes {
-                    (index + iden.len() + 2) as u32
-                } else {
-                    (index + iden.len() + 1) as u32
-                };
-                let value_end_index = if is_value_in_quotes {
-                    end_index - 1
-                } else {
-                    end_index
-                };
-
-                let mut attr = pango::AttrInt::new_style(pango::Style::Italic);
-                attr.set_start_index(start_index);
-                attr.set_end_index((index + iden.len()) as u32);
-                attrs.insert(attr);
-
-                let mut attr = pango::AttrInt::new_weight(pango::Weight::Bold);
-                attr.set_start_index(value_start_index);
-                attr.set_end_index(value_end_index);
-                attrs.insert(attr);
-
-                let mut attr =
-                    pango::AttrInt::new_foreground_alpha((0.40 * u16::MAX as f32) as u16);
-                attr.set_start_index(start_index);
-                attr.set_end_index(end_index);
-                attrs.insert(attr);
-            }
-        });
-
-        imp.entry.set_attributes(Some(&attrs))
+        let attrs = search_query::attr_list_for(&text);
+        imp.entry.set_attributes(Some(&attrs));
     }
 }
