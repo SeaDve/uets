@@ -12,25 +12,19 @@ pub enum SearchQuery {
 impl fmt::Display for SearchQuery {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SearchQuery::IdenValue(iden, value) => write!(f, "{}:{}", iden, value),
+            SearchQuery::IdenValue(iden, value) => {
+                if value.contains(char::is_whitespace) {
+                    write!(f, "{}:\"{}\"", iden, value)
+                } else {
+                    write!(f, "{}:{}", iden, value)
+                }
+            }
             SearchQuery::Standalone(standalone) => write!(f, "{}", standalone),
         }
     }
 }
 
-impl SearchQuery {
-    pub fn parse(query: &str) -> Self {
-        debug_assert!(!query.contains(char::is_whitespace));
-
-        if let Some((iden, value)) = query.split_once(':') {
-            SearchQuery::IdenValue(iden.to_string(), value.to_string())
-        } else {
-            SearchQuery::Standalone(query.to_string())
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SearchQueries(VecDeque<SearchQuery>);
 
 impl fmt::Display for SearchQueries {
@@ -58,8 +52,8 @@ impl SearchQueries {
         Self(VecDeque::new())
     }
 
-    pub fn parse(text: &str) -> Self {
-        Self(text.split_whitespace().map(SearchQuery::parse).collect())
+    pub fn from_raw(raw: VecDeque<SearchQuery>) -> Self {
+        Self(raw)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -69,7 +63,7 @@ impl SearchQueries {
     /// Returns the last query that matches any of the given values.
     pub fn find_last_match(&self, iden: &str, values: &[&str]) -> Option<&str> {
         debug_assert!(!iden.contains(char::is_whitespace));
-        debug_assert!(values.iter().all(|v| !v.contains(char::is_whitespace)));
+        debug_assert!(values.iter().all(|v| !v.contains(char_is_quote)));
 
         self.0.iter().rev().find_map(|query| match query {
             SearchQuery::IdenValue(i, v) if i == iden && values.contains(&v.as_str()) => {
@@ -115,8 +109,8 @@ impl SearchQueries {
     /// queries with `new_value` and `old_value` will be removed.
     pub fn replace_all_or_insert(&mut self, iden: &str, old_values: &[&str], new_value: &str) {
         debug_assert!(!iden.contains(char::is_whitespace));
-        debug_assert!(old_values.iter().all(|v| !v.contains(char::is_whitespace)));
-        debug_assert!(!new_value.contains(char::is_whitespace));
+        debug_assert!(old_values.iter().all(|v| !v.contains(char_is_quote)));
+        debug_assert!(!new_value.contains(char_is_quote));
 
         let mut is_inserted = false;
         self.0.retain_mut(|query| match query {
@@ -157,7 +151,7 @@ impl SearchQueries {
     /// queries with `new_value` and `old_value` will be removed.
     pub fn replace_all_iden_or_insert(&mut self, iden: &str, new_value: &str) {
         debug_assert!(!iden.contains(char::is_whitespace));
-        debug_assert!(!new_value.contains(char::is_whitespace));
+        debug_assert!(!new_value.contains(char_is_quote));
 
         let mut is_inserted = false;
         self.0.retain_mut(|query| match query {
@@ -185,7 +179,7 @@ impl SearchQueries {
     /// Removes all queries with the given `iden` and `value`.
     pub fn remove_all(&mut self, iden: &str, value: &str) {
         debug_assert!(!iden.contains(char::is_whitespace));
-        debug_assert!(!value.contains(char::is_whitespace));
+        debug_assert!(!value.contains(char_is_quote));
 
         self.0.retain(|query| {
             if let SearchQuery::IdenValue(i, v) = query {
@@ -196,3 +190,28 @@ impl SearchQueries {
         });
     }
 }
+
+fn char_is_quote(c: char) -> bool {
+    c == '"'
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn display() {
+        let queries = SearchQueries::from_raw(VecDeque::from_iter([
+            SearchQuery::IdenValue("iden1".to_string(), "value1".to_string()),
+            SearchQuery::Standalone("standalone1".to_string()),
+            SearchQuery::IdenValue("iden2".to_string(), " value2  ".to_string()),
+        ]));
+
+        assert_eq!(
+            queries.to_string(),
+            "iden1:value1 standalone1 iden2:\" value2  \" "
+        );
+    }
+}
+
+// TODO bring back assertions on no quotes on iden

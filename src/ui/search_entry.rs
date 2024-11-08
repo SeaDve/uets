@@ -321,7 +321,12 @@ impl SearchEntry {
     }
 
     pub fn queries(&self) -> SearchQueries {
-        SearchQueries::parse(&self.imp().entry.text())
+        SearchQueries::from_raw(
+            parse_queries(&self.imp().entry.text())
+                .into_iter()
+                .map(|(_, q)| q)
+                .collect(),
+        )
     }
 
     /// Sets the text without delaying the search-changed signal.
@@ -377,38 +382,274 @@ impl SearchEntry {
 
         let attrs = pango::AttrList::new();
 
-        let mut chars = text.chars().enumerate();
-        while let Some((index, char)) = chars.next() {
-            if char.is_whitespace() {
-                continue;
-            }
+        parse_queries_inner(&text, |index, iden, value| {
+            if let Some(iden) = iden {
+                let start_index = index as u32;
+                let end_index = (index + iden.len() + 1 + value.len()) as u32;
 
-            let query_len = chars
-                .by_ref()
-                .take_while(|&(_, c)| !c.is_whitespace())
-                .count()
-                + 1;
-            let query = &text[index..index + query_len];
+                let is_value_in_quotes = is_value_in_quotes(value);
+                let value_start_index = if is_value_in_quotes {
+                    (index + iden.len() + 2) as u32
+                } else {
+                    (index + iden.len() + 1) as u32
+                };
+                let value_end_index = if is_value_in_quotes {
+                    end_index - 1
+                } else {
+                    end_index
+                };
 
-            if let SearchQuery::IdenValue(i, v) = SearchQuery::parse(query) {
                 let mut attr = pango::AttrInt::new_style(pango::Style::Italic);
-                attr.set_start_index(index as u32);
-                attr.set_end_index((index + i.len()) as u32);
+                attr.set_start_index(start_index);
+                attr.set_end_index((index + iden.len()) as u32);
                 attrs.insert(attr);
 
                 let mut attr = pango::AttrInt::new_weight(pango::Weight::Bold);
-                attr.set_start_index((index + i.len() + 1) as u32);
-                attr.set_end_index((index + i.len() + 1 + v.len()) as u32);
+                attr.set_start_index(value_start_index);
+                attr.set_end_index(value_end_index);
                 attrs.insert(attr);
 
                 let mut attr =
                     pango::AttrInt::new_foreground_alpha((0.40 * u16::MAX as f32) as u16);
-                attr.set_start_index((index) as u32);
-                attr.set_end_index((index + i.len() + 1 + v.len()) as u32);
+                attr.set_start_index(start_index);
+                attr.set_end_index(end_index);
                 attrs.insert(attr);
             }
-        }
+        });
 
         imp.entry.set_attributes(Some(&attrs))
+    }
+}
+
+fn parse_queries(text: &str) -> Vec<(usize, SearchQuery)> {
+    let mut queries = Vec::new();
+
+    parse_queries_inner(text, |start_index, iden, value| {
+        let value = if is_value_in_quotes(value) {
+            &value[1..value.len() - 1]
+        } else {
+            value
+        };
+        if let Some(iden) = iden {
+            queries.push((
+                start_index,
+                SearchQuery::IdenValue(iden.to_string(), value.to_string()),
+            ));
+        } else {
+            queries.push((start_index, SearchQuery::Standalone(value.to_string())));
+        }
+    });
+
+    queries
+}
+
+fn parse_queries_inner(text: &str, mut cb: impl FnMut(usize, Option<&str>, &str)) {
+    let mut start_index = 0;
+    let mut end_index = 0;
+    let mut in_quotes = false;
+    let mut iden: Option<(usize, &str)> = None;
+
+    for (i, c) in text.char_indices() {
+        match c {
+            '"' => {
+                in_quotes = !in_quotes;
+                if !in_quotes {
+                    if start_index < end_index {
+                        if let Some((iden_start_index, iden)) = iden.take() {
+                            cb(iden_start_index, Some(iden), &text[start_index..end_index]);
+                        } else {
+                            cb(start_index, None, &text[start_index..end_index]);
+                        }
+                    }
+                    start_index = i + 1;
+                    end_index = start_index;
+                }
+            }
+            ':' if !in_quotes => {
+                if start_index < end_index {
+                    iden = Some((start_index, &text[start_index..end_index]));
+                } else {
+                    iden = Some((start_index, ""));
+                }
+                start_index = i + 1;
+                end_index = start_index;
+            }
+            ' ' if !in_quotes => {
+                if start_index < end_index {
+                    if let Some((iden_start_index, iden)) = iden.take() {
+                        cb(iden_start_index, Some(iden), &text[start_index..end_index]);
+                    } else {
+                        cb(start_index, None, &text[start_index..end_index]);
+                    }
+                } else if let Some((iden_start_index, iden)) = iden.take() {
+                    cb(iden_start_index, Some(iden), "");
+                }
+                start_index = i + 1;
+                end_index = start_index;
+            }
+            _ => {
+                if start_index == end_index {
+                    start_index = i;
+                }
+                end_index = i + c.len_utf8();
+            }
+        }
+    }
+
+    if start_index < end_index {
+        if let Some((iden_start_index, iden)) = iden.take() {
+            cb(iden_start_index, Some(iden), &text[start_index..end_index]);
+        } else {
+            cb(start_index, None, &text[start_index..end_index]);
+        }
+    } else if let Some((iden_start_index, iden)) = iden.take() {
+        cb(iden_start_index, Some(iden), "");
+    }
+}
+
+fn is_value_in_quotes(value: &str) -> bool {
+    value.starts_with('"') && value.ends_with('"') && value.len() > 1
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_queries_empty() {
+        assert_eq!(parse_queries(""), vec![]);
+        assert_eq!(parse_queries(" "), vec![]);
+        assert_eq!(parse_queries("\""), vec![]);
+        assert_eq!(parse_queries("\"\""), vec![]);
+    }
+
+    #[test]
+    fn parse_queries_simple() {
+        assert_eq!(
+            parse_queries("standalone1"),
+            vec![(0, SearchQuery::Standalone("standalone1".to_string()))]
+        );
+
+        assert_eq!(
+            parse_queries("iden1:value1"),
+            vec![(
+                0,
+                SearchQuery::IdenValue("iden1".to_string(), "value1".to_string())
+            )]
+        );
+    }
+
+    #[test]
+    fn parse_queries_quotes() {
+        assert_eq!(
+            parse_queries("standalone1 \"\" standalone2"),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (15, SearchQuery::Standalone("standalone2".to_string()))
+            ]
+        );
+        assert_eq!(
+            parse_queries("\"standalone1  \" standalone2"),
+            vec![
+                (1, SearchQuery::Standalone("standalone1  ".to_string())), // FIXMEThis should be 0
+                (16, SearchQuery::Standalone("standalone2".to_string())),
+            ]
+        );
+        assert_eq!(
+            parse_queries("standalone1 \"  standalone2 \"\"standalone3 "),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (13, SearchQuery::Standalone("  standalone2 ".to_string())), // FIXMEThis should be 12
+                (29, SearchQuery::Standalone("standalone3 ".to_string())) // FIXMEThis should be 28
+            ]
+        );
+        assert_eq!(
+            parse_queries("\"  standalone1 \" standalone1 "),
+            vec![
+                (1, SearchQuery::Standalone("  standalone1 ".to_string())), // FIXMEThis should be 0
+                (17, SearchQuery::Standalone("standalone1".to_string()))
+            ]
+        );
+        assert_eq!(
+            parse_queries("standalone1 \"iden1:value1"),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (13, SearchQuery::Standalone("iden1:value1".to_string()))
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_queries_empty_iden_or_value() {
+        assert_eq!(
+            parse_queries("standalone1 : standalone2"),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (12, SearchQuery::IdenValue("".to_string(), "".to_string())),
+                (14, SearchQuery::Standalone("standalone2".to_string()))
+            ]
+        );
+        assert_eq!(
+            parse_queries("standalone1 iden1: standalone2"),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (
+                    12,
+                    SearchQuery::IdenValue("iden1".to_string(), "".to_string())
+                ),
+                (19, SearchQuery::Standalone("standalone2".to_string()))
+            ]
+        );
+        assert_eq!(
+            parse_queries("standalone1 :value1 standalone2"),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (
+                    12,
+                    SearchQuery::IdenValue("".to_string(), "value1".to_string())
+                ),
+                (20, SearchQuery::Standalone("standalone2".to_string()))
+            ]
+        );
+
+        assert_eq!(
+            parse_queries("\"iden1\":value1"),
+            vec![
+                (1, SearchQuery::Standalone("iden1".to_string())), // FIXMEThis should be 0
+                (
+                    7,
+                    SearchQuery::IdenValue("".to_string(), "value1".to_string())
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_queries_complex() {
+        assert_eq!(
+            parse_queries("iden1:value1 iden2:\"value2\" iden3:\" value3\" iden4:\"value4 \" iden5:\" value5 \""),
+           vec![
+                (0, SearchQuery::IdenValue("iden1".to_string(), "value1".to_string())),
+                (13, SearchQuery::IdenValue("iden2".to_string(), "value2".to_string())),
+                (28, SearchQuery::IdenValue("iden3".to_string(), " value3".to_string())),
+                (44, SearchQuery::IdenValue("iden4".to_string(), "value4 ".to_string())),
+                (60, SearchQuery::IdenValue("iden5".to_string(), " value5 ".to_string()))
+            ]
+        );
+
+        assert_eq!(
+            parse_queries(
+                "standalone1   iden1:value1 iden2:\"  value 2   \"   standalone2  standalone3 iden3:\"value 3\"  standalone4"
+            ),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (14, SearchQuery::IdenValue("iden1".to_string(), "value1".to_string())),
+                (27, SearchQuery::IdenValue("iden2".to_string(), "  value 2   ".to_string())),
+                (50, SearchQuery::Standalone("standalone2".to_string())),
+                (63, SearchQuery::Standalone("standalone3".to_string())),
+                (75, SearchQuery::IdenValue("iden3".to_string(), "value 3".to_string())),
+                (92, SearchQuery::Standalone("standalone4".to_string()))
+            ]
+        );
     }
 }
