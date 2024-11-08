@@ -299,7 +299,7 @@ impl StocksView {
         let imp = self.imp();
 
         // Clear search filter so we can find the stock
-        imp.search_entry.set_queries(&SearchQueries::new());
+        imp.search_entry.set_queries(SearchQueries::new());
 
         let position = imp
             .selection_model
@@ -408,7 +408,7 @@ impl StocksView {
             }
         }
 
-        imp.search_entry.set_queries(&queries);
+        imp.search_entry.set_queries(queries);
     }
 
     fn update_fallback_sorter(&self) {
