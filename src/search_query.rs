@@ -52,8 +52,8 @@ impl SearchQueries {
         Self(VecDeque::new())
     }
 
-    pub fn from_raw(raw: VecDeque<SearchQuery>) -> Self {
-        Self(raw)
+    pub fn parse(text: &str) -> Self {
+        Self(parse_inner(text).into_iter().map(|(_, q)| q).collect())
     }
 
     pub fn is_empty(&self) -> bool {
@@ -63,7 +63,7 @@ impl SearchQueries {
     /// Returns the last query that matches any of the given values.
     pub fn find_last_match(&self, iden: &str, values: &[&str]) -> Option<&str> {
         debug_assert!(!iden.contains(char::is_whitespace));
-        debug_assert!(values.iter().all(|v| !v.contains(char_is_quote)));
+        debug_assert!(values.iter().all(|v| !v.contains(is_quote)));
 
         self.0.iter().rev().find_map(|query| match query {
             SearchQuery::IdenValue(i, v) if i == iden && values.contains(&v.as_str()) => {
@@ -109,8 +109,8 @@ impl SearchQueries {
     /// queries with `new_value` and `old_value` will be removed.
     pub fn replace_all_or_insert(&mut self, iden: &str, old_values: &[&str], new_value: &str) {
         debug_assert!(!iden.contains(char::is_whitespace));
-        debug_assert!(old_values.iter().all(|v| !v.contains(char_is_quote)));
-        debug_assert!(!new_value.contains(char_is_quote));
+        debug_assert!(old_values.iter().all(|v| !v.contains(is_quote)));
+        debug_assert!(!new_value.contains(is_quote));
 
         let mut is_inserted = false;
         self.0.retain_mut(|query| match query {
@@ -151,7 +151,7 @@ impl SearchQueries {
     /// queries with `new_value` and `old_value` will be removed.
     pub fn replace_all_iden_or_insert(&mut self, iden: &str, new_value: &str) {
         debug_assert!(!iden.contains(char::is_whitespace));
-        debug_assert!(!new_value.contains(char_is_quote));
+        debug_assert!(!new_value.contains(is_quote));
 
         let mut is_inserted = false;
         self.0.retain_mut(|query| match query {
@@ -179,7 +179,7 @@ impl SearchQueries {
     /// Removes all queries with the given `iden` and `value`.
     pub fn remove_all(&mut self, iden: &str, value: &str) {
         debug_assert!(!iden.contains(char::is_whitespace));
-        debug_assert!(!value.contains(char_is_quote));
+        debug_assert!(!value.contains(is_quote));
 
         self.0.retain(|query| {
             if let SearchQuery::IdenValue(i, v) = query {
@@ -191,7 +191,97 @@ impl SearchQueries {
     }
 }
 
-fn char_is_quote(c: char) -> bool {
+pub fn is_value_in_quotes(value: &str) -> bool {
+    value.starts_with('"') && value.ends_with('"') && value.len() > 1
+}
+
+pub fn parse_raw(text: &str, mut cb: impl FnMut(usize, Option<&str>, &str)) {
+    let mut start_index = 0;
+    let mut end_index = 0;
+    let mut in_quotes = false;
+    let mut iden: Option<(usize, &str)> = None;
+
+    for (i, c) in text.char_indices() {
+        match c {
+            '"' => {
+                in_quotes = !in_quotes;
+                if !in_quotes {
+                    if start_index < end_index {
+                        if let Some((iden_start_index, iden)) = iden.take() {
+                            cb(iden_start_index, Some(iden), &text[start_index..end_index]);
+                        } else {
+                            cb(start_index, None, &text[start_index..end_index]);
+                        }
+                    }
+                    start_index = i + 1;
+                    end_index = start_index;
+                }
+            }
+            ':' if !in_quotes => {
+                if start_index < end_index {
+                    iden = Some((start_index, &text[start_index..end_index]));
+                } else {
+                    iden = Some((start_index, ""));
+                }
+                start_index = i + 1;
+                end_index = start_index;
+            }
+            ' ' if !in_quotes => {
+                if start_index < end_index {
+                    if let Some((iden_start_index, iden)) = iden.take() {
+                        cb(iden_start_index, Some(iden), &text[start_index..end_index]);
+                    } else {
+                        cb(start_index, None, &text[start_index..end_index]);
+                    }
+                } else if let Some((iden_start_index, iden)) = iden.take() {
+                    cb(iden_start_index, Some(iden), "");
+                }
+                start_index = i + 1;
+                end_index = start_index;
+            }
+            _ => {
+                if start_index == end_index {
+                    start_index = i;
+                }
+                end_index = i + c.len_utf8();
+            }
+        }
+    }
+
+    if start_index < end_index {
+        if let Some((iden_start_index, iden)) = iden.take() {
+            cb(iden_start_index, Some(iden), &text[start_index..end_index]);
+        } else {
+            cb(start_index, None, &text[start_index..end_index]);
+        }
+    } else if let Some((iden_start_index, iden)) = iden.take() {
+        cb(iden_start_index, Some(iden), "");
+    }
+}
+
+fn parse_inner(text: &str) -> Vec<(usize, SearchQuery)> {
+    let mut queries = Vec::new();
+
+    parse_raw(text, |start_index, iden, value| {
+        let value = if is_value_in_quotes(value) {
+            &value[1..value.len() - 1]
+        } else {
+            value
+        };
+        if let Some(iden) = iden {
+            queries.push((
+                start_index,
+                SearchQuery::IdenValue(iden.to_string(), value.to_string()),
+            ));
+        } else {
+            queries.push((start_index, SearchQuery::Standalone(value.to_string())));
+        }
+    });
+
+    queries
+}
+
+fn is_quote(c: char) -> bool {
     c == '"'
 }
 
@@ -201,7 +291,7 @@ mod tests {
 
     #[test]
     fn display() {
-        let queries = SearchQueries::from_raw(VecDeque::from_iter([
+        let queries = SearchQueries(VecDeque::from_iter([
             SearchQuery::IdenValue("iden1".to_string(), "value1".to_string()),
             SearchQuery::Standalone("standalone1".to_string()),
             SearchQuery::IdenValue("iden2".to_string(), " value2  ".to_string()),
@@ -212,6 +302,142 @@ mod tests {
             "iden1:value1 standalone1 iden2:\" value2  \" "
         );
     }
-}
 
-// TODO bring back assertions on no quotes on iden
+    #[test]
+    fn parse_queries_empty() {
+        assert_eq!(parse_inner(""), vec![]);
+        assert_eq!(parse_inner(" "), vec![]);
+        assert_eq!(parse_inner("\""), vec![]);
+        assert_eq!(parse_inner("\"\""), vec![]);
+    }
+
+    #[test]
+    fn parse_queries_simple() {
+        assert_eq!(
+            parse_inner("standalone1"),
+            vec![(0, SearchQuery::Standalone("standalone1".to_string()))]
+        );
+
+        assert_eq!(
+            parse_inner("iden1:value1"),
+            vec![(
+                0,
+                SearchQuery::IdenValue("iden1".to_string(), "value1".to_string())
+            )]
+        );
+    }
+
+    #[test]
+    fn parse_queries_quotes() {
+        assert_eq!(
+            parse_inner("standalone1 \"\" standalone2"),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (15, SearchQuery::Standalone("standalone2".to_string()))
+            ]
+        );
+        assert_eq!(
+            parse_inner("\"standalone1  \" standalone2"),
+            vec![
+                (1, SearchQuery::Standalone("standalone1  ".to_string())), // FIXMEThis should be 0
+                (16, SearchQuery::Standalone("standalone2".to_string())),
+            ]
+        );
+        assert_eq!(
+            parse_inner("standalone1 \"  standalone2 \"\"standalone3 "),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (13, SearchQuery::Standalone("  standalone2 ".to_string())), // FIXMEThis should be 12
+                (29, SearchQuery::Standalone("standalone3 ".to_string())) // FIXMEThis should be 28
+            ]
+        );
+        assert_eq!(
+            parse_inner("\"  standalone1 \" standalone1 "),
+            vec![
+                (1, SearchQuery::Standalone("  standalone1 ".to_string())), // FIXMEThis should be 0
+                (17, SearchQuery::Standalone("standalone1".to_string()))
+            ]
+        );
+        assert_eq!(
+            parse_inner("standalone1 \"iden1:value1"),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (13, SearchQuery::Standalone("iden1:value1".to_string()))
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_queries_empty_iden_or_value() {
+        assert_eq!(
+            parse_inner("standalone1 : standalone2"),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (12, SearchQuery::IdenValue("".to_string(), "".to_string())),
+                (14, SearchQuery::Standalone("standalone2".to_string()))
+            ]
+        );
+        assert_eq!(
+            parse_inner("standalone1 iden1: standalone2"),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (
+                    12,
+                    SearchQuery::IdenValue("iden1".to_string(), "".to_string())
+                ),
+                (19, SearchQuery::Standalone("standalone2".to_string()))
+            ]
+        );
+        assert_eq!(
+            parse_inner("standalone1 :value1 standalone2"),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (
+                    12,
+                    SearchQuery::IdenValue("".to_string(), "value1".to_string())
+                ),
+                (20, SearchQuery::Standalone("standalone2".to_string()))
+            ]
+        );
+
+        assert_eq!(
+            parse_inner("\"iden1\":value1"),
+            vec![
+                (1, SearchQuery::Standalone("iden1".to_string())), // FIXMEThis should be 0
+                (
+                    7,
+                    SearchQuery::IdenValue("".to_string(), "value1".to_string())
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_queries_complex() {
+        assert_eq!(
+            parse_inner("iden1:value1 iden2:\"value2\" iden3:\" value3\" iden4:\"value4 \" iden5:\" value5 \""),
+           vec![
+                (0, SearchQuery::IdenValue("iden1".to_string(), "value1".to_string())),
+                (13, SearchQuery::IdenValue("iden2".to_string(), "value2".to_string())),
+                (28, SearchQuery::IdenValue("iden3".to_string(), " value3".to_string())),
+                (44, SearchQuery::IdenValue("iden4".to_string(), "value4 ".to_string())),
+                (60, SearchQuery::IdenValue("iden5".to_string(), " value5 ".to_string()))
+            ]
+        );
+
+        assert_eq!(
+            parse_inner(
+                "standalone1   iden1:value1 iden2:\"  value 2   \"   standalone2  standalone3 iden3:\"value 3\"  standalone4"
+            ),
+            vec![
+                (0, SearchQuery::Standalone("standalone1".to_string())),
+                (14, SearchQuery::IdenValue("iden1".to_string(), "value1".to_string())),
+                (27, SearchQuery::IdenValue("iden2".to_string(), "  value 2   ".to_string())),
+                (50, SearchQuery::Standalone("standalone2".to_string())),
+                (63, SearchQuery::Standalone("standalone3".to_string())),
+                (75, SearchQuery::IdenValue("iden3".to_string(), "value 3".to_string())),
+                (92, SearchQuery::Standalone("standalone4".to_string()))
+            ]
+        );
+    }
+}
