@@ -15,7 +15,6 @@ pub struct StockId(Box<str>);
 
 impl StockId {
     pub fn new(id: impl Into<Box<str>>) -> Self {
-        // TODO Disallow quotes (")
         Self(id.into())
     }
 }
