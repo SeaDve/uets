@@ -9,6 +9,7 @@ adw = { package = "libadwaita", version = "0.7", features = ["v1_2"] }
 anyhow = "1.0"
 async-lock = "3.4.0"
 chrono = { version = "0.4", features = ["serde"] }
+dateparser = "0.2.1"
 fuzzy-matcher = "0.3.7"
 genpdf = { version = "0.2.0", features = ["images"] }
 gtk = { package = "gtk4", version = "0.9", features = ["gnome_43"] }

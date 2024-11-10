@@ -26,6 +26,9 @@ impl S {
     const ENTRY: &str = "entry";
     const EXIT: &str = "exit";
 
+    const FROM: &str = "from";
+    const TO: &str = "to";
+
     const STOCK: &str = "stock";
 
     const ENTITY: &str = "entity";
@@ -424,7 +427,7 @@ impl TimelineView {
 
         let queries = entry.queries();
 
-        let item_kind = match queries.find_last_match(S::IS, &[S::ENTRY, S::EXIT]) {
+        let item_kind = match queries.find_last_with_values(S::IS, &[S::ENTRY, S::EXIT]) {
             Some(S::ENTRY) => TimelineItemKindFilter::Entry,
             Some(S::EXIT) => TimelineItemKindFilter::Exit,
             _ => TimelineItemKindFilter::All,
@@ -435,6 +438,15 @@ impl TimelineView {
         imp.item_kind_dropdown.set_selected(item_kind.position());
         imp.item_kind_dropdown
             .unblock_signal(selected_item_notify_id);
+
+        let from_dt = match queries.find_last(S::FROM) {
+            Some(dt_str) => dateparser::parse(dt_str).ok(),
+            None => None,
+        };
+        let to_dt = match queries.find_last(S::TO) {
+            Some(dt_str) => dateparser::parse(dt_str).ok(),
+            None => None,
+        };
 
         if queries.is_empty() {
             imp.filter_list_model.set_filter(gtk::Filter::NONE);
@@ -467,6 +479,20 @@ impl TimelineView {
                     entity.kind().is_exit()
                 }));
             }
+        }
+
+        if let Some(from_dt) = from_dt {
+            every_filter.append(gtk::CustomFilter::new(move |o| {
+                let entity = o.downcast_ref::<TimelineItem>().unwrap();
+                entity.dt().inner() >= from_dt
+            }));
+        }
+
+        if let Some(to_dt) = to_dt {
+            every_filter.append(gtk::CustomFilter::new(move |o| {
+                let entity = o.downcast_ref::<TimelineItem>().unwrap();
+                entity.dt().inner() <= to_dt
+            }));
         }
 
         let any_stock_filter = gtk::AnyFilter::new();

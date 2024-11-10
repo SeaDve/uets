@@ -170,13 +170,25 @@ impl SearchQueries {
     }
 
     /// Returns the last query that matches any of the given values.
-    pub fn find_last_match(&self, iden: &str, values: &[&str]) -> Option<&str> {
+    pub fn find_last_with_values(&self, iden: &str, values: &[&str]) -> Option<&str> {
         debug_assert!(!iden.contains(char::is_whitespace));
 
         self.0.iter().rev().find_map(|query| match query {
             SQ::IdenValue {
                 iden: i, value: v, ..
             } if i == iden && values.contains(&v.as_str()) => Some(v.as_str()),
+            _ => None,
+        })
+    }
+
+    /// Returns the last query that has the given iden.
+    pub fn find_last(&self, iden: &str) -> Option<&str> {
+        debug_assert!(!iden.contains(char::is_whitespace));
+
+        self.0.iter().rev().find_map(|query| match query {
+            SQ::IdenValue {
+                iden: i, value: v, ..
+            } if i == iden => Some(v.as_str()),
             _ => None,
         })
     }

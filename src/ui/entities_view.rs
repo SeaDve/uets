@@ -419,7 +419,7 @@ impl EntitiesView {
 
         let queries = entry.queries();
 
-        let entity_zone = match queries.find_last_match(S::IS, &[S::INSIDE, S::OUTSIDE]) {
+        let entity_zone = match queries.find_last_with_values(S::IS, &[S::INSIDE, S::OUTSIDE]) {
             Some(S::INSIDE) => EntityZoneFilter::Inside,
             Some(S::OUTSIDE) => EntityZoneFilter::Outside,
             _ => EntityZoneFilter::All,
@@ -547,7 +547,7 @@ impl EntitiesView {
 
         let queries = imp.search_entry.queries();
 
-        let entity_sort = match queries.find_last_match(S::SORT, S::SORT_VALUES) {
+        let entity_sort = match queries.find_last_with_values(S::SORT, S::SORT_VALUES) {
             Some(S::ID_ASC) => EntitySort::IdAsc,
             Some(S::ID_DESC) => EntitySort::IdDesc,
             Some(S::STOCK_ASC) => EntitySort::StockAsc,

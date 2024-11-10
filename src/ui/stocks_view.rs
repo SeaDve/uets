@@ -415,7 +415,7 @@ impl StocksView {
         let imp = self.imp();
 
         let queries = imp.search_entry.queries();
-        let stock_sort = match queries.find_last_match(S::SORT, S::SORT_VALUES) {
+        let stock_sort = match queries.find_last_with_values(S::SORT, S::SORT_VALUES) {
             Some(S::ID_ASC) => StockSort::IdAsc,
             Some(S::ID_DESC) => StockSort::IdDesc,
             Some(S::COUNT_ASC) => StockSort::CountAsc,
