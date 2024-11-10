@@ -335,9 +335,8 @@ fn is_in_quotes(value: &str) -> bool {
         let last = chars.next();
         let second_last = chars.next();
         last.is_some_and(is_quote)
-            && (second_last.is_some_and(|c| c != '\\') || {
-                chars.take_while(|c| *c == '\\').count() % 2 != 0
-            })
+            && (second_last.is_some_and(|c| c != '\\')
+                || chars.take_while(|c| *c == '\\').count() % 2 != 0)
     }
 }
 
