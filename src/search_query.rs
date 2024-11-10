@@ -334,13 +334,10 @@ fn is_in_quotes(value: &str) -> bool {
         let mut chars = value.chars().rev();
         let last = chars.next();
         let second_last = chars.next();
-        let ret = last.is_some_and(is_quote) && second_last.is_some_and(|c| c != '\\');
-
-        if ret {
-            debug_assert!(value.len() >= 2);
-        }
-
-        ret
+        last.is_some_and(is_quote)
+            && (second_last.is_some_and(|c| c != '\\') || {
+                chars.take_while(|c| *c == '\\').count() % 2 != 0
+            })
     }
 }
 
@@ -412,7 +409,11 @@ mod tests {
         assert!(!is_in_quotes("\"a"));
         assert!(!is_in_quotes("a\""));
 
-        assert!(!is_in_quotes("\"a\\\""));
+        assert!(is_in_quotes(r#""a\\""#));
+        assert!(is_in_quotes(r#""a\\\\""#));
+
+        assert!(!is_in_quotes(r#""a\\\""#));
+        assert!(!is_in_quotes(r#""a\""#));
     }
 
     #[test]
@@ -588,6 +589,15 @@ mod tests {
             vec![
                 value("s"),
                 iden_value("iden1", r#""va\"lue1\""#, 2, 19, 8, 19),
+                value("e")
+            ]
+        );
+
+        assert_eq!(
+            parse(r#"s iden1:"va\"lue1\\" e"#),
+            vec![
+                value("s"),
+                iden_value("iden1", r#"va"lue1\"#, 2, 20, 9, 19),
                 value("e")
             ]
         );
