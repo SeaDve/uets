@@ -64,6 +64,8 @@ mod imp {
                 ),
             );
             self.timeline_signals.set(timeline_signals).unwrap();
+
+            obj.update_n_inside_label();
         }
 
         fn dispose(&self) {
