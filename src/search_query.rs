@@ -1,11 +1,35 @@
 use regex::Regex;
 use std::{
     collections::{HashSet, VecDeque},
-    fmt,
+    fmt::{self, Write},
     sync::LazyLock,
 };
 
 use gtk::pango;
+
+struct EnquotedIfNeeded<'a>(&'a str);
+
+impl fmt::Display for EnquotedIfNeeded<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Enquote if the value has whitespace or it looks like it is in quotes.
+        if self.0.contains(char::is_whitespace) || is_in_quotes(self.0) {
+            f.write_char('"')?;
+
+            // Escape all quotes and backslashes.
+            for s in self.0.chars() {
+                match s {
+                    '"' => f.write_str(r#"\""#)?,
+                    '\\' => f.write_str(r#"\\"#)?,
+                    c => f.write_char(c)?,
+                }
+            }
+
+            f.write_char('"')
+        } else {
+            fmt::Display::fmt(self.0, f)
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SQ {
@@ -26,7 +50,7 @@ impl fmt::Display for SQ {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SQ::IdenValue { iden, value, .. } => {
-                write!(f, "{}:{}", iden, enquote_if_needed(value))
+                write!(f, "{}:{}", iden, EnquotedIfNeeded(value))
             }
             SQ::Value { value } => {
                 write!(f, "{}", value)
@@ -73,7 +97,7 @@ impl SearchQueries {
             if let Some((iden, raw_value)) = m.as_str().split_once(':') {
                 let is_value_in_quotes = is_in_quotes(raw_value);
                 let value = if is_value_in_quotes {
-                    unqoute(raw_value)
+                    unquote(raw_value)
                 } else {
                     raw_value.to_string()
                 };
@@ -308,7 +332,7 @@ fn is_in_quotes(value: &str) -> bool {
     }
 }
 
-fn unqoute(s: &str) -> String {
+fn unquote(s: &str) -> String {
     debug_assert!(is_in_quotes(s));
 
     let mut ret = String::new();
@@ -332,28 +356,6 @@ fn unqoute(s: &str) -> String {
     }
 
     ret
-}
-
-fn enquote_if_needed(s: &str) -> String {
-    // Also escape if the value looks like it is in quotes.
-    if s.contains(char::is_whitespace) || is_in_quotes(s) {
-        let mut ret = String::new();
-        ret.push('"');
-
-        // Escape all quotes and backslashes.
-        for s in s.chars() {
-            match s {
-                '"' => ret.push_str(r#"\""#),
-                '\\' => ret.push_str(r#"\\"#),
-                c => ret.push(c),
-            }
-        }
-
-        ret.push('"');
-        ret
-    } else {
-        s.to_string()
-    }
 }
 
 #[cfg(test)]
@@ -414,10 +416,10 @@ mod tests {
 
         let queries = SearchQueries(VecDeque::from_iter([
             value("s"),
-            iden_value("iden1", r#"  val"ue1    "#, 2, 24, 9, 23),
+            iden_value("iden1", r#"  va"lue1    "#, 2, 24, 9, 23),
             value("e"),
         ]));
-        let str = r#"s iden1:"  val\"ue1    " e"#;
+        let str = r#"s iden1:"  va\"lue1    " e"#;
         assert_eq!(queries.to_string(), str);
         assert_eq!(SearchQueries::parse(str), queries);
 
