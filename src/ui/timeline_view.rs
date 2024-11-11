@@ -14,7 +14,10 @@ use crate::{
     stock_id::StockId,
     timeline::Timeline,
     timeline_item::TimelineItem,
-    ui::{search_entry::SearchEntry, timeline_row::TimelineRow, wormhole_window::WormholeWindow},
+    ui::{
+        date_time_picker::DateTimePicker, search_entry::SearchEntry, timeline_row::TimelineRow,
+        wormhole_window::WormholeWindow,
+    },
     Application,
 };
 
@@ -105,6 +108,28 @@ mod imp {
                 |obj, _, kind| async move {
                     let kind = kind.unwrap().get::<ReportKind>().unwrap();
                     obj.handle_share_report(kind).await;
+                },
+            );
+            klass.install_action_async(
+                "timeline-view.pick-date-time",
+                None,
+                |obj, _, _| async move {
+                    let imp = obj.imp();
+
+                    if let Ok(dt_range) = DateTimePicker::pick(&obj).await {
+                        if let Some(dt_range) = dt_range {
+                            let mut queries = imp.search_entry.queries();
+                            queries
+                                .replace_all_iden_or_insert(S::FROM, &dt_range.start.to_string());
+                            queries.replace_all_iden_or_insert(S::TO, &dt_range.end.to_string());
+                            imp.search_entry.set_queries(queries);
+                        } else {
+                            let mut queries = imp.search_entry.queries();
+                            queries.remove_all_iden(S::FROM);
+                            queries.remove_all_iden(S::TO);
+                            imp.search_entry.set_queries(queries);
+                        }
+                    }
                 },
             );
             klass.install_action("timeline-view.scroll-to-bottom", None, |obj, _, _| {

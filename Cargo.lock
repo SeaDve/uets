@@ -3564,6 +3564,7 @@ dependencies = [
  "async-lock",
  "chrono",
  "dateparser",
+ "futures-channel",
  "fuzzy-matcher",
  "genpdf",
  "gsettings-macro",
