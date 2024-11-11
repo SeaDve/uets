@@ -323,6 +323,18 @@ impl SearchQueries {
             }
         });
     }
+
+    pub fn remove_all_iden(&mut self, iden: &str) {
+        debug_assert!(!iden.contains(char::is_whitespace));
+
+        self.0.retain(|query| {
+            if let SQ::IdenValue { iden: i, .. } = query {
+                i != iden
+            } else {
+                true
+            }
+        });
+    }
 }
 
 fn is_quote(c: char) -> bool {

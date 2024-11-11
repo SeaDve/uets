@@ -78,12 +78,12 @@ list_model_enum!(EntitySort);
 impl EntitySort {
     fn display(&self) -> &'static str {
         match self {
-            EntitySort::IdAsc => "A-Z",
-            EntitySort::IdDesc => "Z-A",
-            EntitySort::StockAsc => "Stock (A-Z)",
-            EntitySort::StockDesc => "Stock (Z-A)",
-            EntitySort::UpdatedAsc => "Least Recently Updated",
-            EntitySort::UpdatedDesc => "Recently Updated",
+            Self::IdAsc => "A-Z",
+            Self::IdDesc => "Z-A",
+            Self::StockAsc => "Stock (A-Z)",
+            Self::StockDesc => "Stock (Z-A)",
+            Self::UpdatedAsc => "Least Recently Updated",
+            Self::UpdatedDesc => "Recently Updated",
         }
     }
 }

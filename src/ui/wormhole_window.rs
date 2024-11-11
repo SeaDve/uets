@@ -129,7 +129,7 @@ impl WormholeWindow {
             return Ok(());
         }
 
-        let this = glib::Object::builder::<WormholeWindow>()
+        let this = glib::Object::builder::<Self>()
             .property("transient-for", root)
             .property("modal", true)
             .build();
@@ -152,7 +152,7 @@ impl WormholeWindow {
     ) -> Result<()> {
         let imp = self.imp();
 
-        imp.file_name_label.set_text(dest_file_name);
+        imp.file_name_label.set_label(dest_file_name);
 
         imp.stack.set_visible_child(&*imp.loading_page);
         imp.title_label.set_label("Loading Data");
@@ -162,7 +162,7 @@ impl WormholeWindow {
 
         imp.title_label.set_label("Loading Code");
 
-        imp.file_name_label.set_text(&format!(
+        imp.file_name_label.set_label(&format!(
             "{dest_file_name} ({})",
             glib::format_size(bytes.len() as u64)
         ));
@@ -181,7 +181,7 @@ impl WormholeWindow {
 
         let qrcode_texture = qrcode_texture_for_uri(&uri)?;
         imp.qrcode_image.set_paintable(Some(&qrcode_texture));
-        imp.code_label.set_text(connection.code().as_str());
+        imp.code_label.set_label(connection.code().as_str());
 
         imp.stack.set_visible_child(&*imp.loaded_page);
         imp.title_label.set_label("Scan or Type Code");
