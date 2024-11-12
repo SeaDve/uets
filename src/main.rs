@@ -12,6 +12,7 @@ mod application;
 mod colors;
 mod config;
 mod date_time;
+mod date_time_range;
 mod db;
 mod detector;
 mod entity;

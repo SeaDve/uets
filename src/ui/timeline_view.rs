@@ -19,7 +19,7 @@ use crate::{
     timeline::Timeline,
     timeline_item::TimelineItem,
     ui::{
-        date_time_picker::DateTimePicker, search_entry::SearchEntry, timeline_row::TimelineRow,
+        date_time_button::DateTimeButton, search_entry::SearchEntry, timeline_row::TimelineRow,
         wormhole_window::WormholeWindow,
     },
     Application,
@@ -72,6 +72,8 @@ mod imp {
         pub(super) search_entry: TemplateChild<SearchEntry>,
         #[template_child]
         pub(super) item_kind_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
+        pub(super) dt_button: TemplateChild<DateTimeButton>,
         #[template_child]
         pub(super) no_data_page: TemplateChild<adw::StatusPage>,
         #[template_child]
@@ -131,22 +133,22 @@ mod imp {
                         .and_then(|dt_str| dateparser::parse(dt_str).ok())
                         .map(|dt| dt.naive_local());
 
-                    if let Ok(dt_range) = DateTimePicker::pick(initial_from, initial_to, &obj).await
-                    {
-                        if let Some(dt_range) = dt_range {
-                            queries.replace_all_iden_or_insert(
-                                S::TO,
-                                &to_parseable_dt_format(dt_range.end()).to_string(),
-                            );
-                            queries.replace_all_iden_or_insert(
-                                S::FROM,
-                                &to_parseable_dt_format(dt_range.start()).to_string(),
-                            );
-                        } else {
-                            queries.remove_all_iden(S::FROM);
-                            queries.remove_all_iden(S::TO);
-                        }
-                    }
+                    // if let Ok(dt_range) = DateTimeWindow::pick(initial_from, initial_to, &obj).await
+                    // {
+                    //     if let Some(dt_range) = dt_range {
+                    //         queries.replace_all_iden_or_insert(
+                    //             S::TO,
+                    //             &to_parseable_dt_format(dt_range.end()).to_string(),
+                    //         );
+                    //         queries.replace_all_iden_or_insert(
+                    //             S::FROM,
+                    //             &to_parseable_dt_format(dt_range.start()).to_string(),
+                    //         );
+                    //     } else {
+                    //         queries.remove_all_iden(S::FROM);
+                    //         queries.remove_all_iden(S::TO);
+                    //     }
+                    // }
 
                     imp.search_entry.set_queries(queries);
                 },

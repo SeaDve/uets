@@ -5,35 +5,6 @@ use gtk::{
     subclass::prelude::*,
 };
 
-enum AmPm {
-    Am,
-    Pm,
-}
-
-impl AmPm {
-    fn from_str(s: &str) -> Self {
-        match s {
-            "AM" => Self::Am,
-            "PM" => Self::Pm,
-            _ => unreachable!(),
-        }
-    }
-
-    fn rev(&self) -> Self {
-        match self {
-            Self::Am => Self::Pm,
-            Self::Pm => Self::Am,
-        }
-    }
-
-    fn as_str(&self) -> &'static str {
-        match self {
-            Self::Am => "AM",
-            Self::Pm => "PM",
-        }
-    }
-}
-
 #[derive(Default, Clone, Copy, PartialEq, Eq, glib::Boxed)]
 #[boxed_type(name = "UetsNaiveTimeBoxed")]
 pub struct NaiveTimeBoxed(pub NaiveTime);
@@ -219,5 +190,34 @@ impl TimePicker {
 
         let am_pm = AmPm::from_str(&imp.am_pm_button_label.label());
         imp.am_pm_button_label.set_label(am_pm.rev().as_str());
+    }
+}
+
+enum AmPm {
+    Am,
+    Pm,
+}
+
+impl AmPm {
+    fn from_str(s: &str) -> Self {
+        match s {
+            "AM" => Self::Am,
+            "PM" => Self::Pm,
+            _ => unreachable!(),
+        }
+    }
+
+    fn rev(&self) -> Self {
+        match self {
+            Self::Am => Self::Pm,
+            Self::Pm => Self::Am,
+        }
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Am => "AM",
+            Self::Pm => "PM",
+        }
     }
 }

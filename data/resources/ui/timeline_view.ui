@@ -51,9 +51,7 @@
                   </object>
                 </child>
                 <child>
-                  <object class="GtkButton">
-                    <property name="action-name">timeline-view.pick-date-time</property>
-                  </object>
+                  <object class="UetsDateTimeButton" id="dt_button"/>
                 </child>
               </object>
             </child>
