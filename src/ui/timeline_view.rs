@@ -1,5 +1,8 @@
 use anyhow::Result;
-use chrono::{NaiveDateTime, NaiveTime};
+use chrono::{
+    format::{DelayedFormat, StrftimeItems},
+    NaiveDateTime, NaiveTime,
+};
 use gtk::{
     glib::{self, clone, closure_local},
     prelude::*,
@@ -131,11 +134,13 @@ mod imp {
                     if let Ok(dt_range) = DateTimePicker::pick(initial_from, initial_to, &obj).await
                     {
                         if let Some(dt_range) = dt_range {
-                            queries
-                                .replace_all_iden_or_insert(S::TO, &dt_to_string(dt_range.end()));
+                            queries.replace_all_iden_or_insert(
+                                S::TO,
+                                &to_parseable_dt_format(dt_range.end()).to_string(),
+                            );
                             queries.replace_all_iden_or_insert(
                                 S::FROM,
-                                &dt_to_string(dt_range.start()),
+                                &to_parseable_dt_format(dt_range.start()).to_string(),
                             );
                         } else {
                             queries.remove_all_iden(S::FROM);
@@ -620,10 +625,10 @@ impl TimelineView {
     }
 }
 
-fn dt_to_string(dt: &NaiveDateTime) -> String {
+fn to_parseable_dt_format(dt: &NaiveDateTime) -> DelayedFormat<StrftimeItems<'_>> {
     if dt.time() == NaiveTime::MIN {
-        return dt.format("%Y-%m-%d").to_string();
+        return dt.format("%Y-%m-%d");
     }
 
-    dt.format("%Y-%m-%d %H:%M:%S").to_string()
+    dt.format("%Y-%m-%d %H:%M:%S")
 }

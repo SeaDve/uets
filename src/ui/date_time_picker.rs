@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 
 use adw::{prelude::*, subclass::prelude::*};
-use chrono::{Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Weekday};
+use chrono::{Datelike, Local, Month, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Weekday};
 use futures_channel::oneshot;
 use gtk::glib::{self, clone, closure};
 
@@ -10,8 +10,6 @@ use crate::{list_model_enum, ui::time_picker::TimePicker};
 use super::time_picker::NaiveTimeBoxed;
 
 const DT_FORMAT: &str = "%b %-d %Y %r";
-
-const WEEK_START: Weekday = Weekday::Sun;
 
 const MIN_TIME: NaiveTime = NaiveTime::MIN;
 
@@ -371,10 +369,10 @@ impl DateTimeRangeKind {
                 let today = now.date();
 
                 let weekday = today.weekday();
-                let start_of_week = if weekday == WEEK_START {
+                let start_of_week = if weekday == Weekday::Sun {
                     today
                 } else {
-                    today - chrono::Duration::days(weekday.num_days_from_monday() as i64)
+                    today - chrono::Duration::days(weekday.num_days_from_sunday() as i64)
                 };
 
                 let end_of_week = start_of_week + chrono::Duration::days(6);
@@ -383,26 +381,96 @@ impl DateTimeRangeKind {
                     ..=NaiveDateTime::new(end_of_week, MAX_TIME)
             }
             Self::LastWeek => {
-                todo!()
+                // FIXME
+                let today = now.date();
+
+                let start_of_week = today
+                    - chrono::Duration::days(today.weekday().num_days_from_sunday() as i64 + 7);
+                let end_of_week = start_of_week + chrono::Duration::days(6);
+
+                NaiveDateTime::new(start_of_week, MIN_TIME)
+                    ..=NaiveDateTime::new(end_of_week, MAX_TIME)
             }
             Self::ThisMonth => {
-                NaiveDateTime::new(
-                    NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap(),
-                    MIN_TIME,
-                )..=NaiveDateTime::new(now.date(), MAX_TIME)
+                let start_of_month = NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+                let end_of_month =
+                    NaiveDate::from_ymd_opt(now.year(), now.month(), now.date().days_in_month())
+                        .unwrap();
+
+                NaiveDateTime::new(start_of_month, MIN_TIME)
+                    ..=NaiveDateTime::new(end_of_month, MAX_TIME)
             }
             Self::LastMonth => {
-                todo!()
+                // FIXME
+                let this_month = NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
+
+                let start_of_month =
+                    this_month - chrono::Duration::days(now.date().days_in_month() as i64 + 1);
+                let end_of_month = start_of_month
+                    + chrono::Duration::days(start_of_month.days_in_month() as i64 - 1);
+
+                NaiveDateTime::new(start_of_month, MIN_TIME)
+                    ..=NaiveDateTime::new(end_of_month, MAX_TIME)
             }
             Self::ThisYear => {
-                NaiveDateTime::new(NaiveDate::from_ymd_opt(now.year(), 1, 1).unwrap(), MIN_TIME)
-                    ..=NaiveDateTime::new(now.date(), MAX_TIME)
+                let start_of_month = NaiveDate::from_ymd_opt(now.year(), 1, 1).unwrap();
+                let end_of_month = start_of_month
+                    + chrono::Duration::days(start_of_month.days_in_month() as i64 - 1);
+
+                NaiveDateTime::new(start_of_month, MIN_TIME)
+                    ..=NaiveDateTime::new(end_of_month, MAX_TIME)
             }
             Self::LastYear => {
-                todo!()
+                // FIXME
+                let this_year = NaiveDate::from_ymd_opt(now.year(), 1, 1).unwrap();
+
+                let start_of_year =
+                    this_year - chrono::Duration::days(this_year.days_in_year() as i64 + 1);
+                let end_of_year =
+                    start_of_year + chrono::Duration::days(start_of_year.days_in_year() as i64 - 1);
+
+                NaiveDateTime::new(start_of_year, MIN_TIME)
+                    ..=NaiveDateTime::new(end_of_year, MAX_TIME)
             }
         };
 
         Some(ret)
+    }
+}
+
+trait NaiveDateExt {
+    fn days_in_month(&self) -> u32;
+    fn days_in_year(&self) -> u32;
+    fn is_leap_year(&self) -> bool;
+}
+
+impl NaiveDateExt for NaiveDate {
+    fn days_in_month(&self) -> u32 {
+        let month = self.month();
+        match month {
+            1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+            4 | 6 | 9 | 11 => 30,
+            2 => {
+                if self.is_leap_year() {
+                    29
+                } else {
+                    28
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn days_in_year(&self) -> u32 {
+        if self.is_leap_year() {
+            366
+        } else {
+            365
+        }
+    }
+
+    fn is_leap_year(&self) -> bool {
+        let year = self.year();
+        return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
     }
 }
