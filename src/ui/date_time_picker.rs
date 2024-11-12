@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::ops::RangeInclusive;
 
 use adw::{prelude::*, subclass::prelude::*};
 use chrono::{Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Weekday};
@@ -17,94 +17,6 @@ const MIN_TIME: NaiveTime = NaiveTime::MIN;
 
 #[allow(deprecated)]
 const MAX_TIME: NaiveTime = NaiveTime::from_hms(23, 59, 59);
-
-#[derive(Debug, Default, Clone, Copy, glib::Enum)]
-#[enum_type(name = "UetsDateTimeRangeKind")]
-enum DateTimeRangeKind {
-    #[default]
-    Custom,
-    AllTime,
-    Today,
-    Yesterday,
-    ThisWeek,
-    LastWeek,
-    ThisMonth,
-    LastMonth,
-    ThisYear,
-    LastYear,
-}
-
-list_model_enum!(DateTimeRangeKind);
-
-impl DateTimeRangeKind {
-    fn display(&self) -> &'static str {
-        match self {
-            Self::AllTime => "All Time",
-            Self::Custom => "Custom",
-            Self::Today => "Today",
-            Self::Yesterday => "Yesterday",
-            Self::ThisWeek => "This Week",
-            Self::LastWeek => "Last Week",
-            Self::ThisMonth => "This Month",
-            Self::LastMonth => "Last Month",
-            Self::ThisYear => "This Year",
-            Self::LastYear => "Last Year",
-        }
-    }
-
-    fn range(&self) -> Option<Range<NaiveDateTime>> {
-        let now = Local::now().naive_local();
-
-        let ret = match self {
-            Self::AllTime | Self::Custom => {
-                return None;
-            }
-            Self::Today => {
-                NaiveDateTime::new(now.date(), MIN_TIME)..NaiveDateTime::new(now.date(), MAX_TIME)
-            }
-            Self::Yesterday => {
-                let yesterday = now.date().pred_opt().unwrap();
-                NaiveDateTime::new(yesterday, MIN_TIME)..NaiveDateTime::new(yesterday, MAX_TIME)
-            }
-            Self::ThisWeek => {
-                let today = now.date();
-
-                let weekday = today.weekday();
-                let start_of_week = if weekday == WEEK_START {
-                    today
-                } else {
-                    today - chrono::Duration::days(weekday.num_days_from_monday() as i64)
-                };
-
-                let end_of_week = start_of_week + chrono::Duration::days(6);
-
-                NaiveDateTime::new(start_of_week, MIN_TIME)
-                    ..NaiveDateTime::new(end_of_week, MAX_TIME)
-            }
-            Self::LastWeek => {
-                todo!()
-            }
-            Self::ThisMonth => {
-                NaiveDateTime::new(
-                    NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap(),
-                    MIN_TIME,
-                )..NaiveDateTime::new(now.date(), MAX_TIME)
-            }
-            Self::LastMonth => {
-                todo!()
-            }
-            Self::ThisYear => {
-                NaiveDateTime::new(NaiveDate::from_ymd_opt(now.year(), 1, 1).unwrap(), MIN_TIME)
-                    ..NaiveDateTime::new(now.date(), MAX_TIME)
-            }
-            Self::LastYear => {
-                todo!()
-            }
-        };
-
-        Some(ret)
-    }
-}
 
 mod imp {
     use std::cell::{OnceCell, RefCell};
@@ -145,7 +57,7 @@ mod imp {
             klass.install_action("date-time-picker.cancel", None, move |obj, _, _| {
                 let imp = obj.imp();
 
-                let _ = imp.result_tx.take();
+                let _ = imp.result_tx.take().unwrap();
             });
             klass.install_action("date-time-picker.done", None, move |obj, _, _| {
                 let imp = obj.imp();
@@ -249,6 +161,7 @@ mod imp {
 
             obj.update_state();
             obj.update_range_label();
+            obj.update_done_action_enable();
         }
 
         fn dispose(&self) {
@@ -268,8 +181,10 @@ glib::wrapper! {
 
 impl DateTimePicker {
     pub async fn pick(
+        initial_from: Option<NaiveDateTime>,
+        initial_to: Option<NaiveDateTime>,
         parent: &impl IsA<gtk::Widget>,
-    ) -> Result<Option<Range<NaiveDateTime>>, oneshot::Canceled> {
+    ) -> Result<Option<RangeInclusive<NaiveDateTime>>, oneshot::Canceled> {
         let root = parent.root().map(|r| r.downcast::<gtk::Window>().unwrap());
 
         let this = glib::Object::builder::<Self>()
@@ -278,12 +193,21 @@ impl DateTimePicker {
             .build();
         let imp = this.imp();
 
+        let now = Local::now().naive_local();
+        let initial_from = initial_from.unwrap_or(now);
+        let initial_to = initial_to.unwrap_or(now);
+        this.set_range(initial_from..=initial_to);
+
         let (result_tx, result_rx) = oneshot::channel();
         imp.result_tx.replace(Some(result_tx));
 
         this.present();
 
-        result_rx.await?;
+        if let Err(err @ oneshot::Canceled) = result_rx.await {
+            this.close();
+
+            return Err(err);
+        }
 
         this.close();
 
@@ -293,14 +217,14 @@ impl DateTimePicker {
         }
     }
 
-    fn range(&self) -> Range<NaiveDateTime> {
+    fn range(&self) -> RangeInclusive<NaiveDateTime> {
         let imp = self.imp();
 
         get_dt(&imp.from_calendar, &imp.from_time_picker)
-            ..get_dt(&imp.to_calendar, &imp.to_time_picker)
+            ..=get_dt(&imp.to_calendar, &imp.to_time_picker)
     }
 
-    fn set_range(&self, range: Range<NaiveDateTime>) {
+    fn set_range(&self, range: RangeInclusive<NaiveDateTime>) {
         let imp = self.imp();
 
         let _guard = imp.from_calendar.freeze_notify();
@@ -309,8 +233,8 @@ impl DateTimePicker {
         let _guard = imp.from_time_picker.freeze_notify();
         let _guard = imp.to_time_picker.freeze_notify();
 
-        set_dt(&imp.from_calendar, &imp.from_time_picker, range.start);
-        set_dt(&imp.to_calendar, &imp.to_time_picker, range.end);
+        set_dt(&imp.from_calendar, &imp.from_time_picker, *range.start());
+        set_dt(&imp.to_calendar, &imp.to_time_picker, *range.end());
     }
 
     fn range_kind(&self) -> DateTimeRangeKind {
@@ -327,9 +251,11 @@ impl DateTimePicker {
     fn handle_range_changed(&self) {
         let imp = self.imp();
 
-        if self.range_kind().range().is_some_and(|a| {
-            let b = self.range();
-            !is_eq_ignore_subsec(a.start, b.start) || !is_eq_ignore_subsec(a.end, b.end)
+        let range = self.range();
+
+        if self.range_kind().range().is_some_and(|other| {
+            !is_eq_ignore_subsec(*range.start(), *other.start())
+                || !is_eq_ignore_subsec(*range.end(), *other.end())
         }) {
             let selected_item_notify_id = imp.range_kind_dropdown_selected_item_id.get().unwrap();
             imp.range_kind_dropdown
@@ -341,6 +267,7 @@ impl DateTimePicker {
         }
 
         self.update_range_label();
+        self.update_done_action_enable();
     }
 
     fn update_range_label(&self) {
@@ -349,9 +276,13 @@ impl DateTimePicker {
         let range = self.range();
         imp.range_label.set_label(&format!(
             "<b>{}</b> to <b>{}</b>",
-            glib::markup_escape_text(&range.start.format(DT_FORMAT).to_string()),
-            glib::markup_escape_text(&range.end.format(DT_FORMAT).to_string()),
+            glib::markup_escape_text(&range.start().format(DT_FORMAT).to_string()),
+            glib::markup_escape_text(&range.end().format(DT_FORMAT).to_string()),
         ));
+    }
+
+    fn update_done_action_enable(&self) {
+        self.action_set_enabled("date-time-picker.done", !self.range().is_empty());
     }
 
     fn update_state(&self) {
@@ -386,4 +317,92 @@ fn is_eq_ignore_subsec(a: NaiveDateTime, b: NaiveDateTime) -> bool {
         && a.hour() == b.hour()
         && a.minute() == b.minute()
         && a.second() == b.second()
+}
+
+#[derive(Debug, Default, Clone, Copy, glib::Enum)]
+#[enum_type(name = "UetsDateTimeRangeKind")]
+enum DateTimeRangeKind {
+    #[default]
+    Custom,
+    AllTime,
+    Today,
+    Yesterday,
+    ThisWeek,
+    LastWeek,
+    ThisMonth,
+    LastMonth,
+    ThisYear,
+    LastYear,
+}
+
+list_model_enum!(DateTimeRangeKind);
+
+impl DateTimeRangeKind {
+    fn display(&self) -> &'static str {
+        match self {
+            Self::AllTime => "All Time",
+            Self::Custom => "Custom",
+            Self::Today => "Today",
+            Self::Yesterday => "Yesterday",
+            Self::ThisWeek => "This Week",
+            Self::LastWeek => "Last Week",
+            Self::ThisMonth => "This Month",
+            Self::LastMonth => "Last Month",
+            Self::ThisYear => "This Year",
+            Self::LastYear => "Last Year",
+        }
+    }
+
+    fn range(&self) -> Option<RangeInclusive<NaiveDateTime>> {
+        let now = Local::now().naive_local();
+
+        let ret = match self {
+            Self::AllTime | Self::Custom => {
+                return None;
+            }
+            Self::Today => {
+                NaiveDateTime::new(now.date(), MIN_TIME)..=NaiveDateTime::new(now.date(), MAX_TIME)
+            }
+            Self::Yesterday => {
+                let yesterday = now.date().pred_opt().unwrap();
+                NaiveDateTime::new(yesterday, MIN_TIME)..=NaiveDateTime::new(yesterday, MAX_TIME)
+            }
+            Self::ThisWeek => {
+                let today = now.date();
+
+                let weekday = today.weekday();
+                let start_of_week = if weekday == WEEK_START {
+                    today
+                } else {
+                    today - chrono::Duration::days(weekday.num_days_from_monday() as i64)
+                };
+
+                let end_of_week = start_of_week + chrono::Duration::days(6);
+
+                NaiveDateTime::new(start_of_week, MIN_TIME)
+                    ..=NaiveDateTime::new(end_of_week, MAX_TIME)
+            }
+            Self::LastWeek => {
+                todo!()
+            }
+            Self::ThisMonth => {
+                NaiveDateTime::new(
+                    NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap(),
+                    MIN_TIME,
+                )..=NaiveDateTime::new(now.date(), MAX_TIME)
+            }
+            Self::LastMonth => {
+                todo!()
+            }
+            Self::ThisYear => {
+                NaiveDateTime::new(NaiveDate::from_ymd_opt(now.year(), 1, 1).unwrap(), MIN_TIME)
+                    ..=NaiveDateTime::new(now.date(), MAX_TIME)
+            }
+            Self::LastYear => {
+                todo!()
+            }
+        };
+
+        Some(ret)
+    }
 }
