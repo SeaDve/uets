@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::{NaiveDateTime, NaiveTime};
 use gtk::{
     glib::{self, clone, closure_local},
     prelude::*,
@@ -116,20 +117,33 @@ mod imp {
                 |obj, _, _| async move {
                     let imp = obj.imp();
 
-                    if let Ok(dt_range) = DateTimePicker::pick(&obj).await {
+                    let mut queries = imp.search_entry.queries();
+
+                    let initial_from = queries
+                        .find_last(S::FROM)
+                        .and_then(|dt_str| dateparser::parse(dt_str).ok())
+                        .map(|dt| dt.naive_local());
+                    let initial_to = queries
+                        .find_last(S::TO)
+                        .and_then(|dt_str| dateparser::parse(dt_str).ok())
+                        .map(|dt| dt.naive_local());
+
+                    if let Ok(dt_range) = DateTimePicker::pick(initial_from, initial_to, &obj).await
+                    {
                         if let Some(dt_range) = dt_range {
-                            let mut queries = imp.search_entry.queries();
                             queries
-                                .replace_all_iden_or_insert(S::FROM, &dt_range.start.to_string());
-                            queries.replace_all_iden_or_insert(S::TO, &dt_range.end.to_string());
-                            imp.search_entry.set_queries(queries);
+                                .replace_all_iden_or_insert(S::TO, &dt_to_string(dt_range.end()));
+                            queries.replace_all_iden_or_insert(
+                                S::FROM,
+                                &dt_to_string(dt_range.start()),
+                            );
                         } else {
-                            let mut queries = imp.search_entry.queries();
                             queries.remove_all_iden(S::FROM);
                             queries.remove_all_iden(S::TO);
-                            imp.search_entry.set_queries(queries);
                         }
                     }
+
+                    imp.search_entry.set_queries(queries);
                 },
             );
             klass.install_action("timeline-view.scroll-to-bottom", None, |obj, _, _| {
@@ -604,4 +618,12 @@ impl TimelineView {
         imp.scroll_to_bottom_revealer
             .set_can_target(imp.scroll_to_bottom_revealer.is_child_revealed());
     }
+}
+
+fn dt_to_string(dt: &NaiveDateTime) -> String {
+    if dt.time() == NaiveTime::MIN {
+        return dt.format("%Y-%m-%d").to_string();
+    }
+
+    dt.format("%Y-%m-%d %H:%M:%S").to_string()
 }
