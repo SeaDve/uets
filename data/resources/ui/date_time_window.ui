@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <template class="UetsDateTimePicker" parent="AdwWindow">
+  <template class="UetsDateTimeWindow" parent="AdwWindow">
     <property name="default-width">320</property>
     <property name="default-height">544</property>
     <property name="width-request">320</property>
@@ -40,22 +40,22 @@
                       </object>
                     </child>
                     <child>
-                      <object class="GtkRevealer" id="pickers_revealer">
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">24</property>
+                        <child>
+                          <object class="GtkLabel" id="range_label">
+                            <property name="use-markup">True</property>
+                          </object>
+                        </child>
                         <child>
                           <object class="GtkBox">
+                            <property name="vexpand">True</property>
                             <property name="orientation">vertical</property>
-                            <property name="spacing">24</property>
+                            <property name="spacing">12</property>
                             <child>
-                              <object class="GtkLabel" id="range_label">
-                                <property name="use-markup">True</property>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkBox">
-                                <property name="vexpand">True</property>
-                                <property name="orientation">vertical</property>
-                                <property name="spacing">12</property>
-                                <child>
+                              <object class="GtkCenterBox">
+                                <child type="start">
                                   <object class="GtkLabel">
                                     <property name="label">From</property>
                                     <property name="xalign">0</property>
@@ -64,30 +64,37 @@
                                     </style>
                                   </object>
                                 </child>
-                                <child>
-                                  <object class="GtkBox">
-                                    <property name="spacing">12</property>
-                                    <child>
-                                      <object class="GtkCalendar" id="from_calendar">
-                                        <property name="hexpand">True</property>
-                                        <style>
-                                          <class name="card"/>
-                                        </style>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="UetsTimePicker" id="from_time_picker"/>
-                                    </child>
-                                  </object>
+                                <child type="end">
+                                  <object class="GtkSwitch" id="from_switch"/>
                                 </child>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkBox">
-                                <property name="vexpand">True</property>
-                                <property name="orientation">vertical</property>
+                              <object class="GtkBox" id="from_box">
                                 <property name="spacing">12</property>
                                 <child>
+                                  <object class="GtkCalendar" id="from_calendar">
+                                    <property name="hexpand">True</property>
+                                    <style>
+                                      <class name="card"/>
+                                    </style>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="UetsTimePicker" id="from_time_picker"/>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="vexpand">True</property>
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">12</property>
+                            <child>
+                              <object class="GtkCenterBox">
+                                <child type="start">
                                   <object class="GtkLabel">
                                     <property name="label">To</property>
                                     <property name="xalign">0</property>
@@ -96,21 +103,24 @@
                                     </style>
                                   </object>
                                 </child>
+                                <child type="end">
+                                  <object class="GtkSwitch" id="to_switch"/>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkBox" id="to_box">
+                                <property name="spacing">12</property>
                                 <child>
-                                  <object class="GtkBox">
-                                    <property name="spacing">12</property>
-                                    <child>
-                                      <object class="GtkCalendar" id="to_calendar">
-                                        <property name="hexpand">True</property>
-                                        <style>
-                                          <class name="card"/>
-                                        </style>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="UetsTimePicker" id="to_time_picker"/>
-                                    </child>
+                                  <object class="GtkCalendar" id="to_calendar">
+                                    <property name="hexpand">True</property>
+                                    <style>
+                                      <class name="card"/>
+                                    </style>
                                   </object>
+                                </child>
+                                <child>
+                                  <object class="UetsTimePicker" id="to_time_picker"/>
                                 </child>
                               </object>
                             </child>
@@ -124,7 +134,7 @@
                         <property name="spacing">12</property>
                         <child>
                           <object class="GtkButton">
-                            <property name="action-name">date-time-picker.cancel</property>
+                            <property name="action-name">date-time-window.cancel</property>
                             <property name="label">Cancel</property>
                             <style>
                               <class name="pill"/>
@@ -133,7 +143,7 @@
                         </child>
                         <child>
                           <object class="GtkButton">
-                            <property name="action-name">date-time-picker.done</property>
+                            <property name="action-name">date-time-window.done</property>
                             <property name="label">Done</property>
                             <style>
                               <class name="suggested-action"/>
