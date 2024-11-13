@@ -71,13 +71,13 @@ impl DateTimeRange {
 
     pub fn this_year() -> Self {
         let now = Local::now().naive_local();
-        let start_of_month = NaiveDate::from_ymd_opt(now.year(), 1, 1).unwrap();
-        let end_of_month =
-            start_of_month + chrono::Duration::days(start_of_month.days_in_month() as i64 - 1);
+        let start_of_year = NaiveDate::from_ymd_opt(now.year(), 1, 1).unwrap();
+        let end_of_year =
+            start_of_year + chrono::Duration::days(start_of_year.days_in_year() as i64 - 1);
 
         Self::custom(
-            NaiveDateTime::new(start_of_month, MIN_TIME),
-            NaiveDateTime::new(end_of_month, MAX_TIME),
+            NaiveDateTime::new(start_of_year, MIN_TIME),
+            NaiveDateTime::new(end_of_year, MAX_TIME),
         )
     }
 
@@ -157,6 +157,7 @@ fn is_eq_ignore_subsec(a: NaiveDateTime, b: NaiveDateTime) -> bool {
 
 trait NaiveDateExt {
     fn days_in_month(&self) -> u32;
+    fn days_in_year(&self) -> u32;
     fn is_leap_year(&self) -> bool;
 }
 
@@ -174,6 +175,14 @@ impl NaiveDateExt for NaiveDate {
                 }
             }
             _ => unreachable!(),
+        }
+    }
+
+    fn days_in_year(&self) -> u32 {
+        if self.is_leap_year() {
+            366
+        } else {
+            365
         }
     }
 
