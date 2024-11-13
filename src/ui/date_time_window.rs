@@ -1,5 +1,5 @@
 use adw::{prelude::*, subclass::prelude::*};
-use chrono::{Datelike, NaiveDate, NaiveDateTime};
+use chrono::{Datelike, Local, NaiveDate, NaiveDateTime};
 use futures_channel::oneshot;
 use gtk::glib::{self, clone, closure};
 
@@ -177,6 +177,10 @@ mod imp {
                     obj.handle_range_changed();
                 }
             ));
+
+            let today = Local::now().day();
+            self.from_calendar.mark_day(today);
+            self.to_calendar.mark_day(today);
 
             obj.update_state();
             obj.update_range_label();
