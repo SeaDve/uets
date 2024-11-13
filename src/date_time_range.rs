@@ -157,29 +157,29 @@ impl DateTimeRange {
             (None, Some(end)) => {
                 format!("Until <b>{}</b>", glib::markup_escape_text(&dt_fmt(end)),)
             }
-            (None, None) => "All Time".to_string(),
+            (None, None) => "<b>All Time</b>".to_string(),
         }
     }
 
     pub fn short_label_markup(&self) -> String {
-        if self.eq_ignore_subsec(&Self::today()) {
-            return "Today".to_string();
+        if self.is_today() {
+            return "<b>Today</b>".to_string();
         }
 
-        if self.eq_ignore_subsec(&Self::yesterday()) {
-            return "Yesterday".to_string();
+        if self.is_yesterday() {
+            return "<b>Yesterday</b>".to_string();
         }
 
-        if self.eq_ignore_subsec(&Self::this_week()) {
-            return "This Week".to_string();
+        if self.is_this_week() {
+            return "<b>This Week</b>".to_string();
         }
 
-        if self.eq_ignore_subsec(&Self::this_month()) {
-            return "This Month".to_string();
+        if self.is_this_month() {
+            return "<b>This Month</b>".to_string();
         }
 
-        if self.eq_ignore_subsec(&Self::this_year()) {
-            return "This Year".to_string();
+        if self.is_this_year() {
+            return "<b>This Year</b>".to_string();
         }
 
         self.label_markup()
