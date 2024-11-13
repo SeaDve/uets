@@ -292,16 +292,9 @@ impl DateTimeWindow {
 
     fn handle_range_changed(&self) {
         let range = self.range();
-        let selected_range_kind = self.selected_range_kind();
 
-        if selected_range_kind
-            .to_range()
-            .is_some_and(|r| !range.eq_ignore_subsec(&r))
-        {
-            self.set_selected_range_kind_no_notify(DateTimeRangeKind::Custom);
-        } else if range.is_all_time() {
-            self.set_selected_range_kind_no_notify(DateTimeRangeKind::AllTime);
-        }
+        let range_kind = DateTimeRangeKind::for_range(&range);
+        self.set_selected_range_kind_no_notify(range_kind);
 
         self.update_range_label();
         self.update_done_action_enabled();
@@ -400,5 +393,23 @@ impl DateTimeRangeKind {
             DateTimeRangeKind::ThisMonth => DateTimeRange::this_month(),
             DateTimeRangeKind::ThisYear => DateTimeRange::this_year(),
         })
+    }
+
+    fn for_range(range: &DateTimeRange) -> Self {
+        if range.is_all_time() {
+            Self::AllTime
+        } else if range.is_today() {
+            Self::Today
+        } else if range.is_yesterday() {
+            Self::Yesterday
+        } else if range.is_this_week() {
+            Self::ThisWeek
+        } else if range.is_this_month() {
+            Self::ThisMonth
+        } else if range.is_this_year() {
+            Self::ThisYear
+        } else {
+            Self::Custom
+        }
     }
 }

@@ -88,6 +88,26 @@ impl DateTimeRange {
         self.eq_ignore_subsec(&Self::all_time())
     }
 
+    pub fn is_today(&self) -> bool {
+        self.eq_ignore_subsec(&Self::today())
+    }
+
+    pub fn is_yesterday(&self) -> bool {
+        self.eq_ignore_subsec(&Self::yesterday())
+    }
+
+    pub fn is_this_week(&self) -> bool {
+        self.eq_ignore_subsec(&Self::this_week())
+    }
+
+    pub fn is_this_month(&self) -> bool {
+        self.eq_ignore_subsec(&Self::this_month())
+    }
+
+    pub fn is_this_year(&self) -> bool {
+        self.eq_ignore_subsec(&Self::this_year())
+    }
+
     pub fn is_empty(&self) -> bool {
         match (self.start, self.end) {
             (Some(start), Some(end)) => start > end,
@@ -108,18 +128,6 @@ impl DateTimeRange {
             (Some(s), None) => s <= dt,
             (None, Some(e)) => dt <= e,
             (None, None) => true,
-        }
-    }
-
-    pub fn eq_ignore_subsec(&self, other: &Self) -> bool {
-        match (self.start, self.end, other.start, other.end) {
-            (Some(start), Some(end), Some(other_start), Some(other_end)) => {
-                is_eq_ignore_subsec(start, other_start) && is_eq_ignore_subsec(end, other_end)
-            }
-            (Some(start), None, Some(other_start), None) => is_eq_ignore_subsec(start, other_start),
-            (None, Some(end), None, Some(other_end)) => is_eq_ignore_subsec(end, other_end),
-            (None, None, None, None) => true,
-            _ => false,
         }
     }
 
@@ -175,6 +183,18 @@ impl DateTimeRange {
         }
 
         self.label_markup()
+    }
+
+    fn eq_ignore_subsec(&self, other: &Self) -> bool {
+        match (self.start, self.end, other.start, other.end) {
+            (Some(start), Some(end), Some(other_start), Some(other_end)) => {
+                is_eq_ignore_subsec(start, other_start) && is_eq_ignore_subsec(end, other_end)
+            }
+            (Some(start), None, Some(other_start), None) => is_eq_ignore_subsec(start, other_start),
+            (None, Some(end), None, Some(other_end)) => is_eq_ignore_subsec(end, other_end),
+            (None, None, None, None) => true,
+            _ => false,
+        }
     }
 
     fn custom(start: NaiveDateTime, end: NaiveDateTime) -> Self {
