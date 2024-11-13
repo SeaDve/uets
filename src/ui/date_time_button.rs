@@ -11,7 +11,7 @@ mod imp {
     #[properties(wrapper_type = super::DateTimeButton)]
     #[template(resource = "/io/github/seadve/Uets/ui/date_time_button.ui")]
     pub struct DateTimeButton {
-        #[property(get)]
+        #[property(get, set = Self::set_range, explicit_notify)]
         pub(super) range: Cell<DateTimeRange>,
 
         #[template_child]
@@ -30,10 +30,11 @@ mod imp {
             klass.bind_template();
 
             klass.install_action_async("date-time-button.pick", None, |obj, _, _| async move {
-                let initial_range = if obj.range().is_all_time() {
-                    None
+                let range = obj.range();
+                let initial_range = if range.is_all_time() {
+                    DateTimeRange::today()
                 } else {
-                    Some(obj.range())
+                    range
                 };
 
                 if let Ok(new_range) = DateTimeWindow::pick(initial_range, &obj).await {
@@ -63,6 +64,20 @@ mod imp {
     }
 
     impl WidgetImpl for DateTimeButton {}
+
+    impl DateTimeButton {
+        fn set_range(&self, range: DateTimeRange) {
+            let obj = self.obj();
+
+            if range == obj.range() {
+                return;
+            }
+
+            self.range.set(range);
+            obj.update_label();
+            obj.notify_range();
+        }
+    }
 }
 
 glib::wrapper! {
@@ -73,18 +88,6 @@ glib::wrapper! {
 impl DateTimeButton {
     pub fn new() -> Self {
         glib::Object::new()
-    }
-
-    fn set_range(&self, range: DateTimeRange) {
-        let imp = self.imp();
-
-        if range == self.range() {
-            return;
-        }
-
-        imp.range.set(range);
-        self.update_label();
-        self.notify_range();
     }
 
     fn update_label(&self) {

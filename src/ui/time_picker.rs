@@ -1,4 +1,4 @@
-use chrono::{Local, NaiveTime, Timelike};
+use chrono::{NaiveTime, Timelike};
 use gtk::{
     glib::{self, clone},
     prelude::*,
@@ -107,8 +107,6 @@ mod imp {
             ));
 
             obj.update_am_pm_button_label();
-
-            obj.set_time(NaiveTimeBoxed(Local::now().time()));
         }
 
         fn dispose(&self) {
