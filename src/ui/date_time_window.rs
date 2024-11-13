@@ -8,7 +8,7 @@ use crate::{date_time_range::DateTimeRange, list_model_enum, ui::time_picker::Ti
 use super::time_picker::NaiveTimeBoxed;
 
 mod imp {
-    use std::cell::{OnceCell, RefCell};
+    use std::cell::{Cell, OnceCell, RefCell};
 
     use super::*;
 
@@ -35,6 +35,8 @@ mod imp {
         pub(super) to_calendar: TemplateChild<gtk::Calendar>,
         #[template_child]
         pub(super) to_time_picker: TemplateChild<TimePicker>,
+
+        pub(super) range: Cell<DateTimeRange>,
 
         pub(super) result_tx: RefCell<Option<oneshot::Sender<()>>>,
         pub(super) range_kind_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
@@ -89,7 +91,7 @@ mod imp {
                     #[weak]
                     obj,
                     move |_| {
-                        obj.update_state();
+                        obj.update_ui_from_selected_range_kind();
                     }
                 ));
             self.range_kind_dropdown_selected_item_id
@@ -109,14 +111,14 @@ mod imp {
                 #[weak]
                 obj,
                 move |_| {
-                    obj.handle_range_changed();
+                    obj.handle_ui_changed();
                 }
             ));
             self.to_switch.connect_active_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
-                    obj.handle_range_changed();
+                    obj.handle_ui_changed();
                 }
             ));
 
@@ -124,28 +126,28 @@ mod imp {
                 #[weak]
                 obj,
                 move |_| {
-                    obj.handle_range_changed();
+                    obj.handle_ui_changed();
                 }
             ));
             self.from_calendar.connect_month_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
-                    obj.handle_range_changed();
+                    obj.handle_ui_changed();
                 }
             ));
             self.from_calendar.connect_day_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
-                    obj.handle_range_changed();
+                    obj.handle_ui_changed();
                 }
             ));
             self.from_time_picker.connect_time_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
-                    obj.handle_range_changed();
+                    obj.handle_ui_changed();
                 }
             ));
 
@@ -153,28 +155,28 @@ mod imp {
                 #[weak]
                 obj,
                 move |_| {
-                    obj.handle_range_changed();
+                    obj.handle_ui_changed();
                 }
             ));
             self.to_calendar.connect_month_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
-                    obj.handle_range_changed();
+                    obj.handle_ui_changed();
                 }
             ));
             self.to_calendar.connect_day_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
-                    obj.handle_range_changed();
+                    obj.handle_ui_changed();
                 }
             ));
             self.to_time_picker.connect_time_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
-                    obj.handle_range_changed();
+                    obj.handle_ui_changed();
                 }
             ));
 
@@ -182,7 +184,7 @@ mod imp {
             self.from_calendar.mark_day(today);
             self.to_calendar.mark_day(today);
 
-            obj.update_state();
+            obj.update_ui_from_selected_range_kind();
             obj.update_range_label();
             obj.update_done_action_enabled();
         }
@@ -214,7 +216,7 @@ impl DateTimeWindow {
             .property("modal", true)
             .build();
 
-        this.set_range(initial_range);
+        this.update_ui_from_range(initial_range);
 
         let imp = this.imp();
 
@@ -237,39 +239,7 @@ impl DateTimeWindow {
     }
 
     fn range(&self) -> DateTimeRange {
-        let imp = self.imp();
-
-        DateTimeRange {
-            start: get_dt(&imp.from_switch, &imp.from_calendar, &imp.from_time_picker),
-            end: get_dt(&imp.to_switch, &imp.to_calendar, &imp.to_time_picker),
-        }
-    }
-
-    fn set_range(&self, range: DateTimeRange) {
-        let imp = self.imp();
-
-        let _from_switch_guard = imp.from_switch.freeze_notify();
-        let _to_switch_guard = imp.to_switch.freeze_notify();
-
-        let _from_calendar_guard = imp.from_calendar.freeze_notify();
-        let _to_calendar_guard = imp.to_calendar.freeze_notify();
-
-        let _from_time_picker_guard = imp.from_time_picker.freeze_notify();
-        let _to_time_picker_guard = imp.to_time_picker.freeze_notify();
-
-        set_dt(
-            &imp.from_switch,
-            &imp.from_calendar,
-            &imp.from_time_picker,
-            range.start,
-        );
-
-        set_dt(
-            &imp.to_switch,
-            &imp.to_calendar,
-            &imp.to_time_picker,
-            range.end,
-        );
+        self.imp().range.get()
     }
 
     fn selected_range_kind(&self) -> DateTimeRangeKind {
@@ -294,14 +264,59 @@ impl DateTimeWindow {
             .unblock_signal(selected_item_notify_id);
     }
 
-    fn handle_range_changed(&self) {
-        let range = self.range();
+    fn handle_ui_changed(&self) {
+        let imp = self.imp();
 
-        let range_kind = DateTimeRangeKind::for_range(&range);
+        let new_range = DateTimeRange {
+            start: get_dt_from_ui(&imp.from_switch, &imp.from_calendar, &imp.from_time_picker),
+            end: get_dt_from_ui(&imp.to_switch, &imp.to_calendar, &imp.to_time_picker),
+        };
+        let prev_range = imp.range.replace(new_range);
+
+        if prev_range == new_range {
+            return;
+        }
+
+        let range_kind = DateTimeRangeKind::for_range(&new_range);
         self.set_selected_range_kind_no_notify(range_kind);
 
         self.update_range_label();
         self.update_done_action_enabled();
+    }
+
+    fn update_ui_from_range(&self, range: DateTimeRange) {
+        let imp = self.imp();
+
+        let _from_switch_guard = imp.from_switch.freeze_notify();
+        let _to_switch_guard = imp.to_switch.freeze_notify();
+
+        let _from_calendar_guard = imp.from_calendar.freeze_notify();
+        let _to_calendar_guard = imp.to_calendar.freeze_notify();
+
+        let _from_time_picker_guard = imp.from_time_picker.freeze_notify();
+        let _to_time_picker_guard = imp.to_time_picker.freeze_notify();
+
+        update_ui_from_dt(
+            &imp.from_switch,
+            &imp.from_calendar,
+            &imp.from_time_picker,
+            range.start,
+        );
+
+        update_ui_from_dt(
+            &imp.to_switch,
+            &imp.to_calendar,
+            &imp.to_time_picker,
+            range.end,
+        );
+    }
+
+    fn update_ui_from_selected_range_kind(&self) {
+        let range = self
+            .selected_range_kind()
+            .to_range()
+            .unwrap_or_else(DateTimeRange::today);
+        self.update_ui_from_range(range);
     }
 
     fn update_range_label(&self) {
@@ -319,17 +334,9 @@ impl DateTimeWindow {
     fn update_done_action_enabled(&self) {
         self.action_set_enabled("date-time-window.done", !self.range().is_empty());
     }
-
-    fn update_state(&self) {
-        let range = self
-            .selected_range_kind()
-            .to_range()
-            .unwrap_or_else(DateTimeRange::today);
-        self.set_range(range);
-    }
 }
 
-fn set_dt(
+fn update_ui_from_dt(
     switch: &gtk::Switch,
     calendar: &gtk::Calendar,
     time_picker: &TimePicker,
@@ -338,14 +345,23 @@ fn set_dt(
     switch.set_active(dt.is_some());
 
     if let Some(dt) = dt {
-        calendar.set_year(dt.year());
-        calendar.set_month(dt.month0() as i32);
-        calendar.set_day(dt.day() as i32);
+        calendar.select_day(
+            &glib::DateTime::new(
+                &glib::TimeZone::local(),
+                dt.year(),
+                dt.month() as i32,
+                dt.day() as i32,
+                0,
+                0,
+                0.0,
+            )
+            .unwrap(),
+        );
         time_picker.set_time(NaiveTimeBoxed(dt.time()));
     }
 }
 
-fn get_dt(
+fn get_dt_from_ui(
     switch: &gtk::Switch,
     calendar: &gtk::Calendar,
     time_picker: &TimePicker,
