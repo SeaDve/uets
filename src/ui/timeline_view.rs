@@ -1,7 +1,7 @@
 use anyhow::Result;
 use chrono::{
     format::{DelayedFormat, StrftimeItems},
-    NaiveDateTime, NaiveTime,
+    DateTime, Local, NaiveDateTime, NaiveTime, Utc,
 };
 use gtk::{
     glib::{self, clone, closure_local},
@@ -10,6 +10,7 @@ use gtk::{
 };
 
 use crate::{
+    date_time_range::DateTimeRange,
     entity_id::EntityId,
     fuzzy_filter::FuzzyFilter,
     list_model_enum,
@@ -95,6 +96,7 @@ mod imp {
         pub(super) is_auto_scrolling: Cell<bool>,
 
         pub(super) item_kind_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
+        pub(super) dt_button_range_notify_id: OnceCell<glib::SignalHandlerId>,
 
         pub(super) fuzzy_filter: OnceCell<FuzzyFilter>,
     }
@@ -114,43 +116,6 @@ mod imp {
                 |obj, _, kind| async move {
                     let kind = kind.unwrap().get::<ReportKind>().unwrap();
                     obj.handle_share_report(kind).await;
-                },
-            );
-            klass.install_action_async(
-                "timeline-view.pick-date-time",
-                None,
-                |obj, _, _| async move {
-                    let imp = obj.imp();
-
-                    let mut queries = imp.search_entry.queries();
-
-                    let initial_from = queries
-                        .find_last(S::FROM)
-                        .and_then(|dt_str| dateparser::parse(dt_str).ok())
-                        .map(|dt| dt.naive_local());
-                    let initial_to = queries
-                        .find_last(S::TO)
-                        .and_then(|dt_str| dateparser::parse(dt_str).ok())
-                        .map(|dt| dt.naive_local());
-
-                    // if let Ok(dt_range) = DateTimeWindow::pick(initial_from, initial_to, &obj).await
-                    // {
-                    //     if let Some(dt_range) = dt_range {
-                    //         queries.replace_all_iden_or_insert(
-                    //             S::TO,
-                    //             &to_parseable_dt_format(dt_range.end()).to_string(),
-                    //         );
-                    //         queries.replace_all_iden_or_insert(
-                    //             S::FROM,
-                    //             &to_parseable_dt_format(dt_range.start()).to_string(),
-                    //         );
-                    //     } else {
-                    //         queries.remove_all_iden(S::FROM);
-                    //         queries.remove_all_iden(S::TO);
-                    //     }
-                    // }
-
-                    imp.search_entry.set_queries(queries);
                 },
             );
             klass.install_action("timeline-view.scroll-to-bottom", None, |obj, _, _| {
@@ -244,6 +209,17 @@ mod imp {
                 ));
             self.item_kind_dropdown_selected_item_id
                 .set(item_kind_dropdown_selected_item_notify_id)
+                .unwrap();
+
+            let dt_button_range_notify_id = self.dt_button.connect_range_notify(clone!(
+                #[weak]
+                obj,
+                move |button| {
+                    obj.handle_dt_button_range_notify(button);
+                }
+            ));
+            self.dt_button_range_notify_id
+                .set(dt_button_range_notify_id)
                 .unwrap();
 
             self.selection_model.connect_items_changed(clone!(
@@ -485,14 +461,21 @@ impl TimelineView {
         imp.item_kind_dropdown
             .unblock_signal(selected_item_notify_id);
 
-        let from_dt = match queries.find_last(S::FROM) {
-            Some(dt_str) => dateparser::parse(dt_str).ok(),
-            None => None,
+        let from_dt = queries
+            .find_last(S::FROM)
+            .and_then(|dt_str| parse_dt(dt_str).ok());
+        let to_dt = queries
+            .find_last(S::TO)
+            .and_then(|dt_str| parse_dt(dt_str).ok());
+        let range = DateTimeRange {
+            start: from_dt.map(|dt| dt.with_timezone(&Local).naive_local()),
+            end: to_dt.map(|dt| dt.with_timezone(&Local).naive_local()),
         };
-        let to_dt = match queries.find_last(S::TO) {
-            Some(dt_str) => dateparser::parse(dt_str).ok(),
-            None => None,
-        };
+
+        let dt_button_range_notify_id = imp.dt_button_range_notify_id.get().unwrap();
+        imp.dt_button.block_signal(dt_button_range_notify_id);
+        imp.dt_button.set_range(range);
+        imp.dt_button.unblock_signal(dt_button_range_notify_id);
 
         if queries.is_empty() {
             imp.filter_list_model.set_filter(gtk::Filter::NONE);
@@ -602,6 +585,28 @@ impl TimelineView {
         imp.search_entry.set_queries(queries);
     }
 
+    fn handle_dt_button_range_notify(&self, button: &DateTimeButton) {
+        let imp = self.imp();
+
+        let range = button.range();
+
+        let mut queries = imp.search_entry.queries();
+
+        if let Some(end) = range.end {
+            queries.replace_all_iden_or_insert(S::TO, &parseable_dt_fmt(&end).to_string());
+        } else {
+            queries.remove_all_iden(S::TO);
+        }
+
+        if let Some(start) = range.start {
+            queries.replace_all_iden_or_insert(S::FROM, &parseable_dt_fmt(&start).to_string());
+        } else {
+            queries.remove_all_iden(S::FROM);
+        }
+
+        imp.search_entry.set_queries(queries);
+    }
+
     fn update_stack(&self) {
         let imp = self.imp();
 
@@ -627,7 +632,11 @@ impl TimelineView {
     }
 }
 
-fn to_parseable_dt_format(dt: &NaiveDateTime) -> DelayedFormat<StrftimeItems<'_>> {
+fn parse_dt(input: &str) -> Result<DateTime<Utc>> {
+    dateparser::parse_with(input, &Local, NaiveTime::MIN)
+}
+
+fn parseable_dt_fmt(dt: &NaiveDateTime) -> DelayedFormat<StrftimeItems<'_>> {
     if dt.time() == NaiveTime::MIN {
         return dt.format("%Y-%m-%d");
     }

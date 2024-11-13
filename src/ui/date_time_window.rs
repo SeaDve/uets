@@ -200,7 +200,7 @@ glib::wrapper! {
 
 impl DateTimeWindow {
     pub async fn pick(
-        initial_range: Option<DateTimeRange>,
+        initial_range: DateTimeRange,
         parent: &impl IsA<gtk::Widget>,
     ) -> Result<DateTimeRange, oneshot::Canceled> {
         let root = parent.root().map(|r| r.downcast::<gtk::Window>().unwrap());
@@ -210,7 +210,7 @@ impl DateTimeWindow {
             .property("modal", true)
             .build();
 
-        this.set_range(initial_range.unwrap_or_else(DateTimeRange::today));
+        this.set_range(initial_range);
 
         let imp = this.imp();
 
