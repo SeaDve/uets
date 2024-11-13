@@ -5,6 +5,12 @@ label.n-inside  {
     font-size: 4em;
 }
 
+/* DateTimeButton */
+
+.date-time-button-label {
+    font-size: 0.7em;
+}
+
 /* EntityRow */
 
 image.entity-icon {
