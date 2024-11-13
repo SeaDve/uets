@@ -210,9 +210,7 @@ impl DateTimeWindow {
             .property("modal", true)
             .build();
 
-        if let Some(range) = initial_range {
-            this.set_range(range);
-        }
+        this.set_range(initial_range.unwrap_or_else(DateTimeRange::today));
 
         let imp = this.imp();
 
