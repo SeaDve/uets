@@ -65,7 +65,7 @@ mod imp {
                 #[weak]
                 obj,
                 #[upgrade_or_panic]
-                move |_| obj.update_time()
+                move |_| obj.update_time_from_ui()
             ));
 
             self.minute_button.connect_output(clone!(
@@ -78,7 +78,7 @@ mod imp {
                 #[weak]
                 obj,
                 #[upgrade_or_panic]
-                move |_| obj.update_time()
+                move |_| obj.update_time_from_ui()
             ));
 
             self.second_button.connect_output(clone!(
@@ -91,7 +91,7 @@ mod imp {
                 #[weak]
                 obj,
                 #[upgrade_or_panic]
-                move |_| obj.update_time()
+                move |_| obj.update_time_from_ui()
             ));
 
             self.am_pm_button.connect_clicked(clone!(
@@ -104,11 +104,12 @@ mod imp {
                     let am_pm = AmPm::from_str(&imp.am_pm_button.label().unwrap());
                     button.set_label(am_pm.rev().as_str());
 
-                    obj.update_time();
+                    obj.update_time_from_ui();
                 }
             ));
 
-            obj.update_time();
+            obj.update_ui_from_time(NaiveTimeBoxed::default());
+            obj.update_time_from_ui();
         }
 
         fn dispose(&self) {
@@ -126,15 +127,8 @@ mod imp {
                 return;
             }
 
-            let time_unboxed = time.0;
-            let (is_pm, hour12) = time_unboxed.hour12();
-            let am_pm = if is_pm { AmPm::Pm } else { AmPm::Am };
-            self.hour_button.set_value(hour12 as f64);
-            self.minute_button.set_value(time_unboxed.minute() as f64);
-            self.second_button.set_value(time_unboxed.second() as f64);
-            self.am_pm_button.set_label(am_pm.as_str());
-
-            obj.update_time();
+            obj.update_ui_from_time(time);
+            obj.update_time_from_ui();
         }
     }
 }
@@ -155,7 +149,19 @@ impl TimePicker {
         glib::Propagation::Stop
     }
 
-    fn update_time(&self) {
+    fn update_ui_from_time(&self, time_unboxed: NaiveTimeBoxed) {
+        let imp = self.imp();
+
+        let time_unboxed = time_unboxed.0;
+        let (is_pm, hour12) = time_unboxed.hour12();
+        let am_pm = if is_pm { AmPm::Pm } else { AmPm::Am };
+        imp.hour_button.set_value(hour12 as f64);
+        imp.minute_button.set_value(time_unboxed.minute() as f64);
+        imp.second_button.set_value(time_unboxed.second() as f64);
+        imp.am_pm_button.set_label(am_pm.as_str());
+    }
+
+    fn update_time_from_ui(&self) {
         let imp = self.imp();
 
         let hour = {
