@@ -63,8 +63,12 @@ impl DateTimeRange {
     pub fn this_month() -> Self {
         let now = Local::now().naive_local();
         let start_of_month = NaiveDate::from_ymd_opt(now.year(), now.month(), 1).unwrap();
-        let end_of_month =
-            NaiveDate::from_ymd_opt(now.year(), now.month(), now.date().days_in_month()).unwrap();
+        let end_of_month = NaiveDate::from_ymd_opt(
+            now.year(),
+            now.month(),
+            days_in_month(now.year(), now.month()),
+        )
+        .unwrap();
 
         Self::custom(
             NaiveDateTime::new(start_of_month, MIN_TIME),
@@ -75,8 +79,7 @@ impl DateTimeRange {
     pub fn this_year() -> Self {
         let now = Local::now().naive_local();
         let start_of_year = NaiveDate::from_ymd_opt(now.year(), 1, 1).unwrap();
-        let end_of_year =
-            start_of_year + chrono::Duration::days(start_of_year.days_in_year() as i64 - 1);
+        let end_of_year = NaiveDate::from_ymd_opt(now.year(), 12, 31).unwrap();
 
         Self::custom(
             NaiveDateTime::new(start_of_year, MIN_TIME),
@@ -212,39 +215,21 @@ fn is_eq_ignore_subsec(a: NaiveDateTime, b: NaiveDateTime) -> bool {
         && a.second() == b.second()
 }
 
-trait NaiveDateExt {
-    fn days_in_month(&self) -> u32;
-    fn days_in_year(&self) -> u32;
-    fn is_leap_year(&self) -> bool;
+fn is_leap_year(year: i32) -> bool {
+    year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 }
 
-impl NaiveDateExt for NaiveDate {
-    fn days_in_month(&self) -> u32 {
-        let month = self.month();
-        match month {
-            1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-            4 | 6 | 9 | 11 => 30,
-            2 => {
-                if self.is_leap_year() {
-                    29
-                } else {
-                    28
-                }
+fn days_in_month(year: i32, month: u32) -> u32 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 => {
+            if is_leap_year(year) {
+                29
+            } else {
+                28
             }
-            _ => unreachable!(),
         }
-    }
-
-    fn days_in_year(&self) -> u32 {
-        if self.is_leap_year() {
-            366
-        } else {
-            365
-        }
-    }
-
-    fn is_leap_year(&self) -> bool {
-        let year = self.year();
-        year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
+        _ => unreachable!(),
     }
 }
