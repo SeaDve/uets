@@ -31,8 +31,6 @@ mod imp {
         pub(super) second_button: TemplateChild<gtk::SpinButton>,
         #[template_child]
         pub(super) am_pm_button: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub(super) am_pm_button_label: TemplateChild<gtk::Label>,
     }
 
     #[glib::object_subclass]
@@ -100,13 +98,17 @@ mod imp {
                 #[weak]
                 obj,
                 #[upgrade_or_panic]
-                move |_| {
-                    obj.update_am_pm_button_label();
+                move |button| {
+                    let imp = obj.imp();
+
+                    let am_pm = AmPm::from_str(&imp.am_pm_button.label().unwrap());
+                    button.set_label(am_pm.rev().as_str());
+
                     obj.update_time();
                 }
             ));
 
-            obj.update_am_pm_button_label();
+            obj.update_time();
         }
 
         fn dispose(&self) {
@@ -130,7 +132,7 @@ mod imp {
             self.hour_button.set_value(hour12 as f64);
             self.minute_button.set_value(time_unboxed.minute() as f64);
             self.second_button.set_value(time_unboxed.second() as f64);
-            self.am_pm_button_label.set_label(am_pm.as_str());
+            self.am_pm_button.set_label(am_pm.as_str());
 
             obj.update_time();
         }
@@ -158,7 +160,7 @@ impl TimePicker {
 
         let hour = {
             let mut ret = imp.hour_button.value_as_int();
-            match AmPm::from_str(&imp.am_pm_button_label.label()) {
+            match AmPm::from_str(&imp.am_pm_button.label().unwrap()) {
                 AmPm::Am if ret == 12 => {
                     ret = 0;
                 }
@@ -181,13 +183,6 @@ impl TimePicker {
 
         imp.time.set(time);
         self.notify_time();
-    }
-
-    fn update_am_pm_button_label(&self) {
-        let imp = self.imp();
-
-        let am_pm = AmPm::from_str(&imp.am_pm_button_label.label());
-        imp.am_pm_button_label.set_label(am_pm.rev().as_str());
     }
 }
 
