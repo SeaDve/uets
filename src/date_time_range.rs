@@ -140,6 +140,30 @@ impl DateTimeRange {
         }
     }
 
+    pub fn short_label_markup(&self) -> String {
+        if self.eq_ignore_subsec(&Self::today()) {
+            return "Today".to_string();
+        }
+
+        if self.eq_ignore_subsec(&Self::yesterday()) {
+            return "Yesterday".to_string();
+        }
+
+        if self.eq_ignore_subsec(&Self::this_week()) {
+            return "This Week".to_string();
+        }
+
+        if self.eq_ignore_subsec(&Self::this_month()) {
+            return "This Month".to_string();
+        }
+
+        if self.eq_ignore_subsec(&Self::this_year()) {
+            return "This Year".to_string();
+        }
+
+        self.label_markup()
+    }
+
     fn custom(start: NaiveDateTime, end: NaiveDateTime) -> Self {
         Self {
             start: Some(start),
