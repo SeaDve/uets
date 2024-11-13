@@ -31,6 +31,9 @@
               <object class="GtkLabel">
                 <property name="valign">center</property>
                 <property name="label">:</property>
+                <style>
+                  <class name="heading"/>
+                </style>
               </object>
             </child>
             <child>
@@ -53,6 +56,9 @@
               <object class="GtkLabel">
                 <property name="valign">center</property>
                 <property name="label">:</property>
+                <style>
+                  <class name="heading"/>
+                </style>
               </object>
             </child>
             <child>
