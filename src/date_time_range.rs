@@ -6,8 +6,6 @@ const MIN_TIME: NaiveTime = NaiveTime::MIN;
 #[allow(deprecated)]
 const MAX_TIME: NaiveTime = NaiveTime::from_hms(23, 59, 59);
 
-const DT_FORMAT: &str = "%b %-d %Y %r";
-
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy, glib::Boxed)]
 #[boxed_type(name = "UetsDateTimeRange")]
 pub struct DateTimeRange {
@@ -20,20 +18,6 @@ impl DateTimeRange {
         Self {
             start: None,
             end: None,
-        }
-    }
-
-    pub fn onwards(start: NaiveDateTime) -> Self {
-        Self {
-            start: Some(start),
-            end: None,
-        }
-    }
-
-    pub fn until(end: NaiveDateTime) -> Self {
-        Self {
-            start: None,
-            end: Some(end),
         }
     }
 
@@ -130,6 +114,8 @@ impl DateTimeRange {
     }
 
     pub fn label_markup(&self) -> String {
+        const DT_FORMAT: &str = "%b %-d %Y %r";
+
         match (self.start, self.end) {
             (Some(start), Some(end)) => {
                 format!(
