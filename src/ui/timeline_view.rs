@@ -461,15 +461,15 @@ impl TimelineView {
         imp.item_kind_dropdown
             .unblock_signal(selected_item_notify_id);
 
-        let from_dt = queries
-            .find_last(S::FROM)
-            .and_then(|dt_str| parse_dt(dt_str).ok());
-        let to_dt = queries
-            .find_last(S::TO)
-            .and_then(|dt_str| parse_dt(dt_str).ok());
         let range = DateTimeRange {
-            start: from_dt.map(|dt| dt.with_timezone(&Local).naive_local()),
-            end: to_dt.map(|dt| dt.with_timezone(&Local).naive_local()),
+            start: queries
+                .find_last(S::FROM)
+                .and_then(|dt_str| parse_dt(dt_str).ok())
+                .map(|dt| dt.with_timezone(&Local).naive_local()),
+            end: queries
+                .find_last(S::TO)
+                .and_then(|dt_str| parse_dt(dt_str).ok())
+                .map(|dt| dt.with_timezone(&Local).naive_local()),
         };
 
         let dt_button_range_notify_id = imp.dt_button_range_notify_id.get().unwrap();
@@ -510,17 +510,10 @@ impl TimelineView {
             }
         }
 
-        if let Some(from_dt) = from_dt {
+        if !range.is_all_time() {
             every_filter.append(gtk::CustomFilter::new(move |o| {
                 let entity = o.downcast_ref::<TimelineItem>().unwrap();
-                entity.dt().inner() >= from_dt
-            }));
-        }
-
-        if let Some(to_dt) = to_dt {
-            every_filter.append(gtk::CustomFilter::new(move |o| {
-                let entity = o.downcast_ref::<TimelineItem>().unwrap();
-                entity.dt().inner() <= to_dt
+                range.contains(Local, entity.dt().inner())
             }));
         }
 

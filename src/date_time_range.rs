@@ -1,4 +1,7 @@
-use chrono::{Datelike, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Weekday};
+use chrono::{
+    DateTime, Datelike, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Timelike,
+    Utc, Weekday,
+};
 use gtk::glib;
 
 const MIN_TIME: NaiveTime = NaiveTime::MIN;
@@ -92,11 +95,18 @@ impl DateTimeRange {
         }
     }
 
-    pub fn contains(&self, date_time: NaiveDateTime) -> bool {
-        match (self.start, self.end) {
-            (Some(start), Some(end)) => start <= date_time && date_time <= end,
-            (Some(start), None) => start <= date_time,
-            (None, Some(end)) => date_time <= end,
+    pub fn contains<Tz: TimeZone>(&self, this_tz: Tz, dt: DateTime<Utc>) -> bool {
+        let start = self
+            .start
+            .and_then(|dt| dt.and_local_timezone(this_tz.clone()).single());
+        let end = self
+            .end
+            .and_then(|dt| dt.and_local_timezone(this_tz).single());
+
+        match (start, end) {
+            (Some(s), Some(e)) => s <= dt && dt <= e,
+            (Some(s), None) => s <= dt,
+            (None, Some(e)) => dt <= e,
             (None, None) => true,
         }
     }
