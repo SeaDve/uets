@@ -91,6 +91,6 @@ impl DateTimeButton {
         let imp = self.imp();
 
         let range = self.range();
-        imp.label.set_label(&range.label_markup());
+        imp.label.set_label(&range.short_label_markup());
     }
 }
