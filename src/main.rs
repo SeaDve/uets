@@ -24,6 +24,7 @@ mod fuzzy_sorter;
 mod report;
 mod report_table;
 mod search_query;
+mod search_query_ext;
 mod settings;
 mod stock;
 mod stock_id;

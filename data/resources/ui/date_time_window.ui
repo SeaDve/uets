@@ -65,15 +65,15 @@
                                   </object>
                                 </child>
                                 <child type="end">
-                                  <object class="GtkSwitch" id="from_switch"/>
+                                  <object class="GtkSwitch" id="start_switch"/>
                                 </child>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkBox" id="from_box">
+                              <object class="GtkBox" id="start_box">
                                 <property name="spacing">12</property>
                                 <child>
-                                  <object class="GtkCalendar" id="from_calendar">
+                                  <object class="GtkCalendar" id="start_calendar">
                                     <property name="hexpand">True</property>
                                     <style>
                                       <class name="card"/>
@@ -81,7 +81,7 @@
                                   </object>
                                 </child>
                                 <child>
-                                  <object class="UetsTimePicker" id="from_time_picker"/>
+                                  <object class="UetsTimePicker" id="start_time_picker"/>
                                 </child>
                               </object>
                             </child>
@@ -104,15 +104,15 @@
                                   </object>
                                 </child>
                                 <child type="end">
-                                  <object class="GtkSwitch" id="to_switch"/>
+                                  <object class="GtkSwitch" id="end_switch"/>
                                 </child>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkBox" id="to_box">
+                              <object class="GtkBox" id="end_box">
                                 <property name="spacing">12</property>
                                 <child>
-                                  <object class="GtkCalendar" id="to_calendar">
+                                  <object class="GtkCalendar" id="end_calendar">
                                     <property name="hexpand">True</property>
                                     <style>
                                       <class name="card"/>
@@ -120,7 +120,7 @@
                                   </object>
                                 </child>
                                 <child>
-                                  <object class="UetsTimePicker" id="to_time_picker"/>
+                                  <object class="UetsTimePicker" id="end_time_picker"/>
                                 </child>
                               </object>
                             </child>

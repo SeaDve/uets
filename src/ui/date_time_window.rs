@@ -20,21 +20,21 @@ mod imp {
         #[template_child]
         pub(super) range_label: TemplateChild<gtk::Label>,
         #[template_child]
-        pub(super) from_switch: TemplateChild<gtk::Switch>,
+        pub(super) start_switch: TemplateChild<gtk::Switch>,
         #[template_child]
-        pub(super) from_box: TemplateChild<gtk::Box>,
+        pub(super) start_box: TemplateChild<gtk::Box>,
         #[template_child]
-        pub(super) from_calendar: TemplateChild<gtk::Calendar>,
+        pub(super) start_calendar: TemplateChild<gtk::Calendar>,
         #[template_child]
-        pub(super) from_time_picker: TemplateChild<TimePicker>,
+        pub(super) start_time_picker: TemplateChild<TimePicker>,
         #[template_child]
-        pub(super) to_switch: TemplateChild<gtk::Switch>,
+        pub(super) end_switch: TemplateChild<gtk::Switch>,
         #[template_child]
-        pub(super) to_box: TemplateChild<gtk::Box>,
+        pub(super) end_box: TemplateChild<gtk::Box>,
         #[template_child]
-        pub(super) to_calendar: TemplateChild<gtk::Calendar>,
+        pub(super) end_calendar: TemplateChild<gtk::Calendar>,
         #[template_child]
-        pub(super) to_time_picker: TemplateChild<TimePicker>,
+        pub(super) end_time_picker: TemplateChild<TimePicker>,
 
         pub(super) range: Cell<DateTimeRange>,
 
@@ -98,52 +98,23 @@ mod imp {
                 .set(range_kind_dropdown_selected_item_notify_id)
                 .unwrap();
 
-            self.from_switch
-                .bind_property("active", &*self.from_box, "sensitive")
+            self.start_switch
+                .bind_property("active", &*self.start_box, "sensitive")
                 .sync_create()
                 .build();
-            self.to_switch
-                .bind_property("active", &*self.to_box, "sensitive")
+            self.end_switch
+                .bind_property("active", &*self.end_box, "sensitive")
                 .sync_create()
                 .build();
 
-            self.from_switch.connect_active_notify(clone!(
+            self.start_switch.connect_active_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
                     obj.handle_ui_changed();
                 }
             ));
-            self.to_switch.connect_active_notify(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.handle_ui_changed();
-                }
-            ));
-
-            self.from_calendar.connect_year_notify(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.handle_ui_changed();
-                }
-            ));
-            self.from_calendar.connect_month_notify(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.handle_ui_changed();
-                }
-            ));
-            self.from_calendar.connect_day_notify(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.handle_ui_changed();
-                }
-            ));
-            self.from_time_picker.connect_time_notify(clone!(
+            self.end_switch.connect_active_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
@@ -151,28 +122,57 @@ mod imp {
                 }
             ));
 
-            self.to_calendar.connect_year_notify(clone!(
+            self.start_calendar.connect_year_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
                     obj.handle_ui_changed();
                 }
             ));
-            self.to_calendar.connect_month_notify(clone!(
+            self.start_calendar.connect_month_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
                     obj.handle_ui_changed();
                 }
             ));
-            self.to_calendar.connect_day_notify(clone!(
+            self.start_calendar.connect_day_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
                     obj.handle_ui_changed();
                 }
             ));
-            self.to_time_picker.connect_time_notify(clone!(
+            self.start_time_picker.connect_time_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.handle_ui_changed();
+                }
+            ));
+
+            self.end_calendar.connect_year_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.handle_ui_changed();
+                }
+            ));
+            self.end_calendar.connect_month_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.handle_ui_changed();
+                }
+            ));
+            self.end_calendar.connect_day_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.handle_ui_changed();
+                }
+            ));
+            self.end_time_picker.connect_time_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
@@ -181,8 +181,8 @@ mod imp {
             ));
 
             let today = Local::now().day();
-            self.from_calendar.mark_day(today);
-            self.to_calendar.mark_day(today);
+            self.start_calendar.mark_day(today);
+            self.end_calendar.mark_day(today);
 
             obj.update_ui_from_selected_range_kind();
             obj.update_range_label();
@@ -268,8 +268,12 @@ impl DateTimeWindow {
         let imp = self.imp();
 
         let new_range = DateTimeRange {
-            start: get_dt_from_ui(&imp.from_switch, &imp.from_calendar, &imp.from_time_picker),
-            end: get_dt_from_ui(&imp.to_switch, &imp.to_calendar, &imp.to_time_picker),
+            start: get_dt_from_ui(
+                &imp.start_switch,
+                &imp.start_calendar,
+                &imp.start_time_picker,
+            ),
+            end: get_dt_from_ui(&imp.end_switch, &imp.end_calendar, &imp.end_time_picker),
         };
         let prev_range = imp.range.replace(new_range);
 
@@ -287,26 +291,26 @@ impl DateTimeWindow {
     fn update_ui_from_range(&self, range: DateTimeRange) {
         let imp = self.imp();
 
-        let _guard = imp.from_switch.freeze_notify();
-        let _guard = imp.to_switch.freeze_notify();
+        let _guard = imp.start_switch.freeze_notify();
+        let _guard = imp.end_switch.freeze_notify();
 
-        let _guard = imp.from_calendar.freeze_notify();
-        let _guard = imp.to_calendar.freeze_notify();
+        let _guard = imp.start_calendar.freeze_notify();
+        let _guard = imp.end_calendar.freeze_notify();
 
-        let _guard = imp.from_time_picker.freeze_notify();
-        let _guard = imp.to_time_picker.freeze_notify();
+        let _guard = imp.start_time_picker.freeze_notify();
+        let _guard = imp.end_time_picker.freeze_notify();
 
         update_ui_from_dt(
-            &imp.from_switch,
-            &imp.from_calendar,
-            &imp.from_time_picker,
+            &imp.start_switch,
+            &imp.start_calendar,
+            &imp.start_time_picker,
             range.start,
         );
 
         update_ui_from_dt(
-            &imp.to_switch,
-            &imp.to_calendar,
-            &imp.to_time_picker,
+            &imp.end_switch,
+            &imp.end_calendar,
+            &imp.end_time_picker,
             range.end,
         );
     }

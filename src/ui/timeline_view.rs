@@ -1,8 +1,5 @@
 use anyhow::Result;
-use chrono::{
-    format::{DelayedFormat, StrftimeItems},
-    DateTime, Local, NaiveDateTime, NaiveTime, Utc,
-};
+use chrono::Local;
 use gtk::{
     glib::{self, clone, closure_local},
     prelude::*,
@@ -10,12 +7,12 @@ use gtk::{
 };
 
 use crate::{
-    date_time_range::DateTimeRange,
     entity_id::EntityId,
     fuzzy_filter::FuzzyFilter,
     list_model_enum,
     report::{self, ReportKind},
     report_table,
+    search_query_ext::SearchQueriesDateTimeRangeExt,
     stock_id::StockId,
     timeline::Timeline,
     timeline_item::TimelineItem,
@@ -461,16 +458,7 @@ impl TimelineView {
         imp.item_kind_dropdown
             .unblock_signal(selected_item_notify_id);
 
-        let range = DateTimeRange {
-            start: queries
-                .find_last(S::FROM)
-                .and_then(|dt_str| parse_dt(dt_str).ok())
-                .map(|dt| dt.with_timezone(&Local).naive_local()),
-            end: queries
-                .find_last(S::TO)
-                .and_then(|dt_str| parse_dt(dt_str).ok())
-                .map(|dt| dt.with_timezone(&Local).naive_local()),
-        };
+        let range = queries.get_dt_range(S::FROM, S::TO);
 
         let dt_button_range_notify_id = imp.dt_button_range_notify_id.get().unwrap();
         imp.dt_button.block_signal(dt_button_range_notify_id);
@@ -581,22 +569,10 @@ impl TimelineView {
     fn handle_dt_button_range_notify(&self, button: &DateTimeButton) {
         let imp = self.imp();
 
-        let range = button.range();
+        let dt_range = button.range();
 
         let mut queries = imp.search_entry.queries();
-
-        if let Some(end) = range.end {
-            queries.replace_all_iden_or_insert(S::TO, &parseable_dt_fmt(&end).to_string());
-        } else {
-            queries.remove_all_iden(S::TO);
-        }
-
-        if let Some(start) = range.start {
-            queries.replace_all_iden_or_insert(S::FROM, &parseable_dt_fmt(&start).to_string());
-        } else {
-            queries.remove_all_iden(S::FROM);
-        }
-
+        queries.set_dt_range(S::FROM, S::TO, dt_range);
         imp.search_entry.set_queries(queries);
     }
 
@@ -623,16 +599,4 @@ impl TimelineView {
         imp.scroll_to_bottom_revealer
             .set_can_target(imp.scroll_to_bottom_revealer.is_child_revealed());
     }
-}
-
-fn parse_dt(input: &str) -> Result<DateTime<Utc>> {
-    dateparser::parse_with(input, &Local, NaiveTime::MIN)
-}
-
-fn parseable_dt_fmt(dt: &NaiveDateTime) -> DelayedFormat<StrftimeItems<'_>> {
-    if dt.time() == NaiveTime::MIN {
-        return dt.format("%Y-%m-%d");
-    }
-
-    dt.format("%Y-%m-%d %H:%M:%S")
 }
