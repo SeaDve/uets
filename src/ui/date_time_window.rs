@@ -325,9 +325,11 @@ impl DateTimeWindow {
         let range = self.range();
 
         if range.is_empty() {
-            imp.range_label.set_label("Invalid Range");
+            imp.range_label.set_label("<b>Invalid Range</b>");
+            imp.range_label.add_css_class("error");
         } else {
             imp.range_label.set_label(&range.label_markup());
+            imp.range_label.remove_css_class("error");
         }
     }
 
