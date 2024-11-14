@@ -132,6 +132,10 @@ impl SearchQueries {
         self.0.is_empty()
     }
 
+    /// Returns the text attribute list for the queries.
+    ///
+    /// This must only be called right after parsing the queries. Modifying the queries will
+    /// invalidate the attribute list.
     pub fn attr_list(&self) -> pango::AttrList {
         let attrs = pango::AttrList::new();
 
