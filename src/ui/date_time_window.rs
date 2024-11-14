@@ -287,14 +287,14 @@ impl DateTimeWindow {
     fn update_ui_from_range(&self, range: DateTimeRange) {
         let imp = self.imp();
 
-        let _from_switch_guard = imp.from_switch.freeze_notify();
-        let _to_switch_guard = imp.to_switch.freeze_notify();
+        let _guard = imp.from_switch.freeze_notify();
+        let _guard = imp.to_switch.freeze_notify();
 
-        let _from_calendar_guard = imp.from_calendar.freeze_notify();
-        let _to_calendar_guard = imp.to_calendar.freeze_notify();
+        let _guard = imp.from_calendar.freeze_notify();
+        let _guard = imp.to_calendar.freeze_notify();
 
-        let _from_time_picker_guard = imp.from_time_picker.freeze_notify();
-        let _to_time_picker_guard = imp.to_time_picker.freeze_notify();
+        let _guard = imp.from_time_picker.freeze_notify();
+        let _guard = imp.to_time_picker.freeze_notify();
 
         update_ui_from_dt(
             &imp.from_switch,
