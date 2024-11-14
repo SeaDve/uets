@@ -83,7 +83,7 @@ mod imp {
                             source_id.remove();
                         }
 
-                        obj.update_queries();
+                        obj.update_queries_from_entry();
                         obj.emit_by_name::<()>("search-changed", &[]);
                     } else {
                         imp.clear_icon.set_child_visible(true);
@@ -317,23 +317,13 @@ impl SearchEntry {
         self.connect_closure("search-changed", false, closure_local!(|obj: &Self| f(obj)))
     }
 
+    /// Sets the queries without delaying the `search-changed`` signal.
     pub fn set_queries(&self, queries: SearchQueries) {
-        let imp = self.imp();
-        self.set_text_instant(&queries.to_string());
-        imp.queries.replace(queries);
-    }
-
-    pub fn queries(&self) -> SearchQueries {
-        self.imp().queries.borrow().clone()
-    }
-
-    /// Sets the text without delaying the search-changed signal.
-    fn set_text_instant(&self, text: &str) {
         let imp = self.imp();
 
         let entry_changed_id = imp.entry_changed_id.get().unwrap();
         imp.entry.block_signal(entry_changed_id);
-        imp.entry.set_text(text);
+        imp.entry.set_text(&queries.to_string());
         imp.entry.unblock_signal(entry_changed_id);
 
         imp.clear_icon
@@ -344,8 +334,12 @@ impl SearchEntry {
             source_id.remove();
         }
 
-        self.update_queries();
+        self.update_queries_from_entry();
         self.emit_by_name::<()>("search-changed", &[]);
+    }
+
+    pub fn queries(&self) -> SearchQueries {
+        self.imp().queries.borrow().clone()
     }
 
     fn restart_search_changed_timeout(&self) {
@@ -365,7 +359,7 @@ impl SearchEntry {
                     let imp = obj.imp();
                     imp.search_changed_timeout_id.replace(None);
 
-                    obj.update_queries();
+                    obj.update_queries_from_entry();
                     obj.emit_by_name::<()>("search-changed", &[]);
                 },
             ),
@@ -373,13 +367,12 @@ impl SearchEntry {
         imp.search_changed_timeout_id.replace(Some(source_id));
     }
 
-    fn update_queries(&self) {
+    fn update_queries_from_entry(&self) {
         let imp = self.imp();
 
         let text = imp.entry.text();
         let queries = SearchQueries::parse(&text);
-        let attrs = queries.attr_list();
+        imp.entry.set_attributes(Some(&queries.attr_list()));
         imp.queries.replace(queries);
-        imp.entry.set_attributes(Some(&attrs));
     }
 }
