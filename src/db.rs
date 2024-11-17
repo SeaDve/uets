@@ -4,15 +4,16 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use chrono::{DateTime, Utc};
 use gtk::glib;
 use heed::types::SerdeJson;
 use serde::{Deserialize, Serialize};
 
-use crate::{date_time::DateTime, entity_id::EntityId, stock_id::StockId, APP_ID};
+use crate::{entity_id::EntityId, stock_id::StockId, APP_ID};
 
 const N_NAMED_DBS: u32 = 3;
 
-pub type TimelineDbType = heed::Database<SerdeJson<DateTime>, SerdeJson<RawTimelineItem>>;
+pub type TimelineDbType = heed::Database<SerdeJson<DateTime<Utc>>, SerdeJson<RawTimelineItem>>;
 pub const TIMELINE_DB_NAME: &str = "timeline";
 
 pub type EntitiesDbType = heed::Database<SerdeJson<EntityId>, SerdeJson<RawEntity>>;

@@ -1,27 +1,25 @@
 use anyhow::Result;
 use chrono::{
     format::{DelayedFormat, StrftimeItems},
-    DateTime, Local, NaiveDateTime, NaiveTime, Utc,
+    DateTime, Local, NaiveTime, Utc,
 };
 
 use crate::{date_time_range::DateTimeRange, search_query::SearchQueries};
 
 pub trait SearchQueriesDateTimeRangeExt {
-    fn get_dt_range(&self, start_iden: &str, end_iden: &str) -> DateTimeRange;
+    fn dt_range(&self, start_iden: &str, end_iden: &str) -> DateTimeRange;
     fn set_dt_range(&mut self, start_iden: &str, end_iden: &str, dt_range: DateTimeRange);
 }
 
 impl SearchQueriesDateTimeRangeExt for SearchQueries {
-    fn get_dt_range(&self, start_iden: &str, end_iden: &str) -> DateTimeRange {
+    fn dt_range(&self, start_iden: &str, end_iden: &str) -> DateTimeRange {
         DateTimeRange {
             start: self
                 .find_last(start_iden)
-                .and_then(|dt_str| parse_dt(dt_str).ok())
-                .map(|dt| dt.with_timezone(&Local).naive_local()),
+                .and_then(|dt_str| parse_dt(dt_str).ok()),
             end: self
                 .find_last(end_iden)
-                .and_then(|dt_str| parse_dt(dt_str).ok())
-                .map(|dt| dt.with_timezone(&Local).naive_local()),
+                .and_then(|dt_str| parse_dt(dt_str).ok()),
         }
     }
 
@@ -44,7 +42,9 @@ fn parse_dt(input: &str) -> Result<DateTime<Utc>> {
     dateparser::parse_with(input, &Local, NaiveTime::MIN)
 }
 
-fn parseable_dt_fmt(dt: &NaiveDateTime) -> DelayedFormat<StrftimeItems<'_>> {
+fn parseable_dt_fmt(dt: &DateTime<Utc>) -> DelayedFormat<StrftimeItems<'_>> {
+    let dt = dt.with_timezone(&Local).naive_local();
+
     if dt.time() == NaiveTime::MIN {
         return dt.format("%Y-%m-%d");
     }

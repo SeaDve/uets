@@ -4,7 +4,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::stock::Stock;
+use crate::{date_time_range::DateTimeRange, stock::Stock};
 
 mod imp {
     use std::cell::{OnceCell, RefCell};
@@ -26,6 +26,8 @@ mod imp {
         pub(super) title_label: TemplateChild<gtk::Label>,
         #[template_child]
         pub(super) n_inside_label: TemplateChild<gtk::Label>,
+
+        pub(super) dt_range: RefCell<DateTimeRange>,
 
         pub(super) stock_signals: OnceCell<glib::SignalGroup>,
     }
@@ -108,11 +110,18 @@ impl StockRow {
         glib::Object::new()
     }
 
+    pub fn set_dt_range(&self, dt_range: DateTimeRange) {
+        let imp = self.imp();
+        imp.dt_range.replace(dt_range);
+        self.update_n_inside_label();
+    }
+
     fn update_n_inside_label(&self) {
         let imp = self.imp();
 
         if let Some(stock) = self.stock() {
-            imp.n_inside_label.set_label(&stock.n_inside().to_string());
+            let n_inside = stock.n_inside_for_dt_range(&imp.dt_range.borrow());
+            imp.n_inside_label.set_label(&n_inside.to_string());
         } else {
             imp.n_inside_label.set_label("");
         }

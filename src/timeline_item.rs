@@ -1,21 +1,23 @@
-use chrono::TimeDelta;
+use chrono::{DateTime, TimeDelta, Utc};
 use gtk::{glib, subclass::prelude::*};
 
-use crate::{date_time::DateTime, db, entity_id::EntityId, timeline_item_kind::TimelineItemKind};
+use crate::{db, entity_id::EntityId, timeline_item_kind::TimelineItemKind};
 
 mod imp {
     use std::cell::OnceCell;
+
+    use glib::WeakRef;
 
     use super::*;
 
     #[derive(Default)]
     pub struct TimelineItem {
-        pub(super) dt: OnceCell<DateTime>,
+        pub(super) dt: OnceCell<DateTime<Utc>>,
         pub(super) kind: OnceCell<TimelineItemKind>,
         pub(super) entity_id: OnceCell<EntityId>,
 
         pub(super) n_inside: OnceCell<u32>,
-        pub(super) pair: glib::WeakRef<super::TimelineItem>,
+        pub(super) pair: WeakRef<super::TimelineItem>,
     }
 
     #[glib::object_subclass]
@@ -32,7 +34,7 @@ glib::wrapper! {
 }
 
 impl TimelineItem {
-    pub fn new(dt: DateTime, kind: TimelineItemKind, entity_id: EntityId) -> Self {
+    pub fn new(dt: DateTime<Utc>, kind: TimelineItemKind, entity_id: EntityId) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
@@ -43,7 +45,7 @@ impl TimelineItem {
         this
     }
 
-    pub fn from_db(dt: DateTime, raw: db::RawTimelineItem) -> Self {
+    pub fn from_db(dt: DateTime<Utc>, raw: db::RawTimelineItem) -> Self {
         let kind = if raw.is_entry {
             TimelineItemKind::Entry
         } else {
@@ -59,7 +61,7 @@ impl TimelineItem {
         }
     }
 
-    pub fn dt(&self) -> DateTime {
+    pub fn dt(&self) -> DateTime<Utc> {
         *self.imp().dt.get().unwrap()
     }
 
@@ -94,11 +96,11 @@ impl TimelineItem {
         match self.kind() {
             TimelineItemKind::Entry => {
                 let exit_item = self.pair()?;
-                Some(exit_item.dt().inner() - self.dt().inner())
+                Some(exit_item.dt() - self.dt())
             }
             TimelineItemKind::Exit => {
                 let entry_item = self.pair().expect("exit item without entry pair");
-                Some(self.dt().inner() - entry_item.dt().inner())
+                Some(self.dt() - entry_item.dt())
             }
         }
     }

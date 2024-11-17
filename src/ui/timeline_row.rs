@@ -121,7 +121,7 @@ mod imp {
             }
 
             if let Some(ref item) = item {
-                let dt_fuzzy_text = item.dt().local_fuzzy_display();
+                let dt_fuzzy_text = format::fuzzy_dt(item.dt());
                 self.dt_label.set_label(&dt_fuzzy_text);
 
                 match item.kind() {

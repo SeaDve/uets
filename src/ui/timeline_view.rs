@@ -1,5 +1,4 @@
 use anyhow::Result;
-use chrono::Local;
 use gtk::{
     glib::{self, clone, closure_local},
     prelude::*,
@@ -419,7 +418,7 @@ impl TimelineView {
                         .column("Inside Count")
                         .rows(items.iter().map(|item| {
                             report_table::row_builder()
-                                .cell(item.dt().inner())
+                                .cell(item.dt())
                                 .cell(item.kind().to_string())
                                 .cell(item.entity_id().to_string())
                                 .cell(item.n_inside())
@@ -458,11 +457,11 @@ impl TimelineView {
         imp.item_kind_dropdown
             .unblock_signal(selected_item_notify_id);
 
-        let range = queries.get_dt_range(S::FROM, S::TO);
+        let dt_range = queries.dt_range(S::FROM, S::TO);
 
         let dt_button_range_notify_id = imp.dt_button_range_notify_id.get().unwrap();
         imp.dt_button.block_signal(dt_button_range_notify_id);
-        imp.dt_button.set_range(range);
+        imp.dt_button.set_range(dt_range);
         imp.dt_button.unblock_signal(dt_button_range_notify_id);
 
         if queries.is_empty() {
@@ -498,10 +497,10 @@ impl TimelineView {
             }
         }
 
-        if !range.is_all_time() {
+        if !dt_range.is_all_time() {
             every_filter.append(gtk::CustomFilter::new(move |o| {
                 let entity = o.downcast_ref::<TimelineItem>().unwrap();
-                range.contains(Local, entity.dt().inner())
+                dt_range.contains(entity.dt())
             }));
         }
 

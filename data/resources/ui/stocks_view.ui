@@ -51,6 +51,12 @@
                   <object class="GtkBox">
                     <property name="spacing">6</property>
                     <child>
+                      <object class="UetsDateTimeButton" id="dt_button"/>
+                    </child>
+                    <child>
+                      <object class="GtkSeparator"/>
+                    </child>
+                    <child>
                       <object class="GtkDropDown" id="stock_sort_dropdown"/>
                     </child>
                     <child>
@@ -104,25 +110,6 @@
                                 </property>
                               </object>
                             </property>
-                          </object>
-                        </property>
-                        <property name="factory">
-                          <object class="GtkBuilderListItemFactory">
-                            <property name="bytes"><![CDATA[
-<?xml version="1.0" encoding="UTF-8"?>
-<interface>
-  <template class="GtkListItem">
-    <property name="child">
-      <object class="UetsStockRow">
-        <binding name="stock">
-          <lookup name="item">GtkListItem</lookup>
-        </binding>
-      </object>
-    </property>
-  </template>
-</interface>
-]]>
-                              </property>
                           </object>
                         </property>
                         <style>

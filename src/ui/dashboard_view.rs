@@ -5,6 +5,7 @@ use gtk::{
 };
 
 use crate::{
+    format,
     ui::{information_row::InformationRow, time_graph::TimeGraph},
     Application,
 };
@@ -140,7 +141,7 @@ impl DashboardView {
         let data = Application::get()
             .timeline()
             .iter()
-            .map(|item| (item.dt().inner(), item.n_inside()))
+            .map(|item| (item.dt(), item.n_inside()))
             .collect::<Vec<_>>();
         imp.graph.set_data(data);
     }
@@ -179,7 +180,7 @@ impl DashboardView {
         let last_entry_dt = Application::get().timeline().last_entry_dt();
         imp.last_entry_dt_row.set_value(
             last_entry_dt
-                .map(|dt| dt.local_fuzzy_display())
+                .map(|dt_boxed| format::fuzzy_dt(dt_boxed.0))
                 .unwrap_or_default(),
         );
     }
@@ -190,7 +191,7 @@ impl DashboardView {
         let last_exit_dt = Application::get().timeline().last_exit_dt();
         imp.last_exit_dt_row.set_value(
             last_exit_dt
-                .map(|dt| dt.local_fuzzy_display())
+                .map(|dt_boxed| format::fuzzy_dt(dt_boxed.0))
                 .unwrap_or_default(),
         );
     }

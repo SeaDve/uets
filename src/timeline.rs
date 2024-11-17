@@ -1,11 +1,12 @@
 use std::{collections::HashMap, time::Instant};
 
 use anyhow::{bail, Result};
+use chrono::{DateTime, Utc};
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
 use indexmap::IndexMap;
 
 use crate::{
-    date_time::DateTime,
+    date_time_range::DateTimeRange,
     db::{self, EnvExt},
     entity::Entity,
     entity_id::EntityId,
@@ -17,6 +18,10 @@ use crate::{
     timeline_item::TimelineItem,
     timeline_item_kind::TimelineItemKind,
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, glib::Boxed)]
+#[boxed_type(name = "UetsDateTimeBoxed", nullable)]
+pub struct DateTimeBoxed(pub DateTime<Utc>);
 
 mod imp {
     use std::{
@@ -43,12 +48,12 @@ mod imp {
         pub(super) n_exits: Cell<u32>,
         /// Last entry time.
         #[property(get)]
-        pub(super) last_entry_dt: Cell<Option<DateTime>>,
+        pub(super) last_entry_dt: Cell<Option<DateTimeBoxed>>,
         /// Last exit time.
         #[property(get)]
-        pub(super) last_exit_dt: Cell<Option<DateTime>>,
+        pub(super) last_exit_dt: Cell<Option<DateTimeBoxed>>,
 
-        pub(super) list: RefCell<IndexMap<DateTime, TimelineItem>>,
+        pub(super) list: RefCell<IndexMap<DateTime<Utc>, TimelineItem>>,
         pub(super) db: OnceCell<(
             heed::Env,
             db::TimelineDbType,
@@ -170,7 +175,7 @@ impl Timeline {
         self.imp().stock_list.get().unwrap()
     }
 
-    pub fn get(&self, dt: &DateTime) -> Option<TimelineItem> {
+    pub fn get(&self, dt: &DateTime<Utc>) -> Option<TimelineItem> {
         self.imp().list.borrow().get(dt).cloned()
     }
 
@@ -181,13 +186,14 @@ impl Timeline {
     pub fn iter_stock<'a, 'b: 'a>(
         &'a self,
         stock_id: &'b StockId,
+        dt_range: &'b DateTimeRange,
     ) -> impl DoubleEndedIterator<Item = TimelineItem> + '_ {
-        self.iter().filter(move |item| {
+        self.iter().filter(|item| {
             let entity = self
                 .entity_list()
                 .get(item.entity_id())
                 .expect("entity must be known");
-            entity.stock_id() == Some(stock_id)
+            entity.stock_id() == Some(stock_id) && dt_range.contains(item.dt())
         })
     }
 
@@ -216,7 +222,7 @@ impl Timeline {
             );
         }
 
-        let now_dt = DateTime::now();
+        let now_dt = Utc::now();
         debug_assert!(imp
             .list
             .borrow()
@@ -265,7 +271,7 @@ impl Timeline {
 
         if is_exit {
             self.set_n_exits(self.n_exits() + 1);
-            self.set_last_exit_dt(Some(now_dt));
+            self.set_last_exit_dt(Some(DateTimeBoxed(now_dt)));
 
             let last_entry_dt = entity
                 .last_action_dt()
@@ -275,7 +281,7 @@ impl Timeline {
             item.set_pair(&entry_item);
         } else {
             self.set_n_entries(self.n_entries() + 1);
-            self.set_last_entry_dt(Some(now_dt));
+            self.set_last_entry_dt(Some(DateTimeBoxed(now_dt)));
         }
 
         entity.with_is_inside_log_mut(|map| {
@@ -403,7 +409,7 @@ impl Timeline {
         self.notify_n_exits();
     }
 
-    fn set_last_entry_dt(&self, dt: Option<DateTime>) {
+    fn set_last_entry_dt(&self, dt: Option<DateTimeBoxed>) {
         let imp = self.imp();
 
         if dt == self.last_entry_dt() {
@@ -414,7 +420,7 @@ impl Timeline {
         self.notify_last_entry_dt();
     }
 
-    fn set_last_exit_dt(&self, dt: Option<DateTime>) {
+    fn set_last_exit_dt(&self, dt: Option<DateTimeBoxed>) {
         let imp = self.imp();
 
         if dt == self.last_exit_dt() {
@@ -521,8 +527,8 @@ impl Timeline {
         self.set_max_n_inside(max_n_inside);
         self.set_n_entries(n_entries);
         self.set_n_exits(n_exits);
-        self.set_last_entry_dt(last_entry_dt);
-        self.set_last_exit_dt(last_exit_dt);
+        self.set_last_entry_dt(last_entry_dt.map(DateTimeBoxed));
+        self.set_last_exit_dt(last_exit_dt.map(DateTimeBoxed));
 
         for (entity_id, log) in entity_is_inside_logs {
             let entity = self.entity_list().get(&entity_id).unwrap();

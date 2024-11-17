@@ -1,8 +1,9 @@
 use std::fmt;
 
+use chrono::{DateTime, Utc};
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{date_time::DateTime, db, log::Log, stock_id::StockId};
+use crate::{date_time_range::DateTimeRange, db, log::Log, stock_id::StockId};
 
 mod imp {
     use std::{
@@ -70,7 +71,7 @@ impl Stock {
         self.imp().id.get().unwrap()
     }
 
-    pub fn n_inside_for_dt(&self, dt: DateTime) -> u32 {
+    pub fn n_inside_for_dt(&self, dt: DateTime<Utc>) -> u32 {
         self.imp()
             .n_inside_log
             .borrow()
@@ -79,7 +80,15 @@ impl Stock {
             .unwrap_or(0)
     }
 
-    pub fn last_action_dt(&self) -> Option<DateTime> {
+    pub fn n_inside_for_dt_range(&self, dt_range: &DateTimeRange) -> u32 {
+        if let Some(end) = dt_range.end {
+            self.n_inside_for_dt(end)
+        } else {
+            self.n_inside()
+        }
+    }
+
+    pub fn last_action_dt(&self) -> Option<DateTime<Utc>> {
         self.imp().n_inside_log.borrow().latest_dt()
     }
 

@@ -1,5 +1,5 @@
 use adw::{prelude::*, subclass::prelude::*};
-use chrono::{Datelike, Local, NaiveDate, NaiveDateTime};
+use chrono::{DateTime, Datelike, Local, NaiveDate, NaiveDateTime, Utc};
 use futures_channel::oneshot;
 use gtk::glib::{self, clone, closure};
 
@@ -346,11 +346,13 @@ fn update_ui_from_dt(
     switch: &gtk::Switch,
     calendar: &gtk::Calendar,
     time_picker: &TimePicker,
-    dt: Option<NaiveDateTime>,
+    dt: Option<DateTime<Utc>>,
 ) {
     switch.set_active(dt.is_some());
 
     if let Some(dt) = dt {
+        let dt = dt.with_timezone(&Local).naive_local();
+
         calendar.select_day(
             &glib::DateTime::new(
                 &glib::TimeZone::local(),
@@ -371,14 +373,20 @@ fn get_dt_from_ui(
     switch: &gtk::Switch,
     calendar: &gtk::Calendar,
     time_picker: &TimePicker,
-) -> Option<NaiveDateTime> {
+) -> Option<DateTime<Utc>> {
     if !switch.is_active() {
         return None;
     }
 
     let (year, month, day) = calendar.date().ymd();
     let date = NaiveDate::from_ymd_opt(year, month as u32, day as u32).unwrap();
-    Some(NaiveDateTime::new(date, time_picker.time().0))
+    Some(
+        NaiveDateTime::new(date, time_picker.time().0)
+            .and_local_timezone(Local)
+            .single()
+            .unwrap()
+            .to_utc(),
+    )
 }
 
 #[derive(Debug, Default, Clone, Copy, glib::Enum)]

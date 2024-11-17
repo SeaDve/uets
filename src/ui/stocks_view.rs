@@ -6,17 +6,19 @@ use gtk::{
 };
 
 use crate::{
+    date_time_range::DateTimeRange,
     fuzzy_filter::FuzzyFilter,
     list_model_enum,
     report::{self, ReportKind},
     report_table,
     search_query::SearchQueries,
+    search_query_ext::SearchQueriesDateTimeRangeExt,
     stock::Stock,
     stock_id::StockId,
     stock_list::StockList,
     ui::{
-        search_entry::SearchEntry, stock_details_pane::StockDetailsPane, stock_row::StockRow,
-        wormhole_window::WormholeWindow,
+        date_time_button::DateTimeButton, search_entry::SearchEntry,
+        stock_details_pane::StockDetailsPane, stock_row::StockRow, wormhole_window::WormholeWindow,
     },
     utils::new_sorter,
     Application,
@@ -25,6 +27,9 @@ use crate::{
 struct S;
 
 impl S {
+    const FROM: &str = "from";
+    const TO: &str = "to";
+
     const SORT: &str = "sort";
     const SORT_VALUES: &[&str] = &[
         Self::ID_ASC,
@@ -71,9 +76,12 @@ impl StockSort {
 }
 
 mod imp {
-    use std::{cell::OnceCell, sync::OnceLock};
+    use std::{
+        cell::{OnceCell, RefCell},
+        sync::OnceLock,
+    };
 
-    use glib::subclass::Signal;
+    use glib::{subclass::Signal, WeakRef};
 
     use super::*;
 
@@ -84,6 +92,8 @@ mod imp {
         pub(super) flap: TemplateChild<adw::Flap>,
         #[template_child]
         pub(super) search_entry: TemplateChild<SearchEntry>,
+        #[template_child]
+        pub(super) dt_button: TemplateChild<DateTimeButton>,
         #[template_child]
         pub(super) stock_sort_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
@@ -105,9 +115,14 @@ mod imp {
         #[template_child]
         pub(super) details_pane: TemplateChild<StockDetailsPane>,
 
+        pub(super) dt_range: RefCell<DateTimeRange>,
+
         pub(super) fuzzy_filter: OnceCell<FuzzyFilter>,
 
+        pub(super) dt_button_range_notify_id: OnceCell<glib::SignalHandlerId>,
         pub(super) stock_sort_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
+
+        pub(super) rows: RefCell<Vec<WeakRef<StockRow>>>,
     }
 
     #[glib::object_subclass]
@@ -117,8 +132,6 @@ mod imp {
         type ParentType = gtk::Widget;
 
         fn class_init(klass: &mut Self::Class) {
-            StockRow::ensure_type();
-
             klass.bind_template();
 
             klass.install_action_async(
@@ -152,6 +165,17 @@ mod imp {
                 }
             ));
 
+            let dt_button_range_notify_id = self.dt_button.connect_range_notify(clone!(
+                #[weak]
+                obj,
+                move |button| {
+                    obj.handle_dt_button_range_notify(button);
+                }
+            ));
+            self.dt_button_range_notify_id
+                .set(dt_button_range_notify_id)
+                .unwrap();
+
             self.stock_sort_dropdown
                 .set_expression(Some(&gtk::ClosureExpression::new::<String>(
                     &[] as &[gtk::Expression],
@@ -173,6 +197,46 @@ mod imp {
             self.stock_sort_dropdown_selected_item_id
                 .set(stock_sort_dropdown_selected_item_notify_id)
                 .unwrap();
+
+            let factory = gtk::SignalListItemFactory::new();
+            factory.connect_setup(clone!(
+                #[weak]
+                obj,
+                move |_, list_item| {
+                    let imp = obj.imp();
+
+                    let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
+                    let row = StockRow::new();
+                    list_item
+                        .property_expression("item")
+                        .bind(&row, "stock", glib::Object::NONE);
+                    list_item.set_child(Some(&row));
+
+                    // Remove dead weak references
+                    imp.rows.borrow_mut().retain(|i| i.upgrade().is_some());
+
+                    debug_assert_eq!(imp.rows.borrow().iter().filter(|i| **i == row).count(), 0);
+                    imp.rows.borrow_mut().push(row.downgrade());
+                }
+            ));
+            factory.connect_teardown(clone!(
+                #[weak]
+                obj,
+                move |_, list_item| {
+                    let imp = obj.imp();
+
+                    let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
+                    if let Some(row) = list_item.child() {
+                        let row = row.downcast_ref::<StockRow>().unwrap();
+
+                        debug_assert_eq!(imp.rows.borrow().iter().filter(|i| *i == row).count(), 1);
+                        imp.rows
+                            .borrow_mut()
+                            .retain(|i| i.upgrade().is_some_and(|i| &i != row));
+                    }
+                }
+            ));
+            self.list_view.set_factory(Some(&factory));
 
             self.selection_model
                 .bind_property("selected-item", &*self.flap, "reveal-flap")
@@ -317,10 +381,32 @@ impl StocksView {
             .unwrap();
     }
 
+    fn set_dt_range(&self, dt_range: DateTimeRange) {
+        let imp = self.imp();
+
+        imp.dt_range.replace(dt_range);
+
+        for row in imp.rows.borrow().iter().filter_map(|r| r.upgrade()) {
+            row.set_dt_range(dt_range);
+        }
+        imp.details_pane.set_dt_range(dt_range);
+
+        self.update_n_results_label();
+    }
+
     fn handle_search_entry_search_changed(&self, entry: &SearchEntry) {
         let imp = self.imp();
 
         let queries = entry.queries();
+
+        let dt_range = queries.dt_range(S::FROM, S::TO);
+
+        let dt_button_range_notify_id = imp.dt_button_range_notify_id.get().unwrap();
+        imp.dt_button.block_signal(dt_button_range_notify_id);
+        imp.dt_button.set_range(dt_range);
+        imp.dt_button.unblock_signal(dt_button_range_notify_id);
+
+        self.set_dt_range(dt_range);
 
         if queries.is_empty() {
             imp.filter_list_model.set_filter(gtk::Filter::NONE);
@@ -354,7 +440,10 @@ impl StocksView {
         let bytes_fut = report::builder(kind, "Stocks Report")
             .prop(
                 "Total Stock Count",
-                stocks.iter().map(|s| s.n_inside()).sum::<u32>(),
+                stocks
+                    .iter()
+                    .map(|s| s.n_inside_for_dt_range(&imp.dt_range.borrow()))
+                    .sum::<u32>(),
             )
             .prop("Search Query", imp.search_entry.queries())
             .table(
@@ -364,7 +453,7 @@ impl StocksView {
                     .rows(stocks.iter().map(|stock| {
                         report_table::row_builder()
                             .cell(stock.id().to_string())
-                            .cell(stock.n_inside())
+                            .cell(stock.n_inside_for_dt_range(&imp.dt_range.borrow()))
                             .build()
                     }))
                     .build(),
@@ -411,6 +500,16 @@ impl StocksView {
         imp.search_entry.set_queries(queries);
     }
 
+    fn handle_dt_button_range_notify(&self, button: &DateTimeButton) {
+        let imp = self.imp();
+
+        let dt_range = button.range();
+
+        let mut queries = imp.search_entry.queries();
+        queries.set_dt_range(S::FROM, S::TO, dt_range);
+        imp.search_entry.set_queries(queries);
+    }
+
     fn update_fallback_sorter(&self) {
         let imp = self.imp();
 
@@ -432,6 +531,7 @@ impl StocksView {
         imp.stock_sort_dropdown
             .unblock_signal(selected_item_notify_id);
 
+        let dt_range = *imp.dt_range.borrow();
         let sorter = match stock_sort {
             StockSort::IdAsc | StockSort::IdDesc => {
                 new_sorter(matches!(stock_sort, StockSort::IdDesc), |a: &Stock, b| {
@@ -440,7 +540,10 @@ impl StocksView {
             }
             StockSort::CountAsc | StockSort::CountDesc => new_sorter(
                 matches!(stock_sort, StockSort::CountDesc),
-                |a: &Stock, b| a.n_inside().cmp(&b.n_inside()),
+                move |a: &Stock, b| {
+                    a.n_inside_for_dt_range(&dt_range)
+                        .cmp(&b.n_inside_for_dt_range(&dt_range))
+                },
             ),
             StockSort::UpdatedAsc | StockSort::UpdatedDesc => new_sorter(
                 matches!(stock_sort, StockSort::UpdatedDesc),
@@ -463,7 +566,7 @@ impl StocksView {
             .iter::<glib::Object>()
             .map(|o| {
                 let stock = o.unwrap().downcast::<Stock>().unwrap();
-                stock.n_inside()
+                stock.n_inside_for_dt_range(&imp.dt_range.borrow())
             })
             .sum::<u32>();
         let text = if imp.search_entry.queries().is_empty() {

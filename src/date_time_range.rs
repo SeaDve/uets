@@ -12,8 +12,8 @@ const MAX_TIME: NaiveTime = NaiveTime::from_hms(23, 59, 59);
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy, glib::Boxed)]
 #[boxed_type(name = "UetsDateTimeRange")]
 pub struct DateTimeRange {
-    pub start: Option<NaiveDateTime>,
-    pub end: Option<NaiveDateTime>,
+    pub start: Option<DateTime<Utc>>,
+    pub end: Option<DateTime<Utc>>,
 }
 
 impl DateTimeRange {
@@ -26,7 +26,7 @@ impl DateTimeRange {
 
     pub fn today() -> Self {
         let now = Local::now().naive_local();
-        Self::custom(
+        Self::from_naive_local(
             NaiveDateTime::new(now.date(), MIN_TIME),
             NaiveDateTime::new(now.date(), MAX_TIME),
         )
@@ -35,7 +35,7 @@ impl DateTimeRange {
     pub fn yesterday() -> Self {
         let now = Local::now().naive_local();
         let yesterday = now.date().pred_opt().unwrap();
-        Self::custom(
+        Self::from_naive_local(
             NaiveDateTime::new(yesterday, MIN_TIME),
             NaiveDateTime::new(yesterday, MAX_TIME),
         )
@@ -54,7 +54,7 @@ impl DateTimeRange {
 
         let end_of_week = start_of_week + Duration::days(6);
 
-        Self::custom(
+        Self::from_naive_local(
             NaiveDateTime::new(start_of_week, MIN_TIME),
             NaiveDateTime::new(end_of_week, MAX_TIME),
         )
@@ -70,7 +70,7 @@ impl DateTimeRange {
         )
         .unwrap();
 
-        Self::custom(
+        Self::from_naive_local(
             NaiveDateTime::new(start_of_month, MIN_TIME),
             NaiveDateTime::new(end_of_month, MAX_TIME),
         )
@@ -81,7 +81,7 @@ impl DateTimeRange {
         let start_of_year = NaiveDate::from_ymd_opt(now.year(), 1, 1).unwrap();
         let end_of_year = NaiveDate::from_ymd_opt(now.year(), 12, 31).unwrap();
 
-        Self::custom(
+        Self::from_naive_local(
             NaiveDateTime::new(start_of_year, MIN_TIME),
             NaiveDateTime::new(end_of_year, MAX_TIME),
         )
@@ -118,15 +118,8 @@ impl DateTimeRange {
         }
     }
 
-    pub fn contains<Tz: TimeZone>(&self, this_tz: Tz, dt: DateTime<Utc>) -> bool {
-        let start = self
-            .start
-            .and_then(|dt| dt.and_local_timezone(this_tz.clone()).single());
-        let end = self
-            .end
-            .and_then(|dt| dt.and_local_timezone(this_tz).single());
-
-        match (start, end) {
+    pub fn contains<Tz: TimeZone>(&self, dt: DateTime<Tz>) -> bool {
+        match (self.start, self.end) {
             (Some(s), Some(e)) => s <= dt && dt <= e,
             (Some(s), None) => s <= dt,
             (None, Some(e)) => dt <= e,
@@ -135,7 +128,8 @@ impl DateTimeRange {
     }
 
     pub fn label_markup(&self) -> String {
-        fn dt_fmt(dt: NaiveDateTime) -> String {
+        fn dt_fmt(dt: DateTime<Utc>) -> String {
+            let dt = dt.with_timezone(&Local).naive_local();
             if dt.time() == NaiveTime::MIN {
                 dt.format("%b %-d %Y").to_string()
             } else {
@@ -200,16 +194,16 @@ impl DateTimeRange {
         }
     }
 
-    fn custom(start: NaiveDateTime, end: NaiveDateTime) -> Self {
+    fn from_naive_local(start: NaiveDateTime, end: NaiveDateTime) -> Self {
         Self {
-            start: Some(start),
-            end: Some(end),
+            start: Some(start.and_local_timezone(Local).single().unwrap().to_utc()),
+            end: Some(end.and_local_timezone(Local).single().unwrap().to_utc()),
         }
     }
 }
 
-fn is_eq_ignore_subsec(a: NaiveDateTime, b: NaiveDateTime) -> bool {
-    a.date() == b.date()
+fn is_eq_ignore_subsec(a: DateTime<Utc>, b: DateTime<Utc>) -> bool {
+    a.date_naive() == b.date_naive()
         && a.hour() == b.hour()
         && a.minute() == b.minute()
         && a.second() == b.second()

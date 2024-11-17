@@ -5,6 +5,7 @@ use gtk::{
 };
 
 use crate::{
+    date_time_range::DateTimeRange,
     report::{self, ReportKind},
     report_table,
     stock::Stock,
@@ -13,7 +14,10 @@ use crate::{
 };
 
 mod imp {
-    use std::{cell::RefCell, sync::OnceLock};
+    use std::{
+        cell::{OnceCell, RefCell},
+        sync::OnceLock,
+    };
 
     use glib::subclass::Signal;
 
@@ -37,7 +41,9 @@ mod imp {
         #[template_child]
         pub(super) graph: TemplateChild<TimeGraph>,
 
-        pub(super) stock_bindings: glib::BindingGroup,
+        pub(super) dt_range: RefCell<DateTimeRange>,
+
+        pub(super) stock_signals: OnceCell<glib::SignalGroup>,
     }
 
     #[glib::object_subclass]
@@ -89,14 +95,18 @@ mod imp {
             ));
             self.close_image.add_controller(gesture_click);
 
-            self.stock_bindings
-                .bind("n-inside", &*self.n_inside_row, "value")
-                .transform_to(|_, n_inside| {
-                    let n_inside = n_inside.get::<u32>().unwrap();
-                    Some(n_inside.to_string().into())
-                })
-                .flags(glib::BindingFlags::SYNC_CREATE)
-                .build();
+            let stock_signals = glib::SignalGroup::new::<Stock>();
+            stock_signals.connect_notify_local(
+                Some("n-inside"),
+                clone!(
+                    #[weak]
+                    obj,
+                    move |_, _| {
+                        obj.update_n_inside_row();
+                    }
+                ),
+            );
+            self.stock_signals.set(stock_signals).unwrap();
 
             Application::get().timeline().connect_items_changed(clone!(
                 #[weak]
@@ -141,9 +151,10 @@ mod imp {
                     .unwrap_or_default(),
             );
 
-            self.stock_bindings.set_source(stock.as_ref());
+            self.stock_signals.get().unwrap().set_target(stock.as_ref());
 
             self.stock.replace(stock);
+            obj.update_n_inside_row();
             obj.update_graph_data();
             obj.notify_stock();
         }
@@ -189,10 +200,18 @@ impl StockDetailsPane {
         self.connect_closure("close-request", false, closure_local!(|obj: &Self| f(obj)))
     }
 
+    pub fn set_dt_range(&self, dt_range: DateTimeRange) {
+        let imp = self.imp();
+        imp.dt_range.replace(dt_range);
+        self.update_n_inside_row();
+        self.update_graph_data();
+    }
+
     async fn handle_share_report(&self, kind: ReportKind) {
         let imp = self.imp();
 
         let stock = imp.stock.borrow().as_ref().unwrap().clone();
+        let dt_range = *imp.dt_range.borrow();
 
         let app = Application::get();
         let timeline = app.timeline();
@@ -200,16 +219,16 @@ impl StockDetailsPane {
         let bytes_fut = async {
             report::builder(kind, "Stock Report")
                 .prop("Stock Name", stock.id())
-                .prop("Current Count", stock.n_inside())
+                .prop("Current Count", stock.n_inside_for_dt_range(&dt_range))
                 .table(
                     report_table::builder("Timeline")
                         .column("Timestamp")
                         .column("Action")
                         .column("Entity ID")
                         .column("Count")
-                        .rows(timeline.iter_stock(stock.id()).map(|item| {
+                        .rows(timeline.iter_stock(stock.id(), &dt_range).map(|item| {
                             report_table::row_builder()
-                                .cell(item.dt().inner())
+                                .cell(item.dt())
                                 .cell(item.kind().to_string())
                                 .cell(item.entity_id().to_string())
                                 .cell(stock.n_inside_for_dt(item.dt()))
@@ -235,6 +254,17 @@ impl StockDetailsPane {
         }
     }
 
+    fn update_n_inside_row(&self) {
+        let imp = self.imp();
+
+        let stock = imp.stock.borrow();
+        let n_inside = stock
+            .as_ref()
+            .map(|s| s.n_inside_for_dt_range(&imp.dt_range.borrow()))
+            .unwrap_or_default();
+        imp.n_inside_row.set_value(n_inside.to_string());
+    }
+
     fn update_graph_data(&self) {
         let imp = self.imp();
 
@@ -245,8 +275,8 @@ impl StockDetailsPane {
             .stock()
             .map(|stock| {
                 timeline
-                    .iter_stock(stock.id())
-                    .map(|item| (item.dt().inner(), stock.n_inside_for_dt(item.dt())))
+                    .iter_stock(stock.id(), &imp.dt_range.borrow())
+                    .map(|item| (item.dt(), stock.n_inside_for_dt(item.dt())))
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();

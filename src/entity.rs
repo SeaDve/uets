@@ -1,8 +1,9 @@
 use std::fmt;
 
+use chrono::{DateTime, Utc};
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{date_time::DateTime, db, entity_id::EntityId, log::Log, stock_id::StockId};
+use crate::{db, entity_id::EntityId, log::Log, stock_id::StockId};
 
 mod imp {
     use std::{
@@ -83,7 +84,7 @@ impl Entity {
         self.imp().stock_id.get().unwrap().as_ref()
     }
 
-    pub fn is_inside_for_dt(&self, dt: DateTime) -> bool {
+    pub fn is_inside_for_dt(&self, dt: DateTime<Utc>) -> bool {
         self.imp()
             .is_inside_log
             .borrow()
@@ -92,7 +93,7 @@ impl Entity {
             .unwrap_or(false)
     }
 
-    pub fn last_action_dt(&self) -> Option<DateTime> {
+    pub fn last_action_dt(&self) -> Option<DateTime<Utc>> {
         self.imp().is_inside_log.borrow().latest_dt()
     }
 
