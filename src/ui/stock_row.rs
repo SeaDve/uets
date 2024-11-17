@@ -4,7 +4,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::{stock::Stock, stock_timeline::StockTimeline};
+use crate::stock::Stock;
 
 mod imp {
     use std::cell::{OnceCell, RefCell};
@@ -27,7 +27,7 @@ mod imp {
         #[template_child]
         pub(super) n_inside_label: TemplateChild<gtk::Label>,
 
-        pub(super) timeline_signals: OnceCell<glib::SignalGroup>,
+        pub(super) stock_signals: OnceCell<glib::SignalGroup>,
     }
 
     #[glib::object_subclass]
@@ -52,8 +52,8 @@ mod imp {
 
             let obj = self.obj();
 
-            let timeline_signals = glib::SignalGroup::new::<StockTimeline>();
-            timeline_signals.connect_notify_local(
+            let stock_signals = glib::SignalGroup::new::<Stock>();
+            stock_signals.connect_notify_local(
                 Some("n-inside"),
                 clone!(
                     #[weak]
@@ -63,7 +63,7 @@ mod imp {
                     }
                 ),
             );
-            self.timeline_signals.set(timeline_signals).unwrap();
+            self.stock_signals.set(stock_signals).unwrap();
 
             obj.update_n_inside_label();
         }
@@ -89,10 +89,7 @@ mod imp {
                 self.title_label.set_label("");
             }
 
-            self.timeline_signals
-                .get()
-                .unwrap()
-                .set_target(stock.as_ref().map(|s| s.timeline()));
+            self.stock_signals.get().unwrap().set_target(stock.as_ref());
 
             self.stock.replace(stock);
             obj.update_n_inside_label();
@@ -115,8 +112,7 @@ impl StockRow {
         let imp = self.imp();
 
         if let Some(stock) = self.stock() {
-            imp.n_inside_label
-                .set_label(&stock.timeline().n_inside().to_string());
+            imp.n_inside_label.set_label(&stock.n_inside().to_string());
         } else {
             imp.n_inside_label.set_label("");
         }

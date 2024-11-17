@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Instant};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
 use indexmap::IndexMap;
 
@@ -10,11 +10,10 @@ use crate::{
     entity::Entity,
     entity_id::EntityId,
     entity_list::EntityList,
+    log::Log,
     stock::Stock,
     stock_id::StockId,
     stock_list::StockList,
-    stock_timeline::StockTimeline,
-    stock_timeline_item::StockTimelineItem,
     timeline_item::TimelineItem,
     timeline_item_kind::TimelineItemKind,
 };
@@ -30,16 +29,22 @@ mod imp {
     #[derive(Default, glib::Properties)]
     #[properties(wrapper_type = super::Timeline)]
     pub struct Timeline {
+        /// Number of entities inside at the current time.
         #[property(get = Self::n_inside)]
         pub(super) n_inside: PhantomData<u32>,
+        /// Maximum number of entities inside at all time.
         #[property(get)]
         pub(super) max_n_inside: Cell<u32>,
+        /// Number of entries at all time.
         #[property(get)]
         pub(super) n_entries: Cell<u32>,
+        /// Number of exits at all time.
         #[property(get)]
         pub(super) n_exits: Cell<u32>,
+        /// Last entry time.
         #[property(get)]
         pub(super) last_entry_dt: Cell<Option<DateTime>>,
+        /// Last exit time.
         #[property(get)]
         pub(super) last_exit_dt: Cell<Option<DateTime>>,
 
@@ -102,126 +107,43 @@ impl Timeline {
     pub fn load_from_env(env: heed::Env) -> Result<Self> {
         let start_time = Instant::now();
 
-        let (tdb, raw_items, edb, entities, sdb, raw_stocks) = env.with_write_txn(|wtxn| {
-            let tdb: db::TimelineDbType = env
-                .create_database(wtxn, Some(db::TIMELINE_DB_NAME))
-                .context("Failed to create timeline db")?;
-            let raw_items = tdb
-                .iter(wtxn)
-                .context("Failed to iter items from db")?
-                .collect::<Result<Vec<_>, _>>()
-                .context("Failed to collect items from db")?;
+        let (tdb, items, edb, entities, sdb, stocks) = env.with_write_txn(|wtxn| {
+            let tdb: db::TimelineDbType = env.create_database(wtxn, Some(db::TIMELINE_DB_NAME))?;
+            let items = tdb
+                .iter(wtxn)?
+                .map(|res| res.map(|(dt, raw)| (dt, TimelineItem::from_db(dt, raw))))
+                .collect::<Result<IndexMap<_, _>, _>>()?;
 
-            let edb: db::EntitiesDbType = env
-                .create_database(wtxn, Some(db::ENTITIES_DB_NAME))
-                .context("Failed to create entities db")?;
+            let edb: db::EntitiesDbType = env.create_database(wtxn, Some(db::ENTITIES_DB_NAME))?;
             let entities = edb
-                .iter(wtxn)
-                .context("Failed to iter entities from db")?
+                .iter(wtxn)?
                 .map(|res| {
                     res.map(|(id, raw)| {
                         let entity = Entity::from_db(id.clone(), raw);
                         (id, entity)
                     })
                 })
-                .collect::<Result<IndexMap<_, _>, _>>()
-                .context("Failed to collect entities from db")?;
+                .collect::<Result<IndexMap<_, _>, _>>()?;
 
-            let sdb: db::StocksDbType = env
-                .create_database(wtxn, Some(db::STOCKS_DB_NAME))
-                .context("Failed to create stocks db")?;
-            let raw_stocks = sdb
-                .iter(wtxn)
-                .context("Failed to iter stocks from db")?
-                .collect::<Result<Vec<_>, _>>()
-                .context("Failed to collect stocks from db")?;
+            let sdb: db::StocksDbType = env.create_database(wtxn, Some(db::STOCKS_DB_NAME))?;
+            let stocks = sdb
+                .iter(wtxn)?
+                .map(|res| {
+                    res.map(|(id, raw)| {
+                        let stock = Stock::from_db(id.clone(), raw);
+                        (id, stock)
+                    })
+                })
+                .collect::<Result<IndexMap<_, _>, _>>()?;
 
-            Ok((tdb, raw_items, edb, entities, sdb, raw_stocks))
+            Ok((tdb, items, edb, entities, sdb, stocks))
         })?;
-        debug_assert!(raw_items.iter().map(|(dt, _)| dt).is_sorted());
 
         tracing::debug!(
             "Loaded {} items, entities, and stocks dbs in {:?}",
-            raw_items.len(),
+            items.len(),
             start_time.elapsed()
         );
-
-        // Recover current n inside as it is not stored on timeline db.
-        let mut n_inside = 0;
-        let items = raw_items
-            .into_iter()
-            .map(|(dt, raw_item)| {
-                if raw_item.is_entry {
-                    n_inside += 1;
-                } else {
-                    n_inside -= 1;
-                }
-
-                (dt, TimelineItem::from_db(dt, raw_item, n_inside))
-            })
-            .collect::<IndexMap<_, _>>();
-
-        let max_n_inside = items
-            .values()
-            .map(|item| item.n_inside())
-            .max()
-            .unwrap_or(0);
-        let n_entries = items.values().filter(|item| item.kind().is_entry()).count();
-        let n_exits = items.values().filter(|item| item.kind().is_exit()).count();
-        let last_entry_dt = {
-            let mut last_entry_dt = None;
-            for (_, item) in items.iter().rev() {
-                if item.kind() == TimelineItemKind::Entry {
-                    last_entry_dt = Some(item.dt());
-                    break;
-                }
-            }
-            last_entry_dt
-        };
-        let last_exit_dt = {
-            let mut last_exit_dt = None;
-            for (_, item) in items.iter().rev() {
-                if let TimelineItemKind::Exit = item.kind() {
-                    last_exit_dt = Some(item.dt());
-                    break;
-                }
-            }
-            last_exit_dt
-        };
-
-        let mut raw_stocks_data =
-            HashMap::<StockId, (IndexMap<DateTime, StockTimelineItem>, u32)>::new();
-        for (_, item) in &items {
-            // Recover entry dts as it is not stored on entities db.
-            let entity = entities
-                .get(item.entity_id())
-                .expect("timeline must match with entities db");
-            match item.kind() {
-                TimelineItemKind::Entry => {
-                    entity.add_entry_dt(item.dt());
-                }
-                TimelineItemKind::Exit => {
-                    entity.add_exit_dt(item.dt());
-                }
-            }
-
-            // Recover stock timeline as it is not stored on stocks db.
-            if let Some(stock_id) = entity.stock_id() {
-                let (raw_stock_timeline, n_inside) =
-                    raw_stocks_data.entry(stock_id.clone()).or_default();
-
-                match item.kind() {
-                    TimelineItemKind::Entry => {
-                        *n_inside += 1;
-                    }
-                    TimelineItemKind::Exit => {
-                        *n_inside -= 1;
-                    }
-                }
-
-                raw_stock_timeline.insert(item.dt(), StockTimelineItem::new(item.dt(), *n_inside));
-            }
-        }
 
         let this = glib::Object::new::<Self>();
 
@@ -229,27 +151,9 @@ impl Timeline {
         imp.list.replace(items);
         imp.db.set((env, tdb, edb, sdb)).unwrap();
         imp.entity_list.set(EntityList::from_raw(entities)).unwrap();
-        imp.stock_list
-            .set(StockList::from_raw(
-                raw_stocks
-                    .into_iter()
-                    .map(|(stock_id, raw_stock)| {
-                        let stock_timeline = raw_stocks_data
-                            .remove(&stock_id)
-                            .map_or_else(StockTimeline::new, |(raw_stock_timeline, _)| {
-                                StockTimeline::from_raw(raw_stock_timeline)
-                            });
-                        let stock = Stock::from_db(stock_id.clone(), raw_stock, stock_timeline);
-                        (stock_id, stock)
-                    })
-                    .collect(),
-            ))
-            .unwrap();
-        imp.max_n_inside.set(max_n_inside);
-        imp.n_entries.set(n_entries as u32);
-        imp.n_exits.set(n_exits as u32);
-        imp.last_entry_dt.set(last_entry_dt);
-        imp.last_exit_dt.set(last_exit_dt);
+        imp.stock_list.set(StockList::from_raw(stocks)).unwrap();
+
+        this.setup_data();
 
         tracing::debug!("Loaded timeline in {:?}", start_time.elapsed());
 
@@ -268,6 +172,23 @@ impl Timeline {
 
     pub fn get(&self, dt: &DateTime) -> Option<TimelineItem> {
         self.imp().list.borrow().get(dt).cloned()
+    }
+
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = TimelineItem> + '_ {
+        ListModelExtManual::iter(self).map(|item| item.unwrap())
+    }
+
+    pub fn iter_stock<'a, 'b: 'a>(
+        &'a self,
+        stock_id: &'b StockId,
+    ) -> impl DoubleEndedIterator<Item = TimelineItem> + '_ {
+        self.iter().filter(move |item| {
+            let entity = self
+                .entity_list()
+                .get(item.entity_id())
+                .expect("entity must be known");
+            entity.stock_id() == Some(stock_id)
+        })
     }
 
     pub fn handle_detected(
@@ -304,67 +225,75 @@ impl Timeline {
 
         let is_exit = entity.is_inside();
 
-        if is_exit {
-            entity.add_exit_dt(now_dt);
-        } else {
-            entity.add_entry_dt(now_dt);
-        }
-
         let item_kind = if is_exit {
             TimelineItemKind::Exit
         } else {
             TimelineItemKind::Entry
         };
-        let new_n_inside = if is_exit {
-            self.n_inside() - 1
-        } else {
-            self.n_inside() + 1
-        };
-        let item = TimelineItem::new(now_dt, item_kind, provided_entity_id.clone(), new_n_inside);
+        let item = TimelineItem::new(now_dt, item_kind, provided_entity_id.clone());
 
         // Use entity stock id from entity if no stock id is provided.
-        let stock = if let Some(stock_id) = provided_stock_id.or_else(|| entity.stock_id()) {
-            let stock = self
-                .stock_list()
-                .get(stock_id)
-                .unwrap_or_else(|| Stock::new(stock_id.clone()));
-
-            let stock_timeline = stock.timeline();
-            let stock_new_n_inside = if is_exit {
-                stock_timeline.n_inside() - 1
-            } else {
-                stock_timeline.n_inside() + 1
-            };
-            stock_timeline.insert(StockTimelineItem::new(now_dt, stock_new_n_inside));
-
-            Some(stock)
-        } else {
-            None
-        };
+        let stock = provided_stock_id
+            .or_else(|| entity.stock_id())
+            .map(|stock_id| {
+                self.stock_list()
+                    .get(stock_id)
+                    .unwrap_or_else(|| Stock::new(stock_id.clone()))
+            });
 
         let (env, tdb, edb, sdb) = self.db();
         env.with_write_txn(|wtxn| {
-            tdb.put(wtxn, &now_dt, &item.to_db())
-                .context("Failed to put item to db")?;
-            edb.put(wtxn, entity.id(), &entity.to_db())
-                .context("Failed to put entity to db")?;
+            tdb.put(wtxn, &now_dt, &item.to_db())?;
+            edb.put(wtxn, entity.id(), &entity.to_db())?;
             if let Some(stock) = &stock {
-                sdb.put(wtxn, stock.id(), &stock.to_db())
-                    .context("Failed to put stock to db")?;
+                sdb.put(wtxn, stock.id(), &stock.to_db())?;
             }
             Ok(())
         })?;
 
+        let prev_n_inside = self.n_inside();
+        let new_n_inside = if is_exit {
+            prev_n_inside - 1
+        } else {
+            prev_n_inside + 1
+        };
+        item.set_n_inside(new_n_inside);
+
+        if new_n_inside > self.max_n_inside() {
+            self.set_max_n_inside(new_n_inside);
+        }
+
         if is_exit {
             self.set_n_exits(self.n_exits() + 1);
             self.set_last_exit_dt(Some(now_dt));
+
+            let last_entry_dt = entity
+                .last_action_dt()
+                .expect("entity must already have an entry");
+            let entry_item = self.get(&last_entry_dt).expect("entry item must be known");
+            entry_item.set_pair(&item);
+            item.set_pair(&entry_item);
         } else {
             self.set_n_entries(self.n_entries() + 1);
             self.set_last_entry_dt(Some(now_dt));
         }
 
-        if new_n_inside > self.max_n_inside() {
-            self.set_max_n_inside(new_n_inside);
+        entity.with_is_inside_log_mut(|map| {
+            map.insert(now_dt, !is_exit);
+            true
+        });
+
+        if let Some(stock) = &stock {
+            let prev_n_inisde = stock.n_inside();
+            let new_n_inside = if is_exit {
+                prev_n_inisde - 1
+            } else {
+                prev_n_inisde + 1
+            };
+            stock.with_n_inside_log_mut(|map| {
+                map.insert(now_dt, new_n_inside);
+                true
+            });
         }
 
         let (index, prev_value) = imp.list.borrow_mut().insert_full(now_dt, item);
@@ -401,11 +330,11 @@ impl Timeline {
             if cfg!(debug_assertions) {
                 let (env, tdb, edb, sdb) = self.db();
                 env.with_read_txn(|rtxn| {
-                    let tdb_n_items = tdb.len(rtxn).context("Failed to get timeline db len")?;
+                    let tdb_n_items = tdb.len(rtxn)?;
                     debug_assert_eq!(tdb_n_items, 0);
-                    let edb_n_items = edb.len(rtxn).context("Failed to get entities db len")?;
+                    let edb_n_items = edb.len(rtxn)?;
                     debug_assert_eq!(edb_n_items, 0);
-                    let sdb_n_items = sdb.len(rtxn).context("Failed to get stocks db len")?;
+                    let sdb_n_items = sdb.len(rtxn)?;
                     debug_assert_eq!(sdb_n_items, 0);
                     Ok(())
                 })?;
@@ -416,9 +345,9 @@ impl Timeline {
 
         let (env, tdb, edb, sdb) = self.db();
         env.with_write_txn(|wtxn| {
-            tdb.clear(wtxn).context("Failed to clear timeline db")?;
-            edb.clear(wtxn).context("Failed to clear entities db")?;
-            sdb.clear(wtxn).context("Failed to clear stocks db")?;
+            tdb.clear(wtxn)?;
+            edb.clear(wtxn)?;
+            sdb.clear(wtxn)?;
             Ok(())
         })?;
 
@@ -439,14 +368,6 @@ impl Timeline {
         debug_assert!(imp.list.borrow().keys().is_sorted());
 
         Ok(())
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.imp().list.borrow().is_empty()
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = TimelineItem> + '_ {
-        ListModelExtManual::iter(self).map(|item| item.unwrap())
     }
 
     fn set_max_n_inside(&self, max_n_inside: u32) {
@@ -513,5 +434,127 @@ impl Timeline {
         db::StocksDbType,
     ) {
         self.imp().db.get().unwrap()
+    }
+
+    fn setup_data(&self) {
+        let imp = self.imp();
+
+        let prev_n_inside = self.n_inside();
+
+        let mut n_inside = 0;
+        let mut n_entries = 0;
+        let mut n_exits = 0;
+
+        let mut entity_is_inside_logs = HashMap::<EntityId, Log<bool>>::new();
+        let mut stock_n_inside_logs = HashMap::<StockId, Log<u32>>::new();
+
+        for item in imp.list.borrow().values() {
+            let entity = self
+                .entity_list()
+                .get(item.entity_id())
+                .expect("entity must be known");
+
+            if item.kind().is_exit() {
+                n_inside -= 1;
+                n_exits += 1;
+
+                let last_entry_dt = entity_is_inside_logs
+                    .get(item.entity_id())
+                    .expect("entity must be known")
+                    .latest_dt()
+                    .expect("entity must already have an entry");
+                let entry_item = self.get(&last_entry_dt).expect("entry item must be known");
+                entry_item.set_pair(item);
+                item.set_pair(&entry_item);
+            } else {
+                n_inside += 1;
+                n_entries += 1;
+            }
+
+            item.set_n_inside(n_inside);
+
+            entity_is_inside_logs
+                .entry(item.entity_id().clone())
+                .or_default()
+                .insert(item.dt(), item.kind().is_entry());
+
+            if let Some(stock_id) = entity.stock_id() {
+                let stock_n_inside_log = stock_n_inside_logs.entry(stock_id.clone()).or_default();
+                let prev_n_inside = stock_n_inside_log.latest().copied().unwrap_or(0);
+                let new_n_inside = if item.kind().is_exit() {
+                    prev_n_inside - 1
+                } else {
+                    prev_n_inside + 1
+                };
+                stock_n_inside_log.insert(item.dt(), new_n_inside);
+            }
+        }
+
+        let max_n_inside = imp
+            .list
+            .borrow()
+            .values()
+            .map(|item| item.n_inside())
+            .max()
+            .unwrap_or(0);
+
+        let mut last_entry_dt = None;
+        for item in imp.list.borrow().values().rev() {
+            if item.kind().is_entry() {
+                last_entry_dt = Some(item.dt());
+                break;
+            }
+        }
+
+        let mut last_exit_dt = None;
+        for item in imp.list.borrow().values().rev() {
+            if item.kind().is_exit() {
+                last_exit_dt = Some(item.dt());
+                break;
+            }
+        }
+
+        if prev_n_inside != n_inside {
+            self.notify_n_inside();
+        }
+
+        self.set_max_n_inside(max_n_inside);
+        self.set_n_entries(n_entries);
+        self.set_n_exits(n_exits);
+        self.set_last_entry_dt(last_entry_dt);
+        self.set_last_exit_dt(last_exit_dt);
+
+        for (entity_id, log) in entity_is_inside_logs {
+            let entity = self.entity_list().get(&entity_id).unwrap();
+            entity.with_is_inside_log_mut(|map| {
+                *map = log;
+                true
+            });
+        }
+
+        for (stock_id, log) in stock_n_inside_logs {
+            let stock = self.stock_list().get(&stock_id).unwrap();
+            stock.with_n_inside_log_mut(|map| {
+                *map = log;
+                true
+            });
+        }
+
+        debug_assert_eq!(
+            n_entries,
+            imp.list
+                .borrow()
+                .values()
+                .filter(|item| item.kind().is_entry())
+                .count() as u32
+        );
+        debug_assert_eq!(
+            n_exits,
+            imp.list
+                .borrow()
+                .values()
+                .filter(|item| item.kind().is_exit())
+                .count() as u32
+        );
     }
 }

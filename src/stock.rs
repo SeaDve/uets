@@ -1,18 +1,26 @@
 use std::fmt;
 
-use gtk::{glib, subclass::prelude::*};
+use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{db, stock_id::StockId, stock_timeline::StockTimeline};
+use crate::{date_time::DateTime, db, log::Log, stock_id::StockId};
 
 mod imp {
-    use std::cell::OnceCell;
+    use std::{
+        cell::{OnceCell, RefCell},
+        marker::PhantomData,
+    };
 
     use super::*;
 
-    #[derive(Default)]
+    #[derive(Default, glib::Properties)]
+    #[properties(wrapper_type = super::Stock)]
     pub struct Stock {
+        #[property(get = Self::n_inside)]
+        pub(super) n_inside: PhantomData<u32>,
+
         pub(super) id: OnceCell<StockId>,
-        pub(super) timeline: OnceCell<StockTimeline>,
+
+        pub(super) n_inside_log: RefCell<Log<u32>>,
     }
 
     #[glib::object_subclass]
@@ -21,7 +29,14 @@ mod imp {
         type Type = super::Stock;
     }
 
+    #[glib::derived_properties]
     impl ObjectImpl for Stock {}
+
+    impl Stock {
+        fn n_inside(&self) -> u32 {
+            self.n_inside_log.borrow().latest().copied().unwrap_or(0)
+        }
+    }
 }
 
 glib::wrapper! {
@@ -34,17 +49,15 @@ impl Stock {
 
         let imp = this.imp();
         imp.id.set(id).unwrap();
-        imp.timeline.set(StockTimeline::new()).unwrap();
 
         this
     }
 
-    pub fn from_db(id: StockId, _raw: db::RawStock, stock_timeline: StockTimeline) -> Self {
+    pub fn from_db(id: StockId, _raw: db::RawStock) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
         imp.id.set(id).unwrap();
-        imp.timeline.set(stock_timeline).unwrap();
 
         this
     }
@@ -57,8 +70,23 @@ impl Stock {
         self.imp().id.get().unwrap()
     }
 
-    pub fn timeline(&self) -> &StockTimeline {
-        self.imp().timeline.get().unwrap()
+    pub fn n_inside_for_dt(&self, dt: DateTime) -> u32 {
+        self.imp()
+            .n_inside_log
+            .borrow()
+            .for_dt(dt)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    pub fn last_action_dt(&self) -> Option<DateTime> {
+        self.imp().n_inside_log.borrow().latest_dt()
+    }
+
+    pub fn with_n_inside_log_mut(&self, f: impl FnOnce(&mut Log<u32>) -> bool) {
+        if f(&mut self.imp().n_inside_log.borrow_mut()) {
+            self.notify_n_inside();
+        }
     }
 }
 

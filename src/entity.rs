@@ -2,24 +2,11 @@ use std::fmt;
 
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{date_time::DateTime, db, entity_id::EntityId, stock_id::StockId};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DateTimePair {
-    entry: DateTime,
-    exit: Option<DateTime>,
-}
-
-impl DateTimePair {
-    pub fn last_dt(&self) -> DateTime {
-        self.exit.unwrap_or(self.entry)
-    }
-}
+use crate::{date_time::DateTime, db, entity_id::EntityId, log::Log, stock_id::StockId};
 
 mod imp {
     use std::{
         cell::{OnceCell, RefCell},
-        collections::HashMap,
         marker::PhantomData,
     };
 
@@ -33,9 +20,8 @@ mod imp {
 
         pub(super) id: OnceCell<EntityId>,
         pub(super) stock_id: OnceCell<Option<StockId>>,
-        pub(super) dt_pairs: RefCell<Vec<DateTimePair>>,
 
-        pub(super) inside_durations_on_exit: RefCell<HashMap<DateTime, chrono::TimeDelta>>,
+        pub(super) is_inside_log: RefCell<Log<bool>>,
     }
 
     #[glib::object_subclass]
@@ -49,10 +35,11 @@ mod imp {
 
     impl Entity {
         fn is_inside(&self) -> bool {
-            self.dt_pairs
+            self.is_inside_log
                 .borrow()
-                .last()
-                .is_some_and(|last_dt_pair| last_dt_pair.exit.is_none())
+                .latest()
+                .copied()
+                .unwrap_or(false)
         }
     }
 }
@@ -96,60 +83,32 @@ impl Entity {
         self.imp().stock_id.get().unwrap().as_ref()
     }
 
-    pub fn inside_duration_on_exit(&self, exit_dt: DateTime) -> Option<chrono::Duration> {
+    pub fn is_inside_for_dt(&self, dt: DateTime) -> bool {
         self.imp()
-            .inside_durations_on_exit
+            .is_inside_log
             .borrow()
-            .get(&exit_dt)
+            .for_dt(dt)
             .copied()
+            .unwrap_or(false)
     }
 
-    pub fn add_entry_dt(&self, entry_dt: DateTime) {
-        let imp = self.imp();
+    pub fn last_action_dt(&self) -> Option<DateTime> {
+        self.imp().is_inside_log.borrow().latest_dt()
+    }
 
-        if let Some(last_dt_pair) = imp.dt_pairs.borrow().last() {
-            debug_assert!(last_dt_pair.exit.is_some(), "double entry");
+    pub fn with_is_inside_log_mut(&self, f: impl FnOnce(&mut Log<bool>) -> bool) {
+        if f(&mut self.imp().is_inside_log.borrow_mut()) {
+            self.notify_is_inside();
         }
-
-        imp.dt_pairs.borrow_mut().push(DateTimePair {
-            entry: entry_dt,
-            exit: None,
-        });
-
-        self.notify_is_inside();
-    }
-
-    pub fn add_exit_dt(&self, exit_dt: DateTime) {
-        let imp = self.imp();
-
-        if let Some(pair) = imp.dt_pairs.borrow_mut().last_mut() {
-            let prev_exit = pair.exit.replace(exit_dt);
-            debug_assert_eq!(prev_exit, None, "double exit");
-
-            imp.inside_durations_on_exit
-                .borrow_mut()
-                .insert(exit_dt, exit_dt.inner() - pair.entry.inner());
-        } else {
-            unreachable!("exit without entry");
-        }
-
-        self.notify_is_inside();
-    }
-
-    pub fn last_dt_pair(&self) -> Option<DateTimePair> {
-        self.imp().dt_pairs.borrow().last().cloned()
     }
 }
 
 impl fmt::Display for Entity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let imp = self.imp();
-
         f.debug_struct("Entity")
             .field("id", self.id())
             .field("stock-id", &self.stock_id())
             .field("is-inside", &self.is_inside())
-            .field("dt-pairs", &imp.dt_pairs.borrow())
             .finish()
     }
 }

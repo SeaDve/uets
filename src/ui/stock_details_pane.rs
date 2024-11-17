@@ -8,16 +8,12 @@ use crate::{
     report::{self, ReportKind},
     report_table,
     stock::Stock,
-    stock_timeline::StockTimeline,
     ui::{information_row::InformationRow, time_graph::TimeGraph, wormhole_window::WormholeWindow},
     Application,
 };
 
 mod imp {
-    use std::{
-        cell::{OnceCell, RefCell},
-        sync::OnceLock,
-    };
+    use std::{cell::RefCell, sync::OnceLock};
 
     use glib::subclass::Signal;
 
@@ -41,8 +37,7 @@ mod imp {
         #[template_child]
         pub(super) graph: TemplateChild<TimeGraph>,
 
-        pub(super) timeline_bindings: glib::BindingGroup,
-        pub(super) timeline_signals: OnceCell<glib::SignalGroup>,
+        pub(super) stock_bindings: glib::BindingGroup,
     }
 
     #[glib::object_subclass]
@@ -94,7 +89,7 @@ mod imp {
             ));
             self.close_image.add_controller(gesture_click);
 
-            self.timeline_bindings
+            self.stock_bindings
                 .bind("n-inside", &*self.n_inside_row, "value")
                 .transform_to(|_, n_inside| {
                     let n_inside = n_inside.get::<u32>().unwrap();
@@ -103,21 +98,13 @@ mod imp {
                 .flags(glib::BindingFlags::SYNC_CREATE)
                 .build();
 
-            let timeline_signals = glib::SignalGroup::new::<StockTimeline>();
-            timeline_signals.connect_local(
-                "items-changed",
-                false,
-                clone!(
-                    #[weak]
-                    obj,
-                    #[upgrade_or_panic]
-                    move |_| {
-                        obj.update_graph_data();
-                        None
-                    }
-                ),
-            );
-            self.timeline_signals.set(timeline_signals).unwrap();
+            Application::get().timeline().connect_items_changed(clone!(
+                #[weak]
+                obj,
+                move |_, _, _, _| {
+                    obj.update_graph_data();
+                }
+            ));
         }
 
         fn dispose(&self) {
@@ -154,13 +141,7 @@ mod imp {
                     .unwrap_or_default(),
             );
 
-            self.timeline_bindings
-                .set_source(stock.as_ref().map(|s| s.timeline()));
-
-            self.timeline_signals
-                .get()
-                .unwrap()
-                .set_target(stock.as_ref().map(|s| s.timeline()));
+            self.stock_bindings.set_source(stock.as_ref());
 
             self.stock.replace(stock);
             obj.update_graph_data();
@@ -212,30 +193,26 @@ impl StockDetailsPane {
         let imp = self.imp();
 
         let stock = imp.stock.borrow().as_ref().unwrap().clone();
-        let stock_id = stock.id();
-        let n_inside = stock.timeline().n_inside();
-        let timeline_items = stock.timeline().iter().collect::<Vec<_>>();
+
+        let app = Application::get();
+        let timeline = app.timeline();
 
         let bytes_fut = async {
             report::builder(kind, "Stock Report")
-                .prop("Stock Name", stock_id)
-                .prop("Current Count", n_inside)
+                .prop("Stock Name", stock.id())
+                .prop("Current Count", stock.n_inside())
                 .table(
                     report_table::builder("Timeline")
                         .column("Timestamp")
                         .column("Action")
                         .column("Entity ID")
                         .column("Count")
-                        .rows(timeline_items.iter().map(|item| {
-                            let parent_item = Application::get()
-                                .timeline()
-                                .get(&item.dt())
-                                .expect("stock timeline must match with global timeline");
+                        .rows(timeline.iter_stock(stock.id()).map(|item| {
                             report_table::row_builder()
                                 .cell(item.dt().inner())
-                                .cell(parent_item.kind().to_string())
-                                .cell(parent_item.entity_id().to_string())
-                                .cell(item.n_inside())
+                                .cell(item.kind().to_string())
+                                .cell(item.entity_id().to_string())
+                                .cell(stock.n_inside_for_dt(item.dt()))
                                 .build()
                         }))
                         .graph("Count Over Time", 0, 3)
@@ -247,7 +224,7 @@ impl StockDetailsPane {
 
         if let Err(err) = WormholeWindow::send(
             bytes_fut,
-            &report::file_name(&format!("Stock Report for “{}”", stock_id), kind),
+            &report::file_name(&format!("Stock Report for “{}”", stock.id()), kind),
             self,
         )
         .await
@@ -261,13 +238,15 @@ impl StockDetailsPane {
     fn update_graph_data(&self) {
         let imp = self.imp();
 
+        let app = Application::get();
+        let timeline = app.timeline();
+
         let data = self
             .stock()
             .map(|stock| {
-                stock
-                    .timeline()
-                    .iter()
-                    .map(|item| (item.dt().inner(), item.n_inside()))
+                timeline
+                    .iter_stock(stock.id())
+                    .map(|item| (item.dt().inner(), stock.n_inside_for_dt(item.dt())))
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();

@@ -215,20 +215,14 @@ impl TimelineRow {
                     format!("<b>{}</b> {}", title, enter_verb)
                 }
                 TimelineItemKind::Exit => {
-                    let entity = Application::get()
-                        .timeline()
-                        .entity_list()
-                        .get(entity_id)
-                        .expect("entity must be known");
-                    let inside_duration = entity
-                        .inside_duration_on_exit(item.dt())
-                        .expect("inside duration must be computed on exit");
-
+                    let entry_to_exit_duration = item
+                        .entry_to_exit_duration()
+                        .expect("entry to exit duration must have been set on exit");
                     format!(
                         "<b>{}</b> {} after <i>{}</i> {}",
                         title,
                         exit_verb,
-                        format::duration(inside_duration),
+                        format::duration(entry_to_exit_duration),
                         stay_suffix
                     )
                 }

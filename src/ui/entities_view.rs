@@ -576,11 +576,7 @@ impl EntitiesView {
             ),
             EntitySort::UpdatedAsc | EntitySort::UpdatedDesc => new_sorter(
                 matches!(entity_sort, EntitySort::UpdatedDesc),
-                |a: &Entity, b| {
-                    a.last_dt_pair()
-                        .map(|pair| pair.last_dt())
-                        .cmp(&b.last_dt_pair().map(|pair| pair.last_dt()))
-                },
+                |a: &Entity, b| a.last_action_dt().cmp(&b.last_action_dt()),
             ),
         };
 

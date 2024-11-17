@@ -60,10 +60,6 @@ impl EntityList {
         self.imp().list.borrow().len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.imp().list.borrow().is_empty()
-    }
-
     pub fn get(&self, id: &EntityId) -> Option<Entity> {
         self.imp().list.borrow().get(id).cloned()
     }

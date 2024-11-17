@@ -354,7 +354,7 @@ impl StocksView {
         let bytes_fut = report::builder(kind, "Stocks Report")
             .prop(
                 "Total Stock Count",
-                stocks.iter().map(|s| s.timeline().n_inside()).sum::<u32>(),
+                stocks.iter().map(|s| s.n_inside()).sum::<u32>(),
             )
             .prop("Search Query", imp.search_entry.queries())
             .table(
@@ -364,7 +364,7 @@ impl StocksView {
                     .rows(stocks.iter().map(|stock| {
                         report_table::row_builder()
                             .cell(stock.id().to_string())
-                            .cell(stock.timeline().n_inside())
+                            .cell(stock.n_inside())
                             .build()
                     }))
                     .build(),
@@ -440,16 +440,11 @@ impl StocksView {
             }
             StockSort::CountAsc | StockSort::CountDesc => new_sorter(
                 matches!(stock_sort, StockSort::CountDesc),
-                |a: &Stock, b| a.timeline().n_inside().cmp(&b.timeline().n_inside()),
+                |a: &Stock, b| a.n_inside().cmp(&b.n_inside()),
             ),
             StockSort::UpdatedAsc | StockSort::UpdatedDesc => new_sorter(
                 matches!(stock_sort, StockSort::UpdatedDesc),
-                |a: &Stock, b| {
-                    a.timeline()
-                        .last()
-                        .map(|i| i.dt())
-                        .cmp(&b.timeline().last().map(|i| i.dt()))
-                },
+                |a: &Stock, b| a.last_action_dt().cmp(&b.last_action_dt()),
             ),
         };
 
@@ -468,7 +463,7 @@ impl StocksView {
             .iter::<glib::Object>()
             .map(|o| {
                 let stock = o.unwrap().downcast::<Stock>().unwrap();
-                stock.timeline().n_inside()
+                stock.n_inside()
             })
             .sum::<u32>();
         let text = if imp.search_entry.queries().is_empty() {
