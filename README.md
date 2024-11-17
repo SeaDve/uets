@@ -61,23 +61,3 @@ sudo apt install libgtk-4-dev libadwaita-1-dev
 ```sh
 rsync --filter=':- .gitignore' --exclude \".*/\" -aP ./ $REMOTE_DIR
 ```
-
-## 📝 TODO
-
-### Dashboard View
-
-1. Filter date range
-
-### Stocks & Entities View
-
-1. Add details pane showing:
-   - N entries and exits
-   - Last action (whether entered or exited)
-   - Timeline of actions
-   - Other data
-2. Implement search or filter by inside or outside, ID, name, location, etc.
-
-### Timeline View
-
-1. Search by date, id, name, location, etc
-2. Filter date range
