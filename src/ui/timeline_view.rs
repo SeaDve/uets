@@ -282,6 +282,7 @@ mod imp {
                 [
                     Some(item.entity_id().to_string()),
                     entity.stock_id().map(|s| s.to_string()),
+                    Some(item.dt().format("%B %Y").to_string()),
                 ]
                 .into_iter()
                 .flatten()
