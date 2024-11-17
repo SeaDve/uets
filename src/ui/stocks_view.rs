@@ -160,8 +160,6 @@ mod imp {
                 obj,
                 move |entry| {
                     obj.handle_search_entry_search_changed(entry);
-                    obj.update_fallback_sorter();
-                    obj.update_n_results_label();
                 }
             ));
 
@@ -426,6 +424,9 @@ impl StocksView {
         every_filter.append(fuzzy_filter.clone());
 
         imp.filter_list_model.set_filter(Some(&every_filter));
+
+        self.update_fallback_sorter();
+        self.update_n_results_label();
     }
 
     async fn handle_share_report(&self, kind: ReportKind) {

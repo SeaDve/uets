@@ -168,8 +168,6 @@ mod imp {
                 obj,
                 move |entry| {
                     obj.handle_search_entry_search_changed(entry);
-                    obj.update_fallback_sorter();
-                    obj.update_n_results_label();
                 }
             ));
 
@@ -480,6 +478,9 @@ impl EntitiesView {
 
         every_filter.append(any_stock_filter);
         imp.filter_list_model.set_filter(Some(&every_filter));
+
+        self.update_fallback_sorter();
+        self.update_n_results_label();
     }
 
     fn handle_entity_zone_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
