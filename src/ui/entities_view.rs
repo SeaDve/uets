@@ -6,6 +6,7 @@ use gtk::{
 };
 
 use crate::{
+    date_time_range::DateTimeRange,
     entity::Entity,
     entity_id::EntityId,
     entity_list::EntityList,
@@ -14,10 +15,11 @@ use crate::{
     report::{self, ReportKind},
     report_table,
     search_query::SearchQueries,
+    search_query_ext::SearchQueriesDateTimeRangeExt,
     stock_id::StockId,
     ui::{
-        entity_details_pane::EntityDetailsPane, entity_row::EntityRow, search_entry::SearchEntry,
-        wormhole_window::WormholeWindow,
+        date_time_button::DateTimeButton, entity_details_pane::EntityDetailsPane,
+        entity_row::EntityRow, search_entry::SearchEntry, wormhole_window::WormholeWindow,
     },
     utils::new_sorter,
     Application,
@@ -30,6 +32,9 @@ impl S {
 
     const INSIDE: &str = "inside";
     const OUTSIDE: &str = "outside";
+
+    const FROM: &str = "from";
+    const TO: &str = "to";
 
     const STOCK: &str = "stock";
 
@@ -89,9 +94,12 @@ impl EntitySort {
 }
 
 mod imp {
-    use std::{cell::OnceCell, sync::OnceLock};
+    use std::{
+        cell::{OnceCell, RefCell},
+        sync::OnceLock,
+    };
 
-    use glib::subclass::Signal;
+    use glib::{subclass::Signal, WeakRef};
 
     use super::*;
 
@@ -111,6 +119,8 @@ mod imp {
         #[template_child]
         pub(super) entity_zone_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
+        pub(super) dt_button: TemplateChild<DateTimeButton>,
+        #[template_child]
         pub(super) entity_sort_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
         pub(super) n_results_label: TemplateChild<gtk::Label>,
@@ -125,10 +135,15 @@ mod imp {
         #[template_child]
         pub(super) details_pane: TemplateChild<EntityDetailsPane>,
 
+        pub(super) dt_range: RefCell<DateTimeRange>,
+
         pub(super) entity_zone_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
+        pub(super) dt_button_range_notify_id: OnceCell<glib::SignalHandlerId>,
         pub(super) entity_sort_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
 
         pub(super) fuzzy_filter: OnceCell<FuzzyFilter>,
+
+        pub(super) rows: RefCell<Vec<WeakRef<EntityRow>>>,
     }
 
     #[glib::object_subclass]
@@ -138,8 +153,6 @@ mod imp {
         type ParentType = gtk::Widget;
 
         fn class_init(klass: &mut Self::Class) {
-            EntityRow::ensure_type();
-
             klass.bind_template();
 
             klass.install_action_async(
@@ -188,6 +201,17 @@ mod imp {
                 .set(entity_zone_dropdown_selected_item_notify_id)
                 .unwrap();
 
+            let dt_button_range_notify_id = self.dt_button.connect_range_notify(clone!(
+                #[weak]
+                obj,
+                move |button| {
+                    obj.handle_dt_button_range_notify(button);
+                }
+            ));
+            self.dt_button_range_notify_id
+                .set(dt_button_range_notify_id)
+                .unwrap();
+
             self.entity_sort_dropdown
                 .set_expression(Some(&gtk::ClosureExpression::new::<String>(
                     &[] as &[gtk::Expression],
@@ -209,6 +233,46 @@ mod imp {
             self.entity_sort_dropdown_selected_item_id
                 .set(entity_sort_dropdown_selected_item_notify_id)
                 .unwrap();
+
+            let factory = gtk::SignalListItemFactory::new();
+            factory.connect_setup(clone!(
+                #[weak]
+                obj,
+                move |_, list_item| {
+                    let imp = obj.imp();
+
+                    let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
+                    let row = EntityRow::new();
+                    list_item
+                        .property_expression("item")
+                        .bind(&row, "entity", glib::Object::NONE);
+                    list_item.set_child(Some(&row));
+
+                    // Remove dead weak references
+                    imp.rows.borrow_mut().retain(|i| i.upgrade().is_some());
+
+                    debug_assert_eq!(imp.rows.borrow().iter().filter(|i| **i == row).count(), 0);
+                    imp.rows.borrow_mut().push(row.downgrade());
+                }
+            ));
+            factory.connect_teardown(clone!(
+                #[weak]
+                obj,
+                move |_, list_item| {
+                    let imp = obj.imp();
+
+                    let list_item = list_item.downcast_ref::<gtk::ListItem>().unwrap();
+                    if let Some(row) = list_item.child() {
+                        let row = row.downcast_ref::<EntityRow>().unwrap();
+
+                        debug_assert_eq!(imp.rows.borrow().iter().filter(|i| *i == row).count(), 1);
+                        imp.rows
+                            .borrow_mut()
+                            .retain(|i| i.upgrade().is_some_and(|i| &i != row));
+                    }
+                }
+            ));
+            self.list_view.set_factory(Some(&factory));
 
             self.selection_model
                 .bind_property("selected-item", &*self.flap, "reveal-flap")
@@ -366,6 +430,19 @@ impl EntitiesView {
         imp.search_entry.set_queries(queries);
     }
 
+    fn set_dt_range(&self, dt_range: DateTimeRange) {
+        let imp = self.imp();
+
+        imp.dt_range.replace(dt_range);
+
+        for row in imp.rows.borrow().iter().filter_map(|r| r.upgrade()) {
+            row.set_dt_range(dt_range);
+        }
+        imp.details_pane.set_dt_range(dt_range);
+
+        self.update_n_results_label();
+    }
+
     async fn handle_share_report(&self, kind: ReportKind) {
         let imp = self.imp();
 
@@ -388,7 +465,7 @@ impl EntitiesView {
                             .stock_id()
                             .map(|id| id.to_string())
                             .unwrap_or_default();
-                        let zone = if entity.is_inside() {
+                        let zone = if entity.is_inside_for_dt_range(&imp.dt_range.borrow()) {
                             "Inside"
                         } else {
                             "Outside"
@@ -431,6 +508,15 @@ impl EntitiesView {
         imp.entity_zone_dropdown
             .unblock_signal(selected_item_notify_id);
 
+        let dt_range = queries.dt_range(S::FROM, S::TO);
+
+        let dt_button_range_notify_id = imp.dt_button_range_notify_id.get().unwrap();
+        imp.dt_button.block_signal(dt_button_range_notify_id);
+        imp.dt_button.set_range(dt_range);
+        imp.dt_button.unblock_signal(dt_button_range_notify_id);
+
+        self.set_dt_range(dt_range);
+
         if queries.is_empty() {
             imp.filter_list_model.set_filter(gtk::Filter::NONE);
             return;
@@ -451,15 +537,15 @@ impl EntitiesView {
         match entity_zone {
             EntityZoneFilter::All => {}
             EntityZoneFilter::Inside => {
-                every_filter.append(gtk::CustomFilter::new(|o| {
+                every_filter.append(gtk::CustomFilter::new(move |o| {
                     let entity = o.downcast_ref::<Entity>().unwrap();
-                    entity.is_inside()
+                    entity.is_inside_for_dt_range(&dt_range)
                 }));
             }
             EntityZoneFilter::Outside => {
-                every_filter.append(gtk::CustomFilter::new(|o| {
+                every_filter.append(gtk::CustomFilter::new(move |o| {
                     let entity = o.downcast_ref::<Entity>().unwrap();
-                    !entity.is_inside()
+                    !entity.is_inside_for_dt_range(&dt_range)
                 }));
             }
         }
@@ -507,6 +593,16 @@ impl EntitiesView {
             }
         }
 
+        imp.search_entry.set_queries(queries);
+    }
+
+    fn handle_dt_button_range_notify(&self, button: &DateTimeButton) {
+        let imp = self.imp();
+
+        let dt_range = button.range();
+
+        let mut queries = imp.search_entry.queries();
+        queries.set_dt_range(S::FROM, S::TO, dt_range);
         imp.search_entry.set_queries(queries);
     }
 

@@ -54,6 +54,9 @@
                       <object class="GtkDropDown" id="entity_zone_dropdown"/>
                     </child>
                     <child>
+                      <object class="UetsDateTimeButton" id="dt_button"/>
+                    </child>
+                    <child>
                       <object class="GtkSeparator"/>
                     </child>
                     <child>
@@ -109,25 +112,6 @@
                                   <object class="GtkFilterListModel" id="filter_list_model"/>
                                 </property>
                               </object>
-                            </property>
-                          </object>
-                        </property>
-                        <property name="factory">
-                          <object class="GtkBuilderListItemFactory">
-                            <property name="bytes"><![CDATA[
-<?xml version="1.0" encoding="UTF-8"?>
-<interface>
-  <template class="GtkListItem">
-    <property name="child">
-      <object class="UetsEntityRow">
-        <binding name="entity">
-          <lookup name="item">GtkListItem</lookup>
-        </binding>
-      </object>
-    </property>
-  </template>
-</interface>
-]]>
                             </property>
                           </object>
                         </property>

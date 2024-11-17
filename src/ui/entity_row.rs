@@ -4,7 +4,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::entity::Entity;
+use crate::{date_time_range::DateTimeRange, entity::Entity};
 
 mod imp {
     use std::cell::{OnceCell, RefCell};
@@ -26,6 +26,8 @@ mod imp {
         pub(super) title_label: TemplateChild<gtk::Label>,
         #[template_child]
         pub(super) zone_label: TemplateChild<gtk::Label>,
+
+        pub(super) dt_range: RefCell<DateTimeRange>,
 
         pub(super) entity_signals: OnceCell<glib::SignalGroup>,
     }
@@ -116,11 +118,17 @@ impl EntityRow {
         glib::Object::new()
     }
 
+    pub fn set_dt_range(&self, dt_range: DateTimeRange) {
+        let imp = self.imp();
+        imp.dt_range.replace(dt_range);
+        self.update_zone_label();
+    }
+
     fn update_zone_label(&self) {
         let imp = self.imp();
 
         if let Some(entity) = self.entity() {
-            let text = if entity.is_inside() {
+            let text = if entity.is_inside_for_dt_range(&imp.dt_range.borrow()) {
                 "Inside"
             } else {
                 "Outside"

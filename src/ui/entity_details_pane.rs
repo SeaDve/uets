@@ -4,10 +4,16 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::{entity::Entity, stock_id::StockId, ui::information_row::InformationRow};
+use crate::{
+    date_time_range::DateTimeRange, entity::Entity, stock_id::StockId,
+    ui::information_row::InformationRow,
+};
 
 mod imp {
-    use std::{cell::RefCell, sync::OnceLock};
+    use std::{
+        cell::{OnceCell, RefCell},
+        sync::OnceLock,
+    };
 
     use glib::subclass::Signal;
 
@@ -31,7 +37,9 @@ mod imp {
         #[template_child]
         pub(super) is_inside_row: TemplateChild<InformationRow>,
 
-        pub(super) entity_bindings: glib::BindingGroup,
+        pub(super) dt_range: RefCell<DateTimeRange>,
+
+        pub(super) entity_signals: OnceCell<glib::SignalGroup>,
     }
 
     #[glib::object_subclass]
@@ -87,15 +95,20 @@ mod imp {
                 }
             ));
 
-            self.entity_bindings
-                .bind("is-inside", &*self.is_inside_row, "value")
-                .transform_to(|_, n_inside| {
-                    let is_inside = n_inside.get::<bool>().unwrap();
-                    let ret = if is_inside { "Yes" } else { "No" };
-                    Some(ret.to_string().into())
-                })
-                .flags(glib::BindingFlags::SYNC_CREATE)
-                .build();
+            let entity_signals = glib::SignalGroup::new::<Entity>();
+            entity_signals.connect_notify_local(
+                Some("is-inside"),
+                clone!(
+                    #[weak]
+                    obj,
+                    move |_, _| {
+                        obj.update_is_inside_row();
+                    }
+                ),
+            );
+            self.entity_signals.set(entity_signals).unwrap();
+
+            obj.update_is_inside_row();
         }
 
         fn dispose(&self) {
@@ -141,9 +154,13 @@ mod imp {
                     .unwrap_or_default(),
             );
 
-            self.entity_bindings.set_source(entity.as_ref());
+            self.entity_signals
+                .get()
+                .unwrap()
+                .set_target(entity.as_ref());
 
             self.entity.replace(entity);
+            obj.update_is_inside_row();
             obj.notify_entity();
         }
     }
@@ -186,5 +203,26 @@ impl EntityDetailsPane {
         F: Fn(&Self) + 'static,
     {
         self.connect_closure("close-request", false, closure_local!(|obj: &Self| f(obj)))
+    }
+
+    pub fn set_dt_range(&self, dt_range: DateTimeRange) {
+        let imp = self.imp();
+        imp.dt_range.replace(dt_range);
+        self.update_is_inside_row();
+    }
+
+    fn update_is_inside_row(&self) {
+        let imp = self.imp();
+
+        if let Some(entity) = self.entity() {
+            let value = if entity.is_inside_for_dt_range(&imp.dt_range.borrow()) {
+                "Yes"
+            } else {
+                "No"
+            };
+            imp.is_inside_row.set_value(value);
+        } else {
+            imp.is_inside_row.set_value("");
+        }
     }
 }

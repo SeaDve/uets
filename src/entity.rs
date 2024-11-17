@@ -3,7 +3,7 @@ use std::fmt;
 use chrono::{DateTime, Utc};
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{db, entity_id::EntityId, log::Log, stock_id::StockId};
+use crate::{date_time_range::DateTimeRange, db, entity_id::EntityId, log::Log, stock_id::StockId};
 
 mod imp {
     use std::{
@@ -91,6 +91,14 @@ impl Entity {
             .for_dt(dt)
             .copied()
             .unwrap_or(false)
+    }
+
+    pub fn is_inside_for_dt_range(&self, dt_range: &DateTimeRange) -> bool {
+        if let Some(end) = dt_range.end {
+            self.is_inside_for_dt(end)
+        } else {
+            self.is_inside()
+        }
     }
 
     pub fn last_action_dt(&self) -> Option<DateTime<Utc>> {

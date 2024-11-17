@@ -115,6 +115,9 @@ mod imp {
                     obj.update_graph_data();
                 }
             ));
+
+            obj.update_n_inside_row();
+            obj.update_graph_data();
         }
 
         fn dispose(&self) {
@@ -226,7 +229,7 @@ impl StockDetailsPane {
                         .column("Action")
                         .column("Entity ID")
                         .column("Count")
-                        .rows(timeline.iter_stock(stock.id(), &dt_range).map(|item| {
+                        .rows(timeline.iter_stock(&dt_range, stock.id()).map(|item| {
                             report_table::row_builder()
                                 .cell(item.dt())
                                 .cell(item.kind().to_string())
@@ -275,7 +278,7 @@ impl StockDetailsPane {
             .stock()
             .map(|stock| {
                 timeline
-                    .iter_stock(stock.id(), &imp.dt_range.borrow())
+                    .iter_stock(&imp.dt_range.borrow(), stock.id())
                     .map(|item| (item.dt(), stock.n_inside_for_dt(item.dt())))
                     .collect::<Vec<_>>()
             })

@@ -179,21 +179,26 @@ impl Timeline {
         self.imp().list.borrow().get(dt).cloned()
     }
 
-    pub fn iter(&self) -> impl DoubleEndedIterator<Item = TimelineItem> + '_ {
-        ListModelExtManual::iter(self).map(|item| item.unwrap())
+    pub fn iter<'a>(
+        &'a self,
+        dt_range: &'a DateTimeRange,
+    ) -> impl DoubleEndedIterator<Item = TimelineItem> + '_ {
+        ListModelExtManual::iter::<TimelineItem>(self)
+            .map(|item| item.unwrap())
+            .filter(|item| dt_range.contains(item.dt()))
     }
 
-    pub fn iter_stock<'a, 'b: 'a>(
+    pub fn iter_stock<'a>(
         &'a self,
-        stock_id: &'b StockId,
-        dt_range: &'b DateTimeRange,
+        dt_range: &'a DateTimeRange,
+        stock_id: &'a StockId,
     ) -> impl DoubleEndedIterator<Item = TimelineItem> + '_ {
-        self.iter().filter(|item| {
+        self.iter(dt_range).filter(|item| {
             let entity = self
                 .entity_list()
                 .get(item.entity_id())
                 .expect("entity must be known");
-            entity.stock_id() == Some(stock_id) && dt_range.contains(item.dt())
+            entity.stock_id() == Some(stock_id)
         })
     }
 

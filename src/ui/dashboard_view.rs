@@ -5,6 +5,7 @@ use gtk::{
 };
 
 use crate::{
+    date_time_range::DateTimeRange,
     format,
     ui::{information_row::InformationRow, time_graph::TimeGraph},
     Application,
@@ -140,7 +141,7 @@ impl DashboardView {
 
         let data = Application::get()
             .timeline()
-            .iter()
+            .iter(&DateTimeRange::all_time())
             .map(|item| (item.dt(), item.n_inside()))
             .collect::<Vec<_>>();
         imp.graph.set_data(data);
