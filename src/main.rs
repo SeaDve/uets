@@ -11,6 +11,7 @@
 mod application;
 mod colors;
 mod config;
+mod date_time_boxed;
 mod date_time_range;
 mod db;
 mod detector;

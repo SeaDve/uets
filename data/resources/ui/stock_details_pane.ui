@@ -34,6 +34,31 @@
                   </object>
                 </child>
                 <child>
+                  <object class="UetsInformationRow" id="max_n_inside_row">
+                    <property name="title">Max Count</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="UetsInformationRow" id="n_entries_row">
+                    <property name="title">Total Entries</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="UetsInformationRow" id="n_exits_row">
+                    <property name="title">Total Exits</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="UetsInformationRow" id="last_entry_dt_row">
+                    <property name="title">Last Entry Time</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="UetsInformationRow" id="last_exit_dt_row">
+                    <property name="title">Last Exit Time</property>
+                  </object>
+                </child>
+                <child>
                   <object class="AdwActionRow">
                     <property name="title">Show Timeline</property>
                     <property name="activatable">True</property>
@@ -89,7 +114,46 @@
               <object class="AdwPreferencesGroup">
                 <property name="title">Count Over Time</property>
                 <child>
-                  <object class="UetsTimeGraph" id="graph">
+                  <object class="UetsTimeGraph" id="n_inside_graph">
+                    <property name="height-request">240</property>
+                    <style>
+                      <class name="card"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup">
+                <property name="title">Max Count Over Time</property>
+                <child>
+                  <object class="UetsTimeGraph" id="max_n_inside_graph">
+                    <property name="height-request">240</property>
+                    <style>
+                      <class name="card"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup">
+                <property name="title">Total Entries Over Time</property>
+                <child>
+                  <object class="UetsTimeGraph" id="n_entries_graph">
+                    <property name="height-request">240</property>
+                    <style>
+                      <class name="card"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup">
+                <property name="title">Total Exits Over Time</property>
+                <child>
+                  <object class="UetsTimeGraph" id="n_exits_graph">
                     <property name="height-request">240</property>
                     <style>
                       <class name="card"/>

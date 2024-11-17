@@ -6,6 +6,7 @@ use gtk::{
 
 use crate::{
     date_time_range::DateTimeRange,
+    format,
     report::{self, ReportKind},
     report_table,
     stock::Stock,
@@ -39,7 +40,23 @@ mod imp {
         #[template_child]
         pub(super) n_inside_row: TemplateChild<InformationRow>,
         #[template_child]
-        pub(super) graph: TemplateChild<TimeGraph>,
+        pub(super) max_n_inside_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) n_entries_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) n_exits_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) last_entry_dt_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) last_exit_dt_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) n_inside_graph: TemplateChild<TimeGraph>,
+        #[template_child]
+        pub(super) max_n_inside_graph: TemplateChild<TimeGraph>,
+        #[template_child]
+        pub(super) n_entries_graph: TemplateChild<TimeGraph>,
+        #[template_child]
+        pub(super) n_exits_graph: TemplateChild<TimeGraph>,
 
         pub(super) dt_range: RefCell<DateTimeRange>,
 
@@ -106,18 +123,73 @@ mod imp {
                     }
                 ),
             );
+            stock_signals.connect_notify_local(
+                Some("max-n-inside"),
+                clone!(
+                    #[weak]
+                    obj,
+                    move |_, _| {
+                        obj.update_max_n_inside_row();
+                    }
+                ),
+            );
+            stock_signals.connect_notify_local(
+                Some("n-entries"),
+                clone!(
+                    #[weak]
+                    obj,
+                    move |_, _| {
+                        obj.update_n_entries_row();
+                    }
+                ),
+            );
+            stock_signals.connect_notify_local(
+                Some("n-exits"),
+                clone!(
+                    #[weak]
+                    obj,
+                    move |_, _| {
+                        obj.update_n_exits_row();
+                    }
+                ),
+            );
+            stock_signals.connect_notify_local(
+                Some("last-entry-dt"),
+                clone!(
+                    #[weak]
+                    obj,
+                    move |_, _| {
+                        obj.update_last_entry_dt_row();
+                    }
+                ),
+            );
+            stock_signals.connect_notify_local(
+                Some("last-exit-dt"),
+                clone!(
+                    #[weak]
+                    obj,
+                    move |_, _| {
+                        obj.update_last_exit_dt_row();
+                    }
+                ),
+            );
             self.stock_signals.set(stock_signals).unwrap();
 
             Application::get().timeline().connect_items_changed(clone!(
                 #[weak]
                 obj,
                 move |_, _, _, _| {
-                    obj.update_graph_data();
+                    obj.update_graphs_data();
                 }
             ));
 
             obj.update_n_inside_row();
-            obj.update_graph_data();
+            obj.update_max_n_inside_row();
+            obj.update_n_entries_row();
+            obj.update_n_exits_row();
+            obj.update_last_entry_dt_row();
+            obj.update_last_exit_dt_row();
+            obj.update_graphs_data();
         }
 
         fn dispose(&self) {
@@ -158,7 +230,12 @@ mod imp {
 
             self.stock.replace(stock);
             obj.update_n_inside_row();
-            obj.update_graph_data();
+            obj.update_max_n_inside_row();
+            obj.update_n_entries_row();
+            obj.update_n_exits_row();
+            obj.update_last_entry_dt_row();
+            obj.update_last_exit_dt_row();
+            obj.update_graphs_data();
             obj.notify_stock();
         }
     }
@@ -207,7 +284,12 @@ impl StockDetailsPane {
         let imp = self.imp();
         imp.dt_range.replace(dt_range);
         self.update_n_inside_row();
-        self.update_graph_data();
+        self.update_max_n_inside_row();
+        self.update_n_entries_row();
+        self.update_n_exits_row();
+        self.update_last_entry_dt_row();
+        self.update_last_exit_dt_row();
+        self.update_graphs_data();
     }
 
     async fn handle_share_report(&self, kind: ReportKind) {
@@ -268,13 +350,70 @@ impl StockDetailsPane {
         imp.n_inside_row.set_value(n_inside.to_string());
     }
 
-    fn update_graph_data(&self) {
+    fn update_max_n_inside_row(&self) {
+        let imp = self.imp();
+
+        let stock = imp.stock.borrow();
+        let max_n_inside = stock
+            .as_ref()
+            .map(|s| s.max_n_inside_for_dt_range(&imp.dt_range.borrow()))
+            .unwrap_or_default();
+        imp.max_n_inside_row.set_value(max_n_inside.to_string());
+    }
+
+    fn update_n_entries_row(&self) {
+        let imp = self.imp();
+
+        let stock = imp.stock.borrow();
+        let n_entries = stock
+            .as_ref()
+            .map(|s| s.n_entries_for_dt_range(&imp.dt_range.borrow()))
+            .unwrap_or_default();
+        imp.n_entries_row.set_value(n_entries.to_string());
+    }
+
+    fn update_n_exits_row(&self) {
+        let imp = self.imp();
+
+        let stock = imp.stock.borrow();
+        let n_exits = stock
+            .as_ref()
+            .map(|s| s.n_exits_for_dt_range(&imp.dt_range.borrow()))
+            .unwrap_or_default();
+        imp.n_exits_row.set_value(n_exits.to_string());
+    }
+
+    fn update_last_entry_dt_row(&self) {
+        let imp = self.imp();
+
+        let stock = imp.stock.borrow();
+        let last_entry_dt = stock
+            .as_ref()
+            .map(|s| s.last_entry_dt_for_dt_range(&imp.dt_range.borrow()))
+            .unwrap_or_default();
+        imp.last_entry_dt_row
+            .set_value(last_entry_dt.map(format::fuzzy_dt).unwrap_or_default());
+    }
+
+    fn update_last_exit_dt_row(&self) {
+        let imp = self.imp();
+
+        let stock = imp.stock.borrow();
+        let last_exit_dt = stock
+            .as_ref()
+            .map(|s| s.last_exit_dt_for_dt_range(&imp.dt_range.borrow()))
+            .unwrap_or_default();
+        imp.last_exit_dt_row
+            .set_value(last_exit_dt.map(format::fuzzy_dt).unwrap_or_default());
+    }
+
+    fn update_graphs_data(&self) {
         let imp = self.imp();
 
         let app = Application::get();
         let timeline = app.timeline();
 
-        let data = self
+        let n_inside_data = self
             .stock()
             .map(|stock| {
                 timeline
@@ -283,6 +422,39 @@ impl StockDetailsPane {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        imp.graph.set_data(data);
+        imp.n_inside_graph.set_data(n_inside_data);
+
+        let max_n_inside_data = self
+            .stock()
+            .map(|stock| {
+                timeline
+                    .iter_stock(&imp.dt_range.borrow(), stock.id())
+                    .map(|item| (item.dt(), stock.max_n_inside_for_dt(item.dt())))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        imp.max_n_inside_graph.set_data(max_n_inside_data);
+
+        let n_entries_data = self
+            .stock()
+            .map(|stock| {
+                timeline
+                    .iter_stock(&imp.dt_range.borrow(), stock.id())
+                    .map(|item| (item.dt(), stock.n_entries_for_dt(item.dt())))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        imp.n_entries_graph.set_data(n_entries_data);
+
+        let n_exits_data = self
+            .stock()
+            .map(|stock| {
+                timeline
+                    .iter_stock(&imp.dt_range.borrow(), stock.id())
+                    .map(|item| (item.dt(), stock.n_exits_for_dt(item.dt())))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        imp.n_exits_graph.set_data(n_exits_data);
     }
 }

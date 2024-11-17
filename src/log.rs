@@ -2,9 +2,16 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 
-#[derive(Default)]
 pub struct Log<T> {
     map: BTreeMap<DateTime<Utc>, T>,
+}
+
+impl<T> Default for Log<T> {
+    fn default() -> Self {
+        Self {
+            map: BTreeMap::new(),
+        }
+    }
 }
 
 impl<T: Copy> Log<T> {

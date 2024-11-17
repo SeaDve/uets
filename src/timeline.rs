@@ -6,22 +6,19 @@ use gtk::{gio, glib, prelude::*, subclass::prelude::*};
 use indexmap::IndexMap;
 
 use crate::{
+    date_time_boxed::DateTimeBoxed,
     date_time_range::DateTimeRange,
     db::{self, EnvExt},
     entity::Entity,
     entity_id::EntityId,
     entity_list::EntityList,
     log::Log,
-    stock::Stock,
+    stock::{Stock, StockLogs},
     stock_id::StockId,
     stock_list::StockList,
     timeline_item::TimelineItem,
     timeline_item_kind::TimelineItemKind,
 };
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, glib::Boxed)]
-#[boxed_type(name = "UetsDateTimeBoxed", nullable)]
-pub struct DateTimeBoxed(pub DateTime<Utc>);
 
 mod imp {
     use std::{
@@ -301,8 +298,25 @@ impl Timeline {
             } else {
                 prev_n_inisde + 1
             };
-            stock.with_n_inside_log_mut(|map| {
-                map.insert(now_dt, new_n_inside);
+
+            stock.with_logs_mut(|logs| {
+                logs.n_inside.insert(now_dt, new_n_inside);
+
+                let prev_max_n_inside = logs.max_n_inside.latest().copied().unwrap_or(0);
+                if new_n_inside > prev_max_n_inside {
+                    logs.max_n_inside.insert(now_dt, new_n_inside);
+                }
+
+                if is_exit {
+                    let prev_n_exits = logs.n_exits.latest().copied().unwrap_or(0);
+                    logs.n_exits.insert(now_dt, prev_n_exits + 1);
+                    logs.last_exit_dt.insert(now_dt, now_dt);
+                } else {
+                    let prev_n_entries = logs.n_entries.latest().copied().unwrap_or(0);
+                    logs.n_entries.insert(now_dt, prev_n_entries + 1);
+                    logs.last_entry_dt.insert(now_dt, now_dt);
+                }
+
                 true
             });
         }
@@ -457,7 +471,7 @@ impl Timeline {
         let mut n_exits = 0;
 
         let mut entity_is_inside_logs = HashMap::<EntityId, Log<bool>>::new();
-        let mut stock_n_inside_logs = HashMap::<StockId, Log<u32>>::new();
+        let mut stock_logs: HashMap<StockId, StockLogs> = HashMap::new();
 
         for item in imp.list.borrow().values() {
             let entity = self
@@ -490,14 +504,30 @@ impl Timeline {
                 .insert(item.dt(), item.kind().is_entry());
 
             if let Some(stock_id) = entity.stock_id() {
-                let stock_n_inside_log = stock_n_inside_logs.entry(stock_id.clone()).or_default();
-                let prev_n_inside = stock_n_inside_log.latest().copied().unwrap_or(0);
+                let logs = stock_logs.entry(stock_id.clone()).or_default();
+
+                let prev_n_inside = logs.n_inside.latest().copied().unwrap_or(0);
                 let new_n_inside = if item.kind().is_exit() {
                     prev_n_inside - 1
                 } else {
                     prev_n_inside + 1
                 };
-                stock_n_inside_log.insert(item.dt(), new_n_inside);
+                logs.n_inside.insert(item.dt(), new_n_inside);
+
+                let prev_max_n_inside = logs.max_n_inside.latest().copied().unwrap_or(0);
+                if new_n_inside > prev_max_n_inside {
+                    logs.max_n_inside.insert(item.dt(), new_n_inside);
+                }
+
+                if item.kind().is_exit() {
+                    let prev_n_exits = logs.n_exits.latest().copied().unwrap_or(0);
+                    logs.n_exits.insert(item.dt(), prev_n_exits + 1);
+                    logs.last_exit_dt.insert(item.dt(), item.dt());
+                } else {
+                    let prev_n_entries = logs.n_entries.latest().copied().unwrap_or(0);
+                    logs.n_entries.insert(item.dt(), prev_n_entries + 1);
+                    logs.last_entry_dt.insert(item.dt(), item.dt());
+                }
             }
         }
 
@@ -537,16 +567,16 @@ impl Timeline {
 
         for (entity_id, log) in entity_is_inside_logs {
             let entity = self.entity_list().get(&entity_id).unwrap();
-            entity.with_is_inside_log_mut(|map| {
-                *map = log;
+            entity.with_is_inside_log_mut(|l| {
+                *l = log;
                 true
             });
         }
 
-        for (stock_id, log) in stock_n_inside_logs {
+        for (stock_id, logs) in stock_logs {
             let stock = self.stock_list().get(&stock_id).unwrap();
-            stock.with_n_inside_log_mut(|map| {
-                *map = log;
+            stock.with_logs_mut(|l| {
+                *l = logs;
                 true
             });
         }
