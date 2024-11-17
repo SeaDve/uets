@@ -62,7 +62,46 @@
           <object class="AdwPreferencesGroup">
             <property name="title">Inside Count Over Time</property>
             <child>
-              <object class="UetsTimeGraph" id="graph">
+              <object class="UetsTimeGraph" id="n_inside_graph">
+                <property name="height-request">240</property>
+                <style>
+                  <class name="card"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title">Max Inside Count Over Time</property>
+            <child>
+              <object class="UetsTimeGraph" id="max_n_inside_graph">
+                <property name="height-request">240</property>
+                <style>
+                  <class name="card"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title">Entries Over Time</property>
+            <child>
+              <object class="UetsTimeGraph" id="n_entries_graph">
+                <property name="height-request">240</property>
+                <style>
+                  <class name="card"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title">Exits Over Time</property>
+            <child>
+              <object class="UetsTimeGraph" id="n_exits_graph">
                 <property name="height-request">240</property>
                 <style>
                   <class name="card"/>

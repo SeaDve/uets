@@ -32,7 +32,13 @@ mod imp {
         #[template_child]
         pub(super) last_exit_dt_row: TemplateChild<InformationRow>,
         #[template_child]
-        pub(super) graph: TemplateChild<TimeGraph>,
+        pub(super) n_inside_graph: TemplateChild<TimeGraph>,
+        #[template_child]
+        pub(super) max_n_inside_graph: TemplateChild<TimeGraph>,
+        #[template_child]
+        pub(super) n_entries_graph: TemplateChild<TimeGraph>,
+        #[template_child]
+        pub(super) n_exits_graph: TemplateChild<TimeGraph>,
     }
 
     #[glib::object_subclass]
@@ -63,7 +69,7 @@ mod imp {
                 #[weak]
                 obj,
                 move |_, _, _, _| {
-                    obj.update_graph_data();
+                    obj.update_graphs_data();
                 }
             ));
             timeline.connect_n_inside_notify(clone!(
@@ -109,7 +115,7 @@ mod imp {
                 }
             ));
 
-            obj.update_graph_data();
+            obj.update_graphs_data();
             obj.update_n_inside_label();
             obj.update_max_n_inside_row();
             obj.update_n_entries_label();
@@ -136,15 +142,35 @@ impl DashboardView {
         glib::Object::new()
     }
 
-    fn update_graph_data(&self) {
+    fn update_graphs_data(&self) {
         let imp = self.imp();
 
-        let data = Application::get()
-            .timeline()
+        let app = Application::get();
+        let timeline = app.timeline();
+
+        let data = timeline
             .iter(&DateTimeRange::all_time())
             .map(|item| (item.dt(), item.n_inside()))
             .collect::<Vec<_>>();
-        imp.graph.set_data(data);
+        imp.n_inside_graph.set_data(data);
+
+        let data = timeline
+            .iter(&DateTimeRange::all_time())
+            .map(|item| (item.dt(), item.max_n_inside()))
+            .collect::<Vec<_>>();
+        imp.max_n_inside_graph.set_data(data);
+
+        let data = timeline
+            .iter(&DateTimeRange::all_time())
+            .map(|item| (item.dt(), item.n_entries()))
+            .collect::<Vec<_>>();
+        imp.n_entries_graph.set_data(data);
+
+        let data = timeline
+            .iter(&DateTimeRange::all_time())
+            .map(|item| (item.dt(), item.n_exits()))
+            .collect::<Vec<_>>();
+        imp.n_exits_graph.set_data(data);
     }
 
     fn update_n_inside_label(&self) {

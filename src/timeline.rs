@@ -35,14 +35,14 @@ mod imp {
         #[property(get = Self::n_inside)]
         pub(super) n_inside: PhantomData<u32>,
         /// Maximum number of entities inside at all time.
-        #[property(get)]
-        pub(super) max_n_inside: Cell<u32>,
+        #[property(get = Self::max_n_inside)]
+        pub(super) max_n_inside: PhantomData<u32>,
         /// Number of entries at all time.
-        #[property(get)]
-        pub(super) n_entries: Cell<u32>,
+        #[property(get = Self::n_entries)]
+        pub(super) n_entries: PhantomData<u32>,
         /// Number of exits at all time.
-        #[property(get)]
-        pub(super) n_exits: Cell<u32>,
+        #[property(get = Self::n_exits)]
+        pub(super) n_exits: PhantomData<u32>,
         /// Last entry time.
         #[property(get)]
         pub(super) last_entry_dt: Cell<Option<DateTimeBoxed>>,
@@ -95,6 +95,27 @@ mod imp {
                 .borrow()
                 .last()
                 .map_or(0, |(_, item)| item.n_inside())
+        }
+
+        fn max_n_inside(&self) -> u32 {
+            self.list
+                .borrow()
+                .last()
+                .map_or(0, |(_, item)| item.max_n_inside())
+        }
+
+        fn n_entries(&self) -> u32 {
+            self.list
+                .borrow()
+                .last()
+                .map_or(0, |(_, item)| item.n_entries())
+        }
+
+        fn n_exits(&self) -> u32 {
+            self.list
+                .borrow()
+                .last()
+                .map_or(0, |(_, item)| item.n_exits())
         }
     }
 }
@@ -267,12 +288,11 @@ impl Timeline {
         };
         item.set_n_inside(new_n_inside);
 
-        if new_n_inside > self.max_n_inside() {
-            self.set_max_n_inside(new_n_inside);
-        }
+        item.set_max_n_inside(self.max_n_inside().max(new_n_inside));
+        item.set_n_entries(self.n_entries() + if is_exit { 0 } else { 1 });
+        item.set_n_exits(self.n_exits() + if is_exit { 1 } else { 0 });
 
         if is_exit {
-            self.set_n_exits(self.n_exits() + 1);
             self.set_last_exit_dt(Some(DateTimeBoxed(now_dt)));
 
             let last_entry_dt = entity
@@ -282,7 +302,6 @@ impl Timeline {
             entry_item.set_pair(&item);
             item.set_pair(&entry_item);
         } else {
-            self.set_n_entries(self.n_entries() + 1);
             self.set_last_entry_dt(Some(DateTimeBoxed(now_dt)));
         }
 
@@ -330,6 +349,9 @@ impl Timeline {
         }
 
         self.notify_n_inside();
+        self.notify_max_n_inside();
+        self.notify_n_entries();
+        self.notify_n_exits();
         self.items_changed(index as u32, 0, 1);
 
         debug_assert!(imp.list.borrow().keys().is_sorted());
@@ -378,9 +400,6 @@ impl Timeline {
 
         imp.list.borrow_mut().clear();
 
-        self.set_max_n_inside(0);
-        self.set_n_entries(0);
-        self.set_n_exits(0);
         self.set_last_entry_dt(None);
         self.set_last_exit_dt(None);
 
@@ -392,40 +411,24 @@ impl Timeline {
 
         debug_assert!(imp.list.borrow().keys().is_sorted());
 
+        debug_assert_eq!(
+            self.n_inside(),
+            imp.list
+                .borrow()
+                .values()
+                .filter(|item| item.kind().is_entry())
+                .count() as u32
+        );
+        debug_assert_eq!(
+            self.n_exits(),
+            imp.list
+                .borrow()
+                .values()
+                .filter(|item| item.kind().is_exit())
+                .count() as u32
+        );
+
         Ok(())
-    }
-
-    fn set_max_n_inside(&self, max_n_inside: u32) {
-        let imp = self.imp();
-
-        if max_n_inside == self.max_n_inside() {
-            return;
-        }
-
-        imp.max_n_inside.set(max_n_inside);
-        self.notify_max_n_inside();
-    }
-
-    fn set_n_entries(&self, n_entries: u32) {
-        let imp = self.imp();
-
-        if n_entries == self.n_entries() {
-            return;
-        }
-
-        imp.n_entries.set(n_entries);
-        self.notify_n_entries();
-    }
-
-    fn set_n_exits(&self, n_exits: u32) {
-        let imp = self.imp();
-
-        if n_exits == self.n_exits() {
-            return;
-        }
-
-        imp.n_exits.set(n_exits);
-        self.notify_n_exits();
     }
 
     fn set_last_entry_dt(&self, dt: Option<DateTimeBoxed>) {
@@ -467,6 +470,7 @@ impl Timeline {
         let prev_n_inside = self.n_inside();
 
         let mut n_inside = 0;
+        let mut max_n_inside = 0;
         let mut n_entries = 0;
         let mut n_exits = 0;
 
@@ -496,7 +500,14 @@ impl Timeline {
                 n_entries += 1;
             }
 
+            if n_inside > max_n_inside {
+                max_n_inside = n_inside;
+            }
+
             item.set_n_inside(n_inside);
+            item.set_max_n_inside(max_n_inside);
+            item.set_n_entries(n_entries);
+            item.set_n_exits(n_exits);
 
             entity_is_inside_logs
                 .entry(item.entity_id().clone())
@@ -531,14 +542,6 @@ impl Timeline {
             }
         }
 
-        let max_n_inside = imp
-            .list
-            .borrow()
-            .values()
-            .map(|item| item.n_inside())
-            .max()
-            .unwrap_or(0);
-
         let mut last_entry_dt = None;
         for item in imp.list.borrow().values().rev() {
             if item.kind().is_entry() {
@@ -559,9 +562,6 @@ impl Timeline {
             self.notify_n_inside();
         }
 
-        self.set_max_n_inside(max_n_inside);
-        self.set_n_entries(n_entries);
-        self.set_n_exits(n_exits);
         self.set_last_entry_dt(last_entry_dt.map(DateTimeBoxed));
         self.set_last_exit_dt(last_exit_dt.map(DateTimeBoxed));
 
@@ -582,7 +582,7 @@ impl Timeline {
         }
 
         debug_assert_eq!(
-            n_entries,
+            self.n_entries(),
             imp.list
                 .borrow()
                 .values()
@@ -590,7 +590,7 @@ impl Timeline {
                 .count() as u32
         );
         debug_assert_eq!(
-            n_exits,
+            self.n_exits(),
             imp.list
                 .borrow()
                 .values()
