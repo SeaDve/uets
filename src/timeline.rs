@@ -60,6 +60,11 @@ mod imp {
 
         pub(super) entity_list: OnceCell<EntityList>,
         pub(super) stock_list: OnceCell<StockList>,
+
+        pub(super) n_inside_log: RefCell<Log<u32>>,
+        pub(super) max_n_inside_log: RefCell<Log<u32>>,
+        pub(super) n_entries_log: RefCell<Log<u32>>,
+        pub(super) n_exits_log: RefCell<Log<u32>>,
     }
 
     #[glib::object_subclass]
@@ -91,31 +96,23 @@ mod imp {
 
     impl Timeline {
         fn n_inside(&self) -> u32 {
-            self.list
-                .borrow()
-                .last()
-                .map_or(0, |(_, item)| item.n_inside())
+            self.n_inside_log.borrow().latest().copied().unwrap_or(0)
         }
 
         fn max_n_inside(&self) -> u32 {
-            self.list
+            self.max_n_inside_log
                 .borrow()
-                .last()
-                .map_or(0, |(_, item)| item.max_n_inside())
+                .latest()
+                .copied()
+                .unwrap_or(0)
         }
 
         fn n_entries(&self) -> u32 {
-            self.list
-                .borrow()
-                .last()
-                .map_or(0, |(_, item)| item.n_entries())
+            self.n_entries_log.borrow().latest().copied().unwrap_or(0)
         }
 
         fn n_exits(&self) -> u32 {
-            self.list
-                .borrow()
-                .last()
-                .map_or(0, |(_, item)| item.n_exits())
+            self.n_exits_log.borrow().latest().copied().unwrap_or(0)
         }
     }
 }
@@ -220,6 +217,74 @@ impl Timeline {
         })
     }
 
+    pub fn n_inside_for_dt(&self, dt: DateTime<Utc>) -> u32 {
+        self.imp()
+            .n_inside_log
+            .borrow()
+            .for_dt(dt)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    pub fn n_inside_for_dt_range(&self, dt_range: &DateTimeRange) -> u32 {
+        if let Some(end) = dt_range.end {
+            self.n_inside_for_dt(end)
+        } else {
+            self.n_inside()
+        }
+    }
+
+    pub fn max_n_inside_for_dt(&self, dt: DateTime<Utc>) -> u32 {
+        self.imp()
+            .max_n_inside_log
+            .borrow()
+            .for_dt(dt)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    pub fn max_n_inside_for_dt_range(&self, dt_range: &DateTimeRange) -> u32 {
+        if let Some(end) = dt_range.end {
+            self.max_n_inside_for_dt(end)
+        } else {
+            self.max_n_inside()
+        }
+    }
+
+    pub fn n_entries_for_dt(&self, dt: DateTime<Utc>) -> u32 {
+        self.imp()
+            .n_entries_log
+            .borrow()
+            .for_dt(dt)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    pub fn n_entries_for_dt_range(&self, dt_range: &DateTimeRange) -> u32 {
+        if let Some(end) = dt_range.end {
+            self.n_entries_for_dt(end)
+        } else {
+            self.n_entries()
+        }
+    }
+
+    pub fn n_exits_for_dt(&self, dt: DateTime<Utc>) -> u32 {
+        self.imp()
+            .n_exits_log
+            .borrow()
+            .for_dt(dt)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    pub fn n_exits_for_dt_range(&self, dt_range: &DateTimeRange) -> u32 {
+        if let Some(end) = dt_range.end {
+            self.n_exits_for_dt(end)
+        } else {
+            self.n_exits()
+        }
+    }
+
     pub fn handle_detected(
         &self,
         provided_entity_id: &EntityId,
@@ -286,13 +351,21 @@ impl Timeline {
         } else {
             prev_n_inside + 1
         };
-        item.set_n_inside(new_n_inside);
+        imp.n_inside_log.borrow_mut().insert(now_dt, new_n_inside);
+        self.notify_n_inside();
 
-        item.set_max_n_inside(self.max_n_inside().max(new_n_inside));
-        item.set_n_entries(self.n_entries() + if is_exit { 0 } else { 1 });
-        item.set_n_exits(self.n_exits() + if is_exit { 1 } else { 0 });
+        if new_n_inside > self.max_n_inside() {
+            imp.max_n_inside_log
+                .borrow_mut()
+                .insert(now_dt, new_n_inside);
+            self.notify_max_n_inside();
+        }
 
         if is_exit {
+            let new_n_exits = self.n_exits() + 1;
+            imp.n_exits_log.borrow_mut().insert(now_dt, new_n_exits);
+            self.notify_n_exits();
+
             self.set_last_exit_dt(Some(DateTimeBoxed(now_dt)));
 
             let last_entry_dt = entity
@@ -302,6 +375,10 @@ impl Timeline {
             entry_item.set_pair(&item);
             item.set_pair(&entry_item);
         } else {
+            let new_n_entries = self.n_entries() + 1;
+            imp.n_entries_log.borrow_mut().insert(now_dt, new_n_entries);
+            self.notify_n_entries();
+
             self.set_last_entry_dt(Some(DateTimeBoxed(now_dt)));
         }
 
@@ -348,10 +425,6 @@ impl Timeline {
             self.stock_list().insert(stock);
         }
 
-        self.notify_n_inside();
-        self.notify_max_n_inside();
-        self.notify_n_entries();
-        self.notify_n_exits();
         self.items_changed(index as u32, 0, 1);
 
         debug_assert!(imp.list.borrow().keys().is_sorted());
@@ -400,6 +473,11 @@ impl Timeline {
 
         imp.list.borrow_mut().clear();
 
+        imp.n_inside_log.borrow_mut().clear();
+        imp.max_n_inside_log.borrow_mut().clear();
+        imp.n_entries_log.borrow_mut().clear();
+        imp.n_exits_log.borrow_mut().clear();
+
         self.set_last_entry_dt(None);
         self.set_last_exit_dt(None);
 
@@ -407,6 +485,9 @@ impl Timeline {
         self.stock_list().clear();
 
         self.notify_n_inside();
+        self.notify_max_n_inside();
+        self.notify_n_entries();
+        self.notify_n_exits();
         self.items_changed(0, prev_len as u32, 0);
 
         debug_assert!(imp.list.borrow().keys().is_sorted());
@@ -467,12 +548,15 @@ impl Timeline {
     fn setup_data(&self) {
         let imp = self.imp();
 
-        let prev_n_inside = self.n_inside();
-
         let mut n_inside = 0;
         let mut max_n_inside = 0;
         let mut n_entries = 0;
         let mut n_exits = 0;
+
+        let mut n_inside_logs = Log::<u32>::new();
+        let mut max_n_inside_logs = Log::<u32>::new();
+        let mut n_entries_logs = Log::<u32>::new();
+        let mut n_exits_logs = Log::<u32>::new();
 
         let mut entity_is_inside_logs = HashMap::<EntityId, Log<bool>>::new();
         let mut stock_logs: HashMap<StockId, StockLogs> = HashMap::new();
@@ -487,6 +571,8 @@ impl Timeline {
                 n_inside -= 1;
                 n_exits += 1;
 
+                n_exits_logs.insert(item.dt(), n_exits);
+
                 let last_entry_dt = entity_is_inside_logs
                     .get(item.entity_id())
                     .expect("entity must be known")
@@ -498,16 +584,16 @@ impl Timeline {
             } else {
                 n_inside += 1;
                 n_entries += 1;
+
+                n_entries_logs.insert(item.dt(), n_entries);
             }
+
+            n_inside_logs.insert(item.dt(), n_inside);
 
             if n_inside > max_n_inside {
                 max_n_inside = n_inside;
+                max_n_inside_logs.insert(item.dt(), max_n_inside);
             }
-
-            item.set_n_inside(n_inside);
-            item.set_max_n_inside(max_n_inside);
-            item.set_n_entries(n_entries);
-            item.set_n_exits(n_exits);
 
             entity_is_inside_logs
                 .entry(item.entity_id().clone())
@@ -558,9 +644,14 @@ impl Timeline {
             }
         }
 
-        if prev_n_inside != n_inside {
-            self.notify_n_inside();
-        }
+        imp.n_inside_log.replace(n_inside_logs);
+        imp.max_n_inside_log.replace(max_n_inside_logs);
+        imp.n_entries_log.replace(n_entries_logs);
+        imp.n_exits_log.replace(n_exits_logs);
+        self.notify_n_inside();
+        self.notify_max_n_inside();
+        self.notify_n_entries();
+        self.notify_n_exits();
 
         self.set_last_entry_dt(last_entry_dt.map(DateTimeBoxed));
         self.set_last_exit_dt(last_exit_dt.map(DateTimeBoxed));

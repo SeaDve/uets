@@ -8,13 +8,17 @@ pub struct Log<T> {
 
 impl<T> Default for Log<T> {
     fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> Log<T> {
+    pub fn new() -> Self {
         Self {
             map: BTreeMap::new(),
         }
     }
-}
 
-impl<T: Copy> Log<T> {
     pub fn latest(&self) -> Option<&T> {
         self.map.last_key_value().map(|(_, v)| v)
     }
@@ -29,5 +33,9 @@ impl<T: Copy> Log<T> {
 
     pub fn insert(&mut self, dt: DateTime<Utc>, value: T) {
         self.map.insert(dt, value);
+    }
+
+    pub fn clear(&mut self) {
+        self.map.clear();
     }
 }

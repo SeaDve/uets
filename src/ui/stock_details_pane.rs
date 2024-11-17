@@ -305,6 +305,12 @@ impl StockDetailsPane {
             report::builder(kind, "Stock Report")
                 .prop("Stock Name", stock.id())
                 .prop("Current Count", stock.n_inside_for_dt_range(&dt_range))
+                .prop(
+                    "Current Max Count",
+                    stock.max_n_inside_for_dt_range(&dt_range),
+                )
+                .prop("Total Entries", stock.n_entries_for_dt_range(&dt_range))
+                .prop("Total Exits", stock.n_exits_for_dt_range(&dt_range))
                 .table(
                     report_table::builder("Timeline")
                         .column("Timestamp")

@@ -6,6 +6,7 @@ use gtk::{
 };
 
 use crate::{
+    date_time_range::DateTimeRange,
     entity_id::EntityId,
     fuzzy_filter::FuzzyFilter,
     list_model_enum,
@@ -50,7 +51,7 @@ list_model_enum!(TimelineItemKindFilter);
 
 mod imp {
     use std::{
-        cell::{Cell, OnceCell},
+        cell::{Cell, OnceCell, RefCell},
         sync::OnceLock,
     };
 
@@ -87,6 +88,8 @@ mod imp {
         pub(super) filter_list_model: TemplateChild<gtk::FilterListModel>,
         #[template_child]
         pub(super) scroll_to_bottom_revealer: TemplateChild<gtk::Revealer>,
+
+        pub(super) dt_range: RefCell<DateTimeRange>,
 
         pub(super) is_sticky: Cell<bool>,
         pub(super) is_auto_scrolling: Cell<bool>,
@@ -372,6 +375,12 @@ impl TimelineView {
         imp.search_entry.set_queries(queries);
     }
 
+    fn set_dt_range(&self, dt_range: DateTimeRange) {
+        let imp = self.imp();
+
+        imp.dt_range.replace(dt_range);
+    }
+
     fn scroll_to_bottom(&self) {
         let imp = self.imp();
 
@@ -396,21 +405,23 @@ impl TimelineView {
             .iter::<glib::Object>()
             .map(|o| o.unwrap().downcast::<TimelineItem>().unwrap())
             .collect::<Vec<_>>();
+        let dt_range = *imp.dt_range.borrow();
 
         let app = Application::get();
         let timeline = app.timeline();
 
-        let n_inside = timeline.n_inside();
-        let max_n_inside = timeline.max_n_inside();
-        let n_entries = timeline.n_entries();
-        let n_exits = timeline.n_exits();
-
         let bytes_fut = async {
             report::builder(kind, "Timeline Report")
-                .prop("Inside Count", n_inside)
-                .prop("Max Inside Count", max_n_inside)
-                .prop("Total Entries", n_entries)
-                .prop("Total Exits", n_exits)
+                .prop(
+                    "Current Inside Count",
+                    timeline.n_inside_for_dt_range(&dt_range),
+                )
+                .prop(
+                    "Current Max Inside Count",
+                    timeline.max_n_inside_for_dt_range(&dt_range),
+                )
+                .prop("Total Entries", timeline.n_entries_for_dt_range(&dt_range))
+                .prop("Total Exits", timeline.n_exits_for_dt_range(&dt_range))
                 .prop("Search Query", imp.search_entry.queries())
                 .table(
                     report_table::builder("Timeline")
@@ -418,15 +429,24 @@ impl TimelineView {
                         .column("Action")
                         .column("Entity ID")
                         .column("Inside Count")
+                        .column("Max Inside Count")
+                        .column("Entry Count")
+                        .column("Exit Count")
                         .rows(items.iter().map(|item| {
                             report_table::row_builder()
                                 .cell(item.dt())
                                 .cell(item.kind().to_string())
                                 .cell(item.entity_id().to_string())
-                                .cell(item.n_inside())
+                                .cell(timeline.n_inside_for_dt(item.dt()))
+                                .cell(timeline.max_n_inside_for_dt(item.dt()))
+                                .cell(timeline.n_entries_for_dt(item.dt()))
+                                .cell(timeline.n_exits_for_dt(item.dt()))
                                 .build()
                         }))
                         .graph("Inside Count Over Time", 0, 3)
+                        .graph("Max Inside Count Over Time", 0, 4)
+                        .graph("Entry Count Over Time", 0, 5)
+                        .graph("Exit Count Over Time", 0, 6)
                         .build(),
                 )
                 .build()
@@ -465,6 +485,8 @@ impl TimelineView {
         imp.dt_button.block_signal(dt_button_range_notify_id);
         imp.dt_button.set_range(dt_range);
         imp.dt_button.unblock_signal(dt_button_range_notify_id);
+
+        self.set_dt_range(dt_range);
 
         if queries.is_empty() {
             imp.filter_list_model.set_filter(gtk::Filter::NONE);

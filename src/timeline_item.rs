@@ -17,11 +17,6 @@ mod imp {
         pub(super) entity_id: OnceCell<EntityId>,
 
         pub(super) pair: WeakRef<super::TimelineItem>,
-
-        pub(super) n_inside: OnceCell<u32>,
-        pub(super) max_n_inside: OnceCell<u32>,
-        pub(super) n_entries: OnceCell<u32>,
-        pub(super) n_exits: OnceCell<u32>,
     }
 
     #[glib::object_subclass]
@@ -86,38 +81,6 @@ impl TimelineItem {
         debug_assert_ne!(self.kind(), pair.kind());
 
         self.imp().pair.set(Some(pair));
-    }
-
-    pub fn n_inside(&self) -> u32 {
-        self.imp().n_inside.get().copied().unwrap_or(0)
-    }
-
-    pub fn set_n_inside(&self, n_inside: u32) {
-        self.imp().n_inside.set(n_inside).unwrap();
-    }
-
-    pub fn max_n_inside(&self) -> u32 {
-        self.imp().max_n_inside.get().copied().unwrap_or(0)
-    }
-
-    pub fn set_max_n_inside(&self, max_n_inside: u32) {
-        self.imp().max_n_inside.set(max_n_inside).unwrap();
-    }
-
-    pub fn n_entries(&self) -> u32 {
-        self.imp().n_entries.get().copied().unwrap_or(0)
-    }
-
-    pub fn set_n_entries(&self, n_entries: u32) {
-        self.imp().n_entries.set(n_entries).unwrap();
-    }
-
-    pub fn n_exits(&self) -> u32 {
-        self.imp().n_exits.get().copied().unwrap_or(0)
-    }
-
-    pub fn set_n_exits(&self, n_exits: u32) {
-        self.imp().n_exits.set(n_exits).unwrap();
     }
 
     pub fn entry_to_exit_duration(&self) -> Option<TimeDelta> {

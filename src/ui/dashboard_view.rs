@@ -150,25 +150,25 @@ impl DashboardView {
 
         let data = timeline
             .iter(&DateTimeRange::all_time())
-            .map(|item| (item.dt(), item.n_inside()))
+            .map(|item| (item.dt(), timeline.n_inside_for_dt(item.dt())))
             .collect::<Vec<_>>();
         imp.n_inside_graph.set_data(data);
 
         let data = timeline
             .iter(&DateTimeRange::all_time())
-            .map(|item| (item.dt(), item.max_n_inside()))
+            .map(|item| (item.dt(), timeline.max_n_inside_for_dt(item.dt())))
             .collect::<Vec<_>>();
         imp.max_n_inside_graph.set_data(data);
 
         let data = timeline
             .iter(&DateTimeRange::all_time())
-            .map(|item| (item.dt(), item.n_entries()))
+            .map(|item| (item.dt(), timeline.n_entries_for_dt(item.dt())))
             .collect::<Vec<_>>();
         imp.n_entries_graph.set_data(data);
 
         let data = timeline
             .iter(&DateTimeRange::all_time())
-            .map(|item| (item.dt(), item.n_exits()))
+            .map(|item| (item.dt(), timeline.n_exits_for_dt(item.dt())))
             .collect::<Vec<_>>();
         imp.n_exits_graph.set_data(data);
     }
