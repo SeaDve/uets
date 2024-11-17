@@ -177,6 +177,7 @@ mod pdf {
                                     TABLE_TOP_BOTTOM_PADDING_MM,
                                     TABLE_LEFT_RIGHT_PADDING_MM,
                                 ))
+                                .styled(style::Style::new().with_font_size(8))
                                 .boxed()
                         })
                         .collect(),
