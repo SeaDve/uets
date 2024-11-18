@@ -73,6 +73,8 @@ mod imp {
         #[template_child]
         pub(super) dt_button: TemplateChild<DateTimeButton>,
         #[template_child]
+        pub(super) n_results_label: TemplateChild<gtk::Label>,
+        #[template_child]
         pub(super) no_data_page: TemplateChild<adw::StatusPage>,
         #[template_child]
         pub(super) main_page: TemplateChild<gtk::Overlay>,
@@ -226,6 +228,7 @@ mod imp {
                 obj,
                 move |_, _, _, _| {
                     obj.update_stack();
+                    obj.update_n_results_label();
                 }
             ));
 
@@ -293,6 +296,7 @@ mod imp {
             self.fuzzy_filter.set(fuzzy_filter).unwrap();
 
             obj.update_stack();
+            obj.update_n_results_label();
         }
 
         fn dispose(&self) {
@@ -561,6 +565,8 @@ impl TimelineView {
         every_filter.append(any_stock_filter);
         every_filter.append(any_entity_filter);
         imp.filter_list_model.set_filter(Some(&every_filter));
+
+        self.update_n_results_label();
     }
 
     fn handle_item_kind_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
@@ -608,6 +614,19 @@ impl TimelineView {
         } else {
             imp.stack.set_visible_child(&*imp.main_page);
         }
+    }
+
+    fn update_n_results_label(&self) {
+        let imp = self.imp();
+
+        let n_total = imp.selection_model.n_items();
+        let text = if imp.search_entry.queries().is_empty() {
+            format!("Total: {}", n_total)
+        } else {
+            format!("Results: {}", n_total)
+        };
+
+        imp.n_results_label.set_label(&text);
     }
 
     fn update_scroll_to_bottom_revealer_reveal_child(&self) {
