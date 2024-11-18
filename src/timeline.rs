@@ -533,10 +533,10 @@ impl Timeline {
         let mut n_entries = 0;
         let mut n_exits = 0;
 
-        let mut n_inside_logs = Log::<u32>::new();
-        let mut max_n_inside_logs = Log::<u32>::new();
-        let mut n_entries_logs = Log::<u32>::new();
-        let mut n_exits_logs = Log::<u32>::new();
+        let mut n_inside_log = Log::<u32>::new();
+        let mut max_n_inside_log = Log::<u32>::new();
+        let mut n_entries_log = Log::<u32>::new();
+        let mut n_exits_log = Log::<u32>::new();
 
         let mut entity_is_inside_logs = HashMap::<EntityId, Log<bool>>::new();
         let mut stock_logs: HashMap<StockId, StockLogs> = HashMap::new();
@@ -551,7 +551,7 @@ impl Timeline {
                 n_inside -= 1;
                 n_exits += 1;
 
-                n_exits_logs.insert(item.dt(), n_exits);
+                n_exits_log.insert(item.dt(), n_exits);
 
                 let last_entry_dt = entity_is_inside_logs
                     .get(item.entity_id())
@@ -565,14 +565,14 @@ impl Timeline {
                 n_inside += 1;
                 n_entries += 1;
 
-                n_entries_logs.insert(item.dt(), n_entries);
+                n_entries_log.insert(item.dt(), n_entries);
             }
 
-            n_inside_logs.insert(item.dt(), n_inside);
+            n_inside_log.insert(item.dt(), n_inside);
 
             if n_inside > max_n_inside {
                 max_n_inside = n_inside;
-                max_n_inside_logs.insert(item.dt(), max_n_inside);
+                max_n_inside_log.insert(item.dt(), max_n_inside);
             }
 
             entity_is_inside_logs
@@ -624,10 +624,10 @@ impl Timeline {
             }
         }
 
-        imp.n_inside_log.replace(n_inside_logs);
-        imp.max_n_inside_log.replace(max_n_inside_logs);
-        imp.n_entries_log.replace(n_entries_logs);
-        imp.n_exits_log.replace(n_exits_logs);
+        imp.n_inside_log.replace(n_inside_log);
+        imp.max_n_inside_log.replace(max_n_inside_log);
+        imp.n_entries_log.replace(n_entries_log);
+        imp.n_exits_log.replace(n_exits_log);
         self.notify_n_inside();
         self.notify_max_n_inside();
         self.notify_n_entries();
