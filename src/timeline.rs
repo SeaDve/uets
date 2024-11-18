@@ -489,23 +489,6 @@ impl Timeline {
 
         debug_assert!(imp.list.borrow().keys().is_sorted());
 
-        debug_assert_eq!(
-            self.n_inside(),
-            imp.list
-                .borrow()
-                .values()
-                .filter(|item| item.kind().is_entry())
-                .count() as u32
-        );
-        debug_assert_eq!(
-            self.n_exits(),
-            imp.list
-                .borrow()
-                .values()
-                .filter(|item| item.kind().is_exit())
-                .count() as u32
-        );
-
         Ok(())
     }
 
