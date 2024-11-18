@@ -228,13 +228,37 @@ impl Stock {
         }
     }
 
-    pub fn with_logs_mut(&self, f: impl FnOnce(&mut StockLogs) -> bool) {
-        if f(&mut self.imp().logs.borrow_mut()) {
+    pub fn with_logs_mut(&self, f: impl FnOnce(&mut StockLogs)) {
+        let prev_n_inside = self.n_inside();
+        let prev_max_n_inside = self.max_n_inside();
+        let prev_n_entries = self.n_entries();
+        let prev_n_exits = self.n_exits();
+        let prev_last_entry_dt = self.last_entry_dt();
+        let prev_last_exit_dt = self.last_exit_dt();
+
+        f(&mut self.imp().logs.borrow_mut());
+
+        if prev_n_inside != self.n_inside() {
             self.notify_n_inside();
+        }
+
+        if prev_max_n_inside != self.max_n_inside() {
             self.notify_max_n_inside();
+        }
+
+        if prev_n_entries != self.n_entries() {
             self.notify_n_entries();
+        }
+
+        if prev_n_exits != self.n_exits() {
             self.notify_n_exits();
+        }
+
+        if prev_last_entry_dt != self.last_entry_dt() {
             self.notify_last_entry_dt();
+        }
+
+        if prev_last_exit_dt != self.last_exit_dt() {
             self.notify_last_exit_dt();
         }
     }

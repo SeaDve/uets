@@ -105,8 +105,12 @@ impl Entity {
         self.imp().is_inside_log.borrow().latest_dt()
     }
 
-    pub fn with_is_inside_log_mut(&self, f: impl FnOnce(&mut Log<bool>) -> bool) {
-        if f(&mut self.imp().is_inside_log.borrow_mut()) {
+    pub fn with_is_inside_log_mut(&self, f: impl FnOnce(&mut Log<bool>)) {
+        let prev_is_inside = self.is_inside();
+
+        f(&mut self.imp().is_inside_log.borrow_mut());
+
+        if prev_is_inside != self.is_inside() {
             self.notify_is_inside();
         }
     }

@@ -384,7 +384,6 @@ impl Timeline {
 
         entity.with_is_inside_log_mut(|map| {
             map.insert(now_dt, !is_exit);
-            true
         });
 
         if let Some(stock) = &stock {
@@ -412,8 +411,6 @@ impl Timeline {
                     logs.n_entries.insert(now_dt, prev_n_entries + 1);
                     logs.last_entry_dt.insert(now_dt, now_dt);
                 }
-
-                true
             });
         }
 
@@ -660,7 +657,6 @@ impl Timeline {
             let entity = self.entity_list().get(&entity_id).unwrap();
             entity.with_is_inside_log_mut(|l| {
                 *l = log;
-                true
             });
         }
 
@@ -668,7 +664,6 @@ impl Timeline {
             let stock = self.stock_list().get(&stock_id).unwrap();
             stock.with_logs_mut(|l| {
                 *l = logs;
-                true
             });
         }
 
