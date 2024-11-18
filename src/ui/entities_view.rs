@@ -439,8 +439,6 @@ impl EntitiesView {
             row.set_dt_range(dt_range);
         }
         imp.details_pane.set_dt_range(dt_range);
-
-        self.update_n_results_label();
     }
 
     async fn handle_share_report(&self, kind: ReportKind) {
