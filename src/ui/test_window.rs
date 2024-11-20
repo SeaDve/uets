@@ -5,7 +5,7 @@ use gtk::{
     pango,
 };
 
-use crate::{entity::Entity, entity_id::EntityId, stock_id::StockId, Application};
+use crate::{entity::Entity, entity_id::EntityId, Application};
 
 mod imp {
     use super::*;
@@ -15,8 +15,6 @@ mod imp {
     pub struct TestWindow {
         #[template_child]
         pub(super) entity_id_entry: TemplateChild<gtk::Entry>,
-        #[template_child]
-        pub(super) stock_id_entry: TemplateChild<gtk::Entry>,
         #[template_child]
         pub(super) enter_button: TemplateChild<gtk::Button>,
         #[template_child]
@@ -128,16 +126,6 @@ impl TestWindow {
         glib::Object::builder()
             .property("application", application)
             .build()
-    }
-
-    pub fn stock_id(&self) -> Option<StockId> {
-        let text = self.imp().stock_id_entry.text();
-
-        if text.is_empty() {
-            return None;
-        }
-
-        Some(StockId::new(text))
     }
 
     fn handle_enter(&self) {

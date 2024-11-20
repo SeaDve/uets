@@ -8,9 +8,10 @@ use gtk::{
 use crate::{
     db,
     detector::Detector,
+    entity_id::EntityId,
     settings::Settings,
     timeline::Timeline,
-    ui::{TestWindow, Window, WormholeWindow},
+    ui::{EntryWindow, TestWindow, Window, WormholeWindow},
     APP_ID, GRESOURCE_PREFIX,
 };
 
@@ -71,21 +72,14 @@ mod imp {
             self.detector.connect_detected(clone!(
                 #[weak]
                 obj,
-                move |_, id| {
-                    let window = obj
-                        .windows()
-                        .into_iter()
-                        .find_map(|w| w.downcast::<TestWindow>().ok())
-                        .unwrap();
-
-                    // TODO If the mode is inventory or refrigerator, don't handle the detected entity
-                    // if it doesn't have a stock id.
-                    if let Err(err) = obj
-                        .timeline()
-                        .handle_detected(id, window.stock_id().as_ref())
-                    {
-                        tracing::error!("Failed to handle entity: {:?}", err);
-                    }
+                move |_, entity_id| {
+                    glib::spawn_future_local(clone!(
+                        #[strong]
+                        entity_id,
+                        async move {
+                            obj.handle_detected(&entity_id).await;
+                        }
+                    ));
                 }
             ));
         }
@@ -155,8 +149,23 @@ impl Application {
     }
 
     fn window(&self) -> Window {
-        self.active_window()
-            .map_or_else(|| Window::new(self), |w| w.downcast().unwrap())
+        self.windows()
+            .into_iter()
+            .find_map(|w| w.downcast::<Window>().ok())
+            .unwrap_or_else(|| Window::new(self))
+    }
+
+    async fn handle_detected(&self, entity_id: &EntityId) {
+        let data = EntryWindow::gather_data(&self.window()).await;
+
+        // TODO If the mode is inventory or refrigerator, don't handle the detected entity
+        // if it doesn't have a stock id.
+        if let Err(err) = self
+            .timeline()
+            .handle_detected(entity_id, data.stock_id.as_ref())
+        {
+            tracing::error!("Failed to handle entity: {:?}", err);
+        }
     }
 
     fn setup_actions(&self) {

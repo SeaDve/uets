@@ -39,12 +39,6 @@
                             <property name="placeholder-text">Entity ID</property>
                           </object>
                         </child>
-                        <child>
-                          <object class="GtkEntry" id="stock_id_entry">
-                            <property name="hexpand">True</property>
-                            <property name="placeholder-text">Stock ID</property>
-                          </object>
-                        </child>
                       </object>
                     </child>
                     <child>

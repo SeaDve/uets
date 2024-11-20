@@ -16,6 +16,7 @@ mod date_time_range;
 mod db;
 mod detector;
 mod entity;
+mod entity_data;
 mod entity_id;
 mod entity_list;
 mod format;

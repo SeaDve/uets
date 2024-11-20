@@ -4,6 +4,7 @@ mod date_time_window;
 mod entities_view;
 mod entity_details_pane;
 mod entity_row;
+mod entry_window;
 mod information_row;
 mod search_entry;
 mod settings_view;
@@ -18,4 +19,7 @@ mod timeline_view;
 mod window;
 mod wormhole_window;
 
-pub use self::{test_window::TestWindow, window::Window, wormhole_window::WormholeWindow};
+pub use self::{
+    entry_window::EntryWindow, test_window::TestWindow, window::Window,
+    wormhole_window::WormholeWindow,
+};
