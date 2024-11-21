@@ -2,7 +2,6 @@
 <interface>
   <template class="UetsTestWindow" parent="AdwApplicationWindow">
     <property name="default-width">480</property>
-    <property name="default-height">816</property>
     <property name="content">
       <object class="GtkBox">
         <property name="orientation">vertical</property>
@@ -16,77 +15,36 @@
           </object>
         </child>
         <child>
-          <object class="GtkScrolledWindow">
-            <property name="vexpand">True</property>
-            <property name="child">
-              <object class="GtkBox">
-                <property name="orientation">vertical</property>
-                <property name="margin-start">12</property>
-                <property name="margin-end">12</property>
-                <property name="margin-top">12</property>
-                <property name="margin-bottom">12</property>
-                <property name="spacing">12</property>
-                <child>
-                  <object class="GtkBox">
-                    <property name="spacing">6</property>
-                    <child>
-                      <object class="GtkBox">
-                        <property name="orientation">vertical</property>
-                        <property name="spacing">6</property>
-                        <child>
-                          <object class="GtkEntry" id="entity_id_entry">
-                            <property name="hexpand">True</property>
-                            <property name="placeholder-text">Entity ID</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton" id="enter_button">
-                        <property name="label">Enter</property>
-                        <style>
-                          <class name="suggested-action"/>
-                        </style>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton" id="reset_button">
-                        <property name="label">Reset All</property>
-                        <style>
-                          <class name="destructive-action"/>
-                        </style>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwPreferencesGroup">
-                    <property name="title">Entities</property>
-                    <child>
-                      <object class="GtkListBox" id="entities_listbox">
-                        <property name="selection-mode">none</property>
-                        <style>
-                          <class name="boxed-list"/>
-                        </style>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwPreferencesGroup">
-                    <property name="title">Inside</property>
-                    <child>
-                      <object class="GtkListBox" id="inside_listbox">
-                        <property name="selection-mode">none</property>
-                        <style>
-                          <class name="boxed-list"/>
-                        </style>
-                      </object>
-                    </child>
-                  </object>
-                </child>
+          <object class="GtkBox">
+            <property name="margin-start">12</property>
+            <property name="margin-end">12</property>
+            <property name="margin-top">12</property>
+            <property name="margin-bottom">12</property>
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkEntry" id="entity_id_entry">
+                <property name="hexpand">True</property>
+                <property name="placeholder-text">Entity ID</property>
               </object>
-            </property>
+            </child>
+            <child>
+              <object class="GtkButton" id="enter_button">
+                <property name="valign">center</property>
+                <property name="label">Enter</property>
+                <style>
+                  <class name="suggested-action"/>
+                </style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="reset_button">
+                <property name="valign">center</property>
+                <property name="label">Reset All</property>
+                <style>
+                  <class name="destructive-action"/>
+                </style>
+              </object>
+            </child>
           </object>
         </child>
       </object>
