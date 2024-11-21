@@ -156,14 +156,20 @@ impl Application {
     }
 
     async fn handle_detected(&self, entity_id: &EntityId) {
-        let data = EntryWindow::gather_data(&self.window()).await;
+        let timeline = self.timeline();
+
+        // If the entity is not yet known, gather data from the user.
+        let data = if timeline.entity_list().get(entity_id).is_none() {
+            Some(EntryWindow::gather_data(&self.window()).await)
+        } else {
+            None
+        };
+
+        tracing::debug!(?data, "Handling detected entity `{}`", entity_id);
 
         // TODO If the mode is inventory or refrigerator, don't handle the detected entity
         // if it doesn't have a stock id.
-        if let Err(err) = self
-            .timeline()
-            .handle_detected(entity_id, data.stock_id.as_ref())
-        {
+        if let Err(err) = timeline.handle_detected(entity_id, data) {
             tracing::error!("Failed to handle entity: {:?}", err);
         }
     }

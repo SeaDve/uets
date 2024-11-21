@@ -6,9 +6,7 @@ use serde::{Deserialize, Serialize};
 /// This is unique to each stock. Different entities can have same stock id.
 ///
 /// This is also referred to as stock name.
-#[derive(
-    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, glib::Boxed,
-)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, glib::Boxed)]
 #[serde(transparent)]
 #[boxed_type(name = "UetsStockId")]
 pub struct StockId(Box<str>);
@@ -19,8 +17,14 @@ impl StockId {
     }
 }
 
+impl fmt::Debug for StockId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+
 impl fmt::Display for StockId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        fmt::Display::fmt(&self.0, f)
     }
 }

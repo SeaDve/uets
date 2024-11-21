@@ -1,6 +1,6 @@
 use crate::stock_id::StockId;
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct EntityData {
     pub stock_id: Option<StockId>,
 }

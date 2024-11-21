@@ -10,6 +10,7 @@ use crate::{
     date_time_range::DateTimeRange,
     db::{self, EnvExt},
     entity::Entity,
+    entity_data::EntityData,
     entity_id::EntityId,
     entity_list::EntityList,
     log::Log,
@@ -288,9 +289,11 @@ impl Timeline {
     pub fn handle_detected(
         &self,
         provided_entity_id: &EntityId,
-        provided_stock_id: Option<&StockId>,
+        entity_data: Option<EntityData>,
     ) -> Result<()> {
         let imp = self.imp();
+
+        let provided_stock_id = entity_data.as_ref().and_then(|d| d.stock_id.as_ref());
 
         let entity = self
             .entity_list()

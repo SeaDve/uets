@@ -1,8 +1,8 @@
 use adw::{prelude::*, subclass::prelude::*};
 use futures_channel::oneshot;
-use gtk::glib;
+use gtk::glib::{self, closure};
 
-use crate::{entity_data::EntityData, stock_id::StockId};
+use crate::{entity_data::EntityData, stock::Stock, Application};
 
 mod imp {
     use std::cell::RefCell;
@@ -13,7 +13,7 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/entry_window.ui")]
     pub struct EntryWindow {
         #[template_child]
-        pub(super) stock_id_row: TemplateChild<adw::EntryRow>,
+        pub(super) stock_id_dropdown: TemplateChild<gtk::DropDown>,
 
         pub(super) result_tx: RefCell<Option<oneshot::Sender<()>>>,
     }
@@ -40,6 +40,18 @@ mod imp {
     }
 
     impl ObjectImpl for EntryWindow {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            self.stock_id_dropdown
+                .set_expression(Some(gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|stock: &Stock| stock.id().to_string()),
+                )));
+            self.stock_id_dropdown
+                .set_model(Some(Application::get().timeline().stock_list()));
+        }
+
         fn dispose(&self) {
             self.dispose_template();
         }
@@ -75,12 +87,16 @@ impl EntryWindow {
 
         this.close();
 
-        let raw_stock_id = imp.stock_id_row.text();
-        let stock_id = if raw_stock_id.is_empty() {
-            None
-        } else {
-            Some(StockId::new(raw_stock_id))
-        };
+        this.gather_data_inner()
+    }
+
+    fn gather_data_inner(&self) -> EntityData {
+        let imp = self.imp();
+
+        let stock_id = imp
+            .stock_id_dropdown
+            .selected_item()
+            .map(|stock| stock.downcast::<Stock>().unwrap().id().clone());
 
         EntityData { stock_id }
     }
