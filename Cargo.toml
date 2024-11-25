@@ -8,6 +8,7 @@ rust-version = "1.82"
 adw = { package = "libadwaita", version = "0.7", features = ["v1_2"] }
 anyhow = "1.0"
 async-lock = "3.4.0"
+calamine = "0.26.1"
 chrono = { version = "0.4", features = ["serde"] }
 dateparser = "0.2.1"
 futures-channel = "0.3.31"
@@ -15,6 +16,8 @@ fuzzy-matcher = "0.3.7"
 genpdf = { version = "0.2.0", features = ["images"] }
 gtk = { package = "gtk4", version = "0.9", features = ["gnome_43"] }
 gsettings-macro = "0.2.1"
+gst = { package = "gstreamer", version = "0.23.3" }
+gst-plugin-gtk4 = "0.13"
 gvdb = { version = "0.7", features = ["gresource"] }
 heed = "0.20.5"
 image = "0.23"

@@ -50,7 +50,7 @@ This is useful for tracking how long a vehicle has been parked and whether it is
 3. Install the required dependencies.
 
 ```sh
-sudo apt install libgtk-4-dev libadwaita-1-dev
+sudo apt install libgtk-4-dev libadwaita-1-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good libzbar-dev gstreamer1.0-plugins-bad
 ```
 
 4. Use `./run` to build and run the project.
