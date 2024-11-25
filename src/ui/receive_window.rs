@@ -8,8 +8,7 @@ use gtk::{
     glib::{self, clone},
 };
 use wormhole::{
-    rendezvous, transfer, transit, uri::WormholeTransferUri, AppConfig, AppID, Code,
-    MailboxConnection, Wormhole,
+    rendezvous, transfer, transit, AppConfig, AppID, Code, MailboxConnection, Wormhole,
 };
 
 use crate::{format, ui::camera::Camera};
@@ -32,7 +31,7 @@ mod imp {
         #[template_child]
         pub(super) code_camera: TemplateChild<Camera>,
         #[template_child]
-        pub(super) code_entry: TemplateChild<gtk::Entry>,
+        pub(super) code_entry: TemplateChild<adw::EntryRow>,
         #[template_child]
         pub(super) receiving_page: TemplateChild<gtk::ProgressBar>,
         #[template_child]
@@ -99,7 +98,7 @@ impl ReceiveWindow {
         let imp = self.imp();
 
         imp.stack.set_visible_child(&*imp.code_page);
-        imp.title_label.set_label("Show QR Code");
+        imp.title_label.set_label("Show or Enter Code");
         imp.close_button.set_label("Cancel");
 
         imp.code_camera.start()?;
@@ -110,11 +109,13 @@ impl ReceiveWindow {
             #[strong]
             tx,
             move |_, code| {
-                tx.take().unwrap().send(code.to_string()).unwrap();
+                let tx = tx.take().unwrap();
+                let _ = tx.send(code.to_string());
             }
         ));
-        imp.code_entry.connect_activate(move |entry| {
-            tx.take().unwrap().send(entry.text().to_string()).unwrap();
+        imp.code_entry.connect_entry_activated(move |entry| {
+            let tx = tx.take().unwrap();
+            let _ = tx.send(entry.text().to_string());
         });
         let code = rx.await.unwrap();
 
@@ -143,7 +144,6 @@ impl ReceiveWindow {
         )
         .unwrap()];
 
-        let cancellable = imp.cancellable.clone();
         let request = gio::CancellableFuture::new(
             transfer::request_file(
                 wormhole,
@@ -155,6 +155,12 @@ impl ReceiveWindow {
         )
         .await??
         .ok_or(gio::Cancelled)?;
+
+        imp.file_name_label.set_label(&format!(
+            "{} ({})",
+            request.file_name(),
+            glib::format_size(request.file_size() as u64)
+        ));
 
         let mut ret = Vec::new();
         gio::CancellableFuture::new(

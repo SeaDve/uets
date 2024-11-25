@@ -27,13 +27,31 @@
                         <child>
                           <object class="GtkBox" id="code_page">
                             <property name="orientation">vertical</property>
+                            <property name="spacing">6</property>
                             <child>
-                              <object class="UetsCamera" id="code_camera">
-
+                              <object class="AdwBin">
+                                <property name="overflow">hidden</property>
+                                <property name="child">
+                                  <object class="UetsCamera" id="code_camera">
+                                    <property name="width-request">240</property>
+                                    <property name="height-request">240</property>
+                                  </object>
+                                </property>
+                                <style>
+                                  <class name="card"/>
+                                </style>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkEntry" id="code_entry">
+                              <object class="GtkListBox">
+                                <style>
+                                  <class name="boxed-list"/>
+                                </style>
+                                <child>
+                                  <object class="AdwEntryRow" id="code_entry">
+                                    <property name="title">Transmit Code</property>
+                                  </object>
+                                </child>
                               </object>
                             </child>
                           </object>
