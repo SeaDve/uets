@@ -8,6 +8,8 @@ use gtk::{
 use crate::{
     db,
     detector::Detector,
+    entity_data::EntityData,
+    entity_data_index::EntityDataIndex,
     entity_id::EntityId,
     settings::Settings,
     timeline::Timeline,
@@ -24,8 +26,9 @@ mod imp {
     pub struct Application {
         pub(super) settings: Settings,
         pub(super) detector: Detector,
-        pub(super) timeline: OnceCell<Timeline>,
         pub(super) env: OnceCell<heed::Env>,
+        pub(super) timeline: OnceCell<Timeline>,
+        pub(super) entity_data_index: OnceCell<EntityDataIndex>,
     }
 
     #[glib::object_subclass]
@@ -54,9 +57,10 @@ mod imp {
             let obj = self.obj();
 
             match init_env() {
-                Ok((env, timeline)) => {
+                Ok((env, timeline, entity_data_index)) => {
                     self.env.set(env).unwrap();
                     self.timeline.set(timeline).unwrap();
+                    self.entity_data_index.set(entity_data_index).unwrap();
                 }
                 Err(err) => {
                     tracing::debug!("Failed to init env: {:?}", err);
@@ -132,12 +136,16 @@ impl Application {
         &self.imp().detector
     }
 
+    pub fn env(&self) -> &heed::Env {
+        self.imp().env.get().unwrap()
+    }
+
     pub fn timeline(&self) -> &Timeline {
         self.imp().timeline.get().unwrap()
     }
 
-    pub fn env(&self) -> &heed::Env {
-        self.imp().env.get().unwrap()
+    pub fn entity_data_index(&self) -> &EntityDataIndex {
+        self.imp().entity_data_index.get().unwrap()
     }
 
     pub fn present_test_window(&self) {
@@ -158,11 +166,17 @@ impl Application {
     async fn handle_detected(&self, entity_id: &EntityId) {
         let timeline = self.timeline();
 
-        // If the entity is not yet known, gather data from the user.
-        let data = if timeline.entity_list().get(entity_id).is_none() {
-            Some(EntryWindow::gather_data(&self.window()).await)
+        let data = if let Some(entity) = timeline.entity_list().get(entity_id) {
+            tracing::debug!("Retrieved entity data from timeline");
+            EntityData {
+                stock_id: entity.stock_id().cloned(),
+            }
+        } else if let Some(data) = self.entity_data_index().retrieve(entity_id) {
+            tracing::debug!("Retrieved entity data from index");
+            data
         } else {
-            None
+            tracing::debug!("Gathering entity data from user");
+            EntryWindow::gather_data(&self.window()).await
         };
 
         tracing::debug!(?data, "Handling detected entity `{}`", entity_id);
@@ -195,10 +209,11 @@ impl Application {
     }
 }
 
-fn init_env() -> Result<(heed::Env, Timeline)> {
+fn init_env() -> Result<(heed::Env, Timeline, EntityDataIndex)> {
     let env = db::new_env()?;
 
     let timeline = Timeline::load_from_env(env.clone())?;
+    let entity_data_index = EntityDataIndex::load_from_env(env.clone())?;
 
-    Ok((env, timeline))
+    Ok((env, timeline, entity_data_index))
 }

@@ -1,9 +1,9 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use futures_channel::oneshot;
 use gst::prelude::*;
 use gtk::{
-    gdk,
+    gdk, gio,
     glib::{self, clone, closure_local},
-    prelude::*,
     subclass::prelude::*,
 };
 
@@ -22,6 +22,7 @@ mod imp {
         pub(super) picture: TemplateChild<gtk::Picture>,
 
         pub(super) pipeline: RefCell<Option<(gst::Pipeline, BusWatchGuard)>>,
+        pub(super) async_done_tx: RefCell<Option<oneshot::Sender<()>>>,
     }
 
     #[glib::object_subclass]
@@ -85,11 +86,20 @@ impl Camera {
         )
     }
 
-    pub fn start(&self) -> Result<()> {
+    pub async fn start(&self) -> Result<()> {
         let imp = self.imp();
 
-        let pipeline =
-            gst::parse::launch("videotestsrc ! tee name=tee ! videoconvert ! zbar ! fakesink tee. ! videoconvert ! gtk4paintablesink name=gtksink")?.downcast::<gst::Pipeline>().unwrap();
+        if imp.pipeline.borrow().is_some() {
+            tracing::warn!("Camera already started");
+            return Ok(());
+        }
+
+        let v4l2_device_path = gio::spawn_blocking(v4l2_device_path).await.unwrap()?;
+        let pipeline = gst::parse::launch(&format!(
+            "v4l2src device={v4l2_device_path} ! tee name=t ! queue ! videoconvert ! zbar ! fakesink t. ! queue ! videoconvert ! gtk4paintablesink name=gtksink"
+        ))?
+        .downcast::<gst::Pipeline>()
+        .unwrap();
         let bus_watch_guard = pipeline
             .bus()
             .unwrap()
@@ -108,7 +118,17 @@ impl Camera {
         let paintable = gtksink.property::<gdk::Paintable>("paintable");
         imp.picture.set_paintable(Some(&paintable));
 
-        pipeline.set_state(gst::State::Playing)?;
+        let (async_done_tx, async_done_rx) = oneshot::channel();
+        imp.async_done_tx.replace(Some(async_done_tx));
+
+        let state_change = pipeline.set_state(gst::State::Playing)?;
+        if state_change != gst::StateChangeSuccess::Async {
+            if let Some(async_done_tx) = imp.async_done_tx.take() {
+                let _ = async_done_tx.send(());
+            }
+        }
+
+        async_done_rx.await.unwrap();
 
         Ok(())
     }
@@ -133,6 +153,13 @@ impl Camera {
         let imp = self.imp();
 
         match message.view() {
+            MessageView::AsyncDone(_) => {
+                if let Some(async_done_tx) = imp.async_done_tx.take() {
+                    let _ = async_done_tx.send(());
+                }
+
+                glib::ControlFlow::Continue
+            }
             MessageView::Element(e) => {
                 if e.has_name("barcode") {
                     let structure = e.structure().unwrap();
@@ -147,6 +174,7 @@ impl Camera {
             }
             MessageView::Eos(_) => {
                 tracing::debug!("Eos signal received from record bus");
+
                 glib::ControlFlow::Break
             }
             MessageView::StateChanged(sc) => {
@@ -170,7 +198,7 @@ impl Camera {
                     return glib::ControlFlow::Continue;
                 }
 
-                tracing::debug!(
+                tracing::trace!(
                     "Pipeline changed state from `{:?}` -> `{:?}`",
                     sc.old(),
                     new_state,
@@ -181,20 +209,58 @@ impl Camera {
             MessageView::Error(e) => {
                 tracing::error!("Received error message on bus: {:?}", e);
 
+                if let Some(async_done_tx) = imp.async_done_tx.take() {
+                    let _ = async_done_tx.send(());
+                }
+
                 glib::ControlFlow::Break
             }
             MessageView::Warning(w) => {
                 tracing::warn!("Received warning message on bus: {:?}", w);
+
                 glib::ControlFlow::Continue
             }
             MessageView::Info(i) => {
                 tracing::debug!("Received info message on bus: {:?}", i);
+
                 glib::ControlFlow::Continue
             }
             other => {
                 tracing::trace!("Received other message on bus: {:?}", other);
+
                 glib::ControlFlow::Continue
             }
         }
     }
+}
+
+fn v4l2_device_path() -> Result<String> {
+    let m = gst::DeviceMonitor::new();
+
+    m.start()?;
+    let devices = m.devices();
+    m.stop();
+
+    for device in devices {
+        if !device.has_classes("Video/Source") {
+            continue;
+        }
+
+        let Some(properties) = device.properties() else {
+            continue;
+        };
+
+        if !properties
+            .get::<String>("device.api")
+            .is_ok_and(|api| api == "v4l2")
+        {
+            continue;
+        }
+
+        if let Ok(path) = properties.get::<String>("device.path") {
+            return Ok(path);
+        };
+    }
+
+    Err(anyhow!("Failed to find a v4l2 device"))
 }

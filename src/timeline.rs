@@ -286,19 +286,13 @@ impl Timeline {
         }
     }
 
-    pub fn handle_detected(
-        &self,
-        provided_entity_id: &EntityId,
-        entity_data: Option<EntityData>,
-    ) -> Result<()> {
+    pub fn handle_detected(&self, entity_id: &EntityId, entity_data: EntityData) -> Result<()> {
         let imp = self.imp();
-
-        let provided_stock_id = entity_data.as_ref().and_then(|d| d.stock_id.as_ref());
 
         let entity = self
             .entity_list()
-            .get(provided_entity_id)
-            .unwrap_or_else(|| Entity::new(provided_entity_id.clone(), provided_stock_id.cloned()));
+            .get(entity_id)
+            .unwrap_or_else(|| Entity::new(entity_id.clone(), entity_data.stock_id.clone()));
 
         // TODO Should this be allowed instead?
         //
@@ -306,10 +300,10 @@ impl Timeline {
         // with different stock id. But if the same entity enters with a different stock id,
         // the id may have been reused on the a different item, I think this should be allowed,
         // or can it even happen?
-        if provided_stock_id.is_some() && provided_stock_id != entity.stock_id() {
+        if entity_data.stock_id.as_ref() != entity.stock_id() {
             bail!(
                 "Entity `{}` already handled with different stock id",
-                provided_entity_id
+                entity_id
             );
         }
 
@@ -327,16 +321,13 @@ impl Timeline {
         } else {
             TimelineItemKind::Entry
         };
-        let item = TimelineItem::new(now_dt, item_kind, provided_entity_id.clone());
+        let item = TimelineItem::new(now_dt, item_kind, entity_id.clone());
 
-        // Use entity stock id from entity if no stock id is provided.
-        let stock = provided_stock_id
-            .or_else(|| entity.stock_id())
-            .map(|stock_id| {
-                self.stock_list()
-                    .get(stock_id)
-                    .unwrap_or_else(|| Stock::new(stock_id.clone()))
-            });
+        let stock = entity.stock_id().map(|stock_id| {
+            self.stock_list()
+                .get(stock_id)
+                .unwrap_or_else(|| Stock::new(stock_id.clone()))
+        });
 
         let (env, tdb, edb, sdb) = self.db();
         env.with_write_txn(|wtxn| {
