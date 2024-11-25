@@ -1,16 +1,43 @@
-use std::{cell::RefCell, collections::HashMap, io::Cursor};
+use std::{cell::RefCell, collections::HashMap, io::Cursor, time::Instant};
 
 use anyhow::{Context, Result};
 use calamine::{DataType, Reader};
 
-use crate::{entity_data::EntityData, entity_id::EntityId, stock_id::StockId};
+use crate::{
+    db::{self, EnvExt},
+    entity_data::EntityData,
+    entity_id::EntityId,
+    stock_id::StockId,
+};
 
-#[derive(Default)]
-pub struct EntityDataStore {
+#[derive(Debug)]
+pub struct EntityDataIndex {
+    env: heed::Env,
+    db: db::EntityDataIndexDbType,
     map: RefCell<HashMap<EntityId, EntityData>>,
 }
 
-impl EntityDataStore {
+impl EntityDataIndex {
+    pub fn load_from_env(env: heed::Env) -> Result<Self> {
+        let start_time = Instant::now();
+
+        let (db, data) = env.with_write_txn(|wtxn| {
+            let db: db::EntityDataIndexDbType =
+                env.create_database(wtxn, Some(db::ENTITY_DATA_INDEX_DB_NAME))?;
+            let data = db.iter(wtxn)?.collect::<Result<HashMap<_, _>, _>>()?;
+
+            Ok((db, data))
+        })?;
+
+        tracing::debug!("Loaded entity data index in {:?}", start_time.elapsed());
+
+        Ok(Self {
+            env: env.clone(),
+            db,
+            map: RefCell::new(data),
+        })
+    }
+
     pub fn register(&self, bytes: &[u8]) -> Result<()> {
         let mut book = calamine::open_workbook_auto_from_rs(Cursor::new(bytes))?;
         let range = book.worksheet_range_at(0).context("Empty sheets")??;
@@ -34,7 +61,7 @@ impl EntityDataStore {
             })
         });
 
-        let mut n_added = 0;
+        let mut entity_data = Vec::new();
         for row in rows {
             let raw_entity_id = row[entity_id_col_idx]
                 .as_string()
@@ -43,14 +70,23 @@ impl EntityDataStore {
             let stock_id = stock_id_col_idx
                 .and_then(|idx| row[idx].as_string())
                 .map(StockId::new);
-
-            self.map
-                .borrow_mut()
-                .insert(entity_id, EntityData { stock_id });
-            n_added += 1;
+            entity_data.push((entity_id, EntityData { stock_id }));
         }
 
-        tracing::debug!("Registered `{}` new entity data", n_added);
+        self.env.with_write_txn(|wtxn| {
+            for (entity_id, entity_data) in &entity_data {
+                self.db.put(wtxn, entity_id, entity_data)?;
+            }
+            Ok(())
+        })?;
+
+        let n_added = entity_data.len();
+
+        for (entity_id, entity_data) in entity_data {
+            self.map.borrow_mut().insert(entity_id, entity_data);
+        }
+
+        tracing::debug!("Registered `{}` entity data", n_added);
 
         Ok(())
     }

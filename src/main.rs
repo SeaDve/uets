@@ -17,7 +17,7 @@ mod db;
 mod detector;
 mod entity;
 mod entity_data;
-mod entity_data_store;
+mod entity_data_index;
 mod entity_id;
 mod entity_list;
 mod format;

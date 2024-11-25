@@ -1,14 +1,15 @@
 use std::{cell::RefCell, rc::Rc};
 
 use adw::{prelude::*, subclass::prelude::*};
-use anyhow::Result;
+use anyhow::{ensure, Result};
 use futures_channel::oneshot;
 use gtk::{
     gio,
     glib::{self, clone},
 };
 use wormhole::{
-    rendezvous, transfer, transit, AppConfig, AppID, Code, MailboxConnection, Wormhole,
+    rendezvous, transfer, transit, uri::WormholeTransferUri, AppConfig, AppID, Code,
+    MailboxConnection, Wormhole,
 };
 
 use crate::{format, ui::camera::Camera};
@@ -28,6 +29,8 @@ mod imp {
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
         pub(super) code_page: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub(super) code_camera_bin: TemplateChild<adw::Bin>,
         #[template_child]
         pub(super) code_camera: TemplateChild<Camera>,
         #[template_child]
@@ -59,16 +62,23 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for ReceiveWindow {
-        fn dispose(&self) {
+    impl ObjectImpl for ReceiveWindow {}
+    impl WidgetImpl for ReceiveWindow {}
+
+    impl WindowImpl for ReceiveWindow {
+        fn close_request(&self) -> glib::Propagation {
+            tracing::trace!("Close request");
+
             self.cancellable.cancel();
 
-            tracing::debug!("Window disposed");
+            if let Err(err) = self.code_camera.stop() {
+                tracing::warn!("Failed to stop camera: {:?}", err);
+            }
+
+            self.parent_close_request()
         }
     }
 
-    impl WidgetImpl for ReceiveWindow {}
-    impl WindowImpl for ReceiveWindow {}
     impl AdwWindowImpl for ReceiveWindow {}
 }
 
@@ -78,7 +88,7 @@ glib::wrapper! {
 }
 
 impl ReceiveWindow {
-    pub async fn receive(parent: &impl IsA<gtk::Widget>) -> Result<Vec<u8>> {
+    pub async fn receive(parent: &impl IsA<gtk::Widget>) -> Result<(String, Vec<u8>)> {
         let root = parent.root().map(|r| r.downcast::<gtk::Window>().unwrap());
 
         let this = glib::Object::builder::<Self>()
@@ -94,32 +104,50 @@ impl ReceiveWindow {
         ret
     }
 
-    async fn start_receive(&self) -> Result<Vec<u8>> {
+    async fn start_receive(&self) -> Result<(String, Vec<u8>)> {
         let imp = self.imp();
 
         imp.stack.set_visible_child(&*imp.code_page);
-        imp.title_label.set_label("Show or Enter Code");
+        imp.title_label.set_label("Starting Camera");
         imp.close_button.set_label("Cancel");
-
-        imp.code_camera.start()?;
 
         let (tx, rx) = oneshot::channel();
         let tx = Rc::new(RefCell::new(Some(tx)));
-        imp.code_camera.connect_code_detected(clone!(
-            #[strong]
-            tx,
-            move |_, code| {
-                let tx = tx.take().unwrap();
-                let _ = tx.send(code.to_string());
-            }
-        ));
+
+        if let Err(err) = imp.code_camera.start().await {
+            tracing::warn!("Failed to start camera: {:?}", err);
+
+            imp.title_label.set_label("Enter the Code");
+
+            imp.code_camera_bin.set_visible(false);
+        } else {
+            imp.title_label.set_label("Show or Enter the Code");
+
+            imp.code_camera.connect_code_detected(clone!(
+                #[strong]
+                tx,
+                move |_, qrcode| {
+                    match qrcode.parse::<WormholeTransferUri>() {
+                        Ok(uri) => {
+                            let _ = tx.take().unwrap().send(uri.code);
+                        }
+                        Err(err) => {
+                            tracing::warn!("Failed to parse QR code to uri: {:?}", err);
+                        }
+                    }
+                }
+            ));
+        }
+
         imp.code_entry.connect_entry_activated(move |entry| {
-            let tx = tx.take().unwrap();
-            let _ = tx.send(entry.text().to_string());
+            let code = Code(entry.text().trim().to_string());
+            let _ = tx.take().unwrap().send(code);
         });
         let code = rx.await.unwrap();
 
-        imp.code_camera.stop()?;
+        if let Err(err) = imp.code_camera.stop() {
+            tracing::warn!("Failed to stop camera: {:?}", err);
+        }
 
         imp.stack.set_visible_child(&*imp.receiving_page);
         imp.title_label.set_label("Receiving");
@@ -130,7 +158,7 @@ impl ReceiveWindow {
             app_version: transfer::AppVersion::default(),
         };
         let connection = gio::CancellableFuture::new(
-            MailboxConnection::connect(app_config, Code(code), false),
+            MailboxConnection::connect(app_config, code, false),
             imp.cancellable.clone(),
         )
         .await??;
@@ -155,14 +183,16 @@ impl ReceiveWindow {
         )
         .await??
         .ok_or(gio::Cancelled)?;
+        let request_file_size = request.file_size();
+        let request_file_name = request.file_name();
 
         imp.file_name_label.set_label(&format!(
             "{} ({})",
-            request.file_name(),
-            glib::format_size(request.file_size() as u64)
+            request_file_name,
+            glib::format_size(request_file_size)
         ));
 
-        let mut ret = Vec::new();
+        let mut bytes = Vec::new();
         gio::CancellableFuture::new(
             request.accept(
                 |transit_info| {
@@ -180,19 +210,24 @@ impl ReceiveWindow {
                             .set_text(Some(&format::transfer_progress(sent_bytes, total_bytes)));
                     }
                 ),
-                &mut ret,
+                &mut bytes,
                 self.cancellable_cancel_fut(),
             ),
             imp.cancellable.clone(),
         )
         .await??;
 
+        ensure!(
+            bytes.len() == request_file_size as usize,
+            "Received file size mismatch"
+        );
+
         imp.title_label.set_label("File Received");
         imp.stack.set_visible(false);
         imp.close_button.set_label("Close");
         imp.close_button.add_css_class("suggested-action");
 
-        Ok(ret)
+        Ok((request_file_name, bytes))
     }
 
     async fn cancellable_cancel_fut(&self) {

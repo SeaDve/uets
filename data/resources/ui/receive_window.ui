@@ -29,15 +29,16 @@
                             <property name="orientation">vertical</property>
                             <property name="spacing">6</property>
                             <child>
-                              <object class="AdwBin">
+                              <object class="AdwBin" id="code_camera_bin">
                                 <property name="overflow">hidden</property>
                                 <property name="child">
                                   <object class="UetsCamera" id="code_camera">
                                     <property name="width-request">240</property>
-                                    <property name="height-request">240</property>
+                                    <property name="height-request">150</property>
                                   </object>
                                 </property>
                                 <style>
+                                  <class name="code-camera-bin"/>
                                   <class name="card"/>
                                 </style>
                               </object>

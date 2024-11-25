@@ -32,15 +32,29 @@ mod imp {
                 "settings-view.register-entity-data",
                 None,
                 |obj, _, _| async move {
+                    let app = Application::get();
+
                     match ReceiveWindow::receive(&obj).await {
-                        Ok(bytes) => {
-                            tracing::debug!(
-                                "Received bytes {}",
-                                glib::format_size(bytes.len() as u64)
-                            );
+                        Ok((file_name, bytes)) => {
+                            if [".xls", ".xlsx", ".xlsm", ".xlsb", ".xla", ".xlam", ".ods"]
+                                .iter()
+                                .any(|ext| file_name.ends_with(ext))
+                            {
+                                if let Err(err) = app.entity_data_index().register(&bytes) {
+                                    tracing::error!("Failed to register entity data: {:?}", err);
+
+                                    app.add_message_toast("Failed to register entity data");
+                                } else {
+                                    app.add_message_toast("Entity data registered");
+                                }
+                            } else {
+                                app.add_message_toast("Unknown file type");
+                            }
                         }
                         Err(err) => {
-                            tracing::debug!("Failed to receive file: {:?}", err)
+                            app.add_message_toast("Failed to receive file");
+
+                            tracing::error!("Failed to receive file: {:?}", err)
                         }
                     }
                 },

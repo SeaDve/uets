@@ -20,6 +20,12 @@ image.entity-icon {
     padding: 9px;
 }
 
+/* ReceiveWindow */
+
+.code-camera-bin {
+    background-color: black;
+}
+
 /* StockDetailsPane */
 
 image.close-icon {
