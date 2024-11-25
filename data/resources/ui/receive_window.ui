@@ -25,8 +25,17 @@
                     <child>
                       <object class="GtkStack" id="stack">
                         <child>
-                          <object class="UetsCamera" id="camera_page">
+                          <object class="GtkBox" id="code_page">
+                            <property name="orientation">vertical</property>
+                            <child>
+                              <object class="UetsCamera" id="code_camera">
 
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkEntry" id="code_entry">
+                              </object>
+                            </child>
                           </object>
                         </child>
                         <child>

@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::Result;
@@ -28,7 +28,11 @@ mod imp {
         #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
-        pub(super) camera_page: TemplateChild<Camera>,
+        pub(super) code_page: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub(super) code_camera: TemplateChild<Camera>,
+        #[template_child]
+        pub(super) code_entry: TemplateChild<gtk::Entry>,
         #[template_child]
         pub(super) receiving_page: TemplateChild<gtk::ProgressBar>,
         #[template_child]
@@ -94,20 +98,27 @@ impl ReceiveWindow {
     async fn start_receive(&self) -> Result<Vec<u8>> {
         let imp = self.imp();
 
-        imp.stack.set_visible_child(&*imp.camera_page);
+        imp.stack.set_visible_child(&*imp.code_page);
         imp.title_label.set_label("Show QR Code");
         imp.close_button.set_label("Cancel");
 
-        imp.camera_page.start()?;
+        imp.code_camera.start()?;
 
         let (tx, rx) = oneshot::channel();
-        let tx = RefCell::new(Some(tx));
-        imp.camera_page.connect_code_detected(move |_, code| {
-            tx.take().unwrap().send(code.to_string()).unwrap();
+        let tx = Rc::new(RefCell::new(Some(tx)));
+        imp.code_camera.connect_code_detected(clone!(
+            #[strong]
+            tx,
+            move |_, code| {
+                tx.take().unwrap().send(code.to_string()).unwrap();
+            }
+        ));
+        imp.code_entry.connect_activate(move |entry| {
+            tx.take().unwrap().send(entry.text().to_string()).unwrap();
         });
         let code = rx.await.unwrap();
 
-        imp.camera_page.stop()?;
+        imp.code_camera.stop()?;
 
         imp.stack.set_visible_child(&*imp.receiving_page);
         imp.title_label.set_label("Receiving");
@@ -138,20 +149,13 @@ impl ReceiveWindow {
                 wormhole,
                 relay_hints,
                 WORMHOLE_TRANSIT_ABILITIES,
-                async move {
-                    let (tx, rx) = oneshot::channel();
-                    cancellable.connect_cancelled(|_| {
-                        tx.send(()).unwrap();
-                    });
-                    rx.await.unwrap()
-                },
+                self.cancellable_cancel_fut(),
             ),
             imp.cancellable.clone(),
         )
         .await??
         .ok_or(gio::Cancelled)?;
 
-        let cancellable = imp.cancellable.clone();
         let mut ret = Vec::new();
         gio::CancellableFuture::new(
             request.accept(
@@ -171,13 +175,7 @@ impl ReceiveWindow {
                     }
                 ),
                 &mut ret,
-                async move {
-                    let (tx, rx) = oneshot::channel();
-                    cancellable.connect_cancelled(|_| {
-                        tx.send(()).unwrap();
-                    });
-                    rx.await.unwrap()
-                },
+                self.cancellable_cancel_fut(),
             ),
             imp.cancellable.clone(),
         )
@@ -189,5 +187,15 @@ impl ReceiveWindow {
         imp.close_button.add_css_class("suggested-action");
 
         Ok(ret)
+    }
+
+    async fn cancellable_cancel_fut(&self) {
+        let imp = self.imp();
+
+        let (tx, rx) = oneshot::channel();
+        imp.cancellable.connect_cancelled(|_| {
+            let _ = tx.send(());
+        });
+        rx.await.unwrap()
     }
 }
