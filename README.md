@@ -15,6 +15,10 @@ UETS is a universal system that tracks entities using RFID tags. It is designed 
 - View entities entering and exiting in real-time.
 - View real time statistics and graphs.
 
+### Easy Data Handling
+
+- Pre-input data via spredsheet files.
+
 ## 🕹️ Operation Modes
 
 ### Counter
