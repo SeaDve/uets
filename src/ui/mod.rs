@@ -1,3 +1,4 @@
+mod camera;
 mod dashboard_view;
 mod date_time_button;
 mod date_time_window;
@@ -6,6 +7,7 @@ mod entity_details_pane;
 mod entity_row;
 mod entry_window;
 mod information_row;
+mod receive_window;
 mod search_entry;
 mod settings_view;
 mod stock_details_pane;

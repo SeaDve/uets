@@ -1,7 +1,7 @@
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
 use std::process::Command;
 
-use crate::Application;
+use crate::{ui::receive_window::ReceiveWindow, Application};
 
 mod imp {
     use super::*;
@@ -27,6 +27,24 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+
+            klass.install_action_async(
+                "settings-view.register-entity-data",
+                None,
+                |obj, _, _| async move {
+                    match ReceiveWindow::receive(&obj).await {
+                        Ok(bytes) => {
+                            tracing::debug!(
+                                "Received bytes {}",
+                                glib::format_size(bytes.len() as u64)
+                            );
+                        }
+                        Err(err) => {
+                            tracing::debug!("Failed to receive file: {:?}", err)
+                        }
+                    }
+                },
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {

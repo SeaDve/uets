@@ -17,6 +17,7 @@ mod db;
 mod detector;
 mod entity;
 mod entity_data;
+mod entity_data_store;
 mod entity_id;
 mod entity_list;
 mod format;
@@ -49,6 +50,9 @@ const GRESOURCE_PREFIX: &str = "/io/github/seadve/Uets/";
 
 fn main() -> glib::ExitCode {
     tracing_subscriber::fmt::init();
+
+    gst::init().unwrap();
+    gstgtk4::plugin_register_static().unwrap();
 
     let data = gvdb::gresource::BundleBuilder::from_directory(
         GRESOURCE_PREFIX,

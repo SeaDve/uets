@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="UetsCamera">
+    <property name="layout-manager">
+      <object class="GtkBinLayout"/>
+    </property>
+    <child>
+      <object class="GtkPicture" id="picture">
+
+      </object>
+    </child>
+  </template>
+</interface>
