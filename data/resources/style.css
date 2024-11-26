@@ -26,6 +26,12 @@ image.entity-icon {
     background-color: black;
 }
 
+/* SendWindow */
+
+.code-label {
+    padding: 6px 12px;
+}
+
 /* StockDetailsPane */
 
 image.close-icon {
@@ -62,10 +68,4 @@ image.exit-icon {
 
 .timeline-list-view {
     padding: 6px;
-}
-
-/* WormholeWindow */
-
-.code-label {
-    padding: 6px 12px;
 }

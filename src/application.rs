@@ -13,7 +13,7 @@ use crate::{
     entity_id::EntityId,
     settings::Settings,
     timeline::Timeline,
-    ui::{EntryWindow, TestWindow, Window, WormholeWindow},
+    ui::{EntryWindow, SendWindow, TestWindow, Window},
     APP_ID, GRESOURCE_PREFIX,
 };
 
@@ -68,7 +68,7 @@ mod imp {
                 }
             }
 
-            WormholeWindow::init_premade_connection();
+            SendWindow::init_premade_connection();
 
             obj.setup_actions();
             obj.setup_accels();

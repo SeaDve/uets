@@ -19,7 +19,7 @@ use crate::{
     stock_id::StockId,
     ui::{
         date_time_button::DateTimeButton, entity_details_pane::EntityDetailsPane,
-        entity_row::EntityRow, search_entry::SearchEntry, wormhole_window::WormholeWindow,
+        entity_row::EntityRow, search_entry::SearchEntry, send_window::SendWindow,
     },
     utils::new_sorter,
     Application,
@@ -479,7 +479,7 @@ impl EntitiesView {
             .build();
 
         if let Err(err) =
-            WormholeWindow::send(bytes_fut, &report::file_name("Entities Report", kind), self).await
+            SendWindow::send(&report::file_name("Entities Report", kind), bytes_fut, self).await
         {
             tracing::error!("Failed to send report: {:?}", err);
 

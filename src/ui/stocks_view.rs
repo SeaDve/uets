@@ -17,8 +17,8 @@ use crate::{
     stock_id::StockId,
     stock_list::StockList,
     ui::{
-        date_time_button::DateTimeButton, search_entry::SearchEntry,
-        stock_details_pane::StockDetailsPane, stock_row::StockRow, wormhole_window::WormholeWindow,
+        date_time_button::DateTimeButton, search_entry::SearchEntry, send_window::SendWindow,
+        stock_details_pane::StockDetailsPane, stock_row::StockRow,
     },
     utils::new_sorter,
     Application,
@@ -462,7 +462,7 @@ impl StocksView {
             .build();
 
         if let Err(err) =
-            WormholeWindow::send(bytes_fut, &report::file_name("Stocks Report", kind), self).await
+            SendWindow::send(&report::file_name("Stocks Report", kind), bytes_fut, self).await
         {
             tracing::error!("Failed to send report: {:?}", err);
 

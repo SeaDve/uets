@@ -10,7 +10,7 @@ use crate::{
     report::{self, ReportKind},
     report_table,
     stock::Stock,
-    ui::{information_row::InformationRow, time_graph::TimeGraph, wormhole_window::WormholeWindow},
+    ui::{information_row::InformationRow, send_window::SendWindow, time_graph::TimeGraph},
     Application,
 };
 
@@ -341,9 +341,9 @@ impl StockDetailsPane {
                 .await
         };
 
-        if let Err(err) = WormholeWindow::send(
-            bytes_fut,
+        if let Err(err) = SendWindow::send(
             &report::file_name(&format!("Stock Report for “{}”", stock.id()), kind),
+            bytes_fut,
             self,
         )
         .await

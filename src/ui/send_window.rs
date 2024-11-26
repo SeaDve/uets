@@ -24,8 +24,8 @@ mod imp {
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/seadve/Uets/ui/wormhole_window.ui")]
-    pub struct WormholeWindow {
+    #[template(resource = "/io/github/seadve/Uets/ui/send_window.ui")]
+    pub struct SendWindow {
         #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
@@ -49,9 +49,9 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for WormholeWindow {
-        const NAME: &'static str = "UetsWormholeWindow";
-        type Type = super::WormholeWindow;
+    impl ObjectSubclass for SendWindow {
+        const NAME: &'static str = "UetsSendWindow";
+        type Type = super::SendWindow;
         type ParentType = adw::Window;
 
         fn class_init(klass: &mut Self::Class) {
@@ -63,7 +63,7 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for WormholeWindow {
+    impl ObjectImpl for SendWindow {
         fn dispose(&self) {
             self.cancellable.cancel();
 
@@ -71,17 +71,17 @@ mod imp {
         }
     }
 
-    impl WidgetImpl for WormholeWindow {}
-    impl WindowImpl for WormholeWindow {}
-    impl AdwWindowImpl for WormholeWindow {}
+    impl WidgetImpl for SendWindow {}
+    impl WindowImpl for SendWindow {}
+    impl AdwWindowImpl for SendWindow {}
 }
 
 glib::wrapper! {
-    pub struct WormholeWindow(ObjectSubclass<imp::WormholeWindow>)
+    pub struct SendWindow(ObjectSubclass<imp::SendWindow>)
         @extends gtk::Widget, gtk::Window, adw::Window;
 }
 
-impl WormholeWindow {
+impl SendWindow {
     pub fn init_premade_connection() {
         glib::spawn_future_local(async {
             if let Err(err) = init_premade_connection_inner().await {
@@ -91,8 +91,8 @@ impl WormholeWindow {
     }
 
     pub async fn send(
-        bytes_fut: impl Future<Output = Result<Vec<u8>>>,
         dest_file_name: &str,
+        bytes_fut: impl Future<Output = Result<Vec<u8>>>,
         parent: &impl IsA<gtk::Widget>,
     ) -> Result<()> {
         let root = parent.root().map(|r| r.downcast::<gtk::Window>().unwrap());
@@ -128,7 +128,7 @@ impl WormholeWindow {
             .build();
         this.present();
 
-        if let Err(err) = this.start_send(bytes_fut, dest_file_name).await {
+        if let Err(err) = this.start_send(dest_file_name, bytes_fut).await {
             if !err.is::<gio::Cancelled>() {
                 this.close();
                 return Err(err);
@@ -140,8 +140,8 @@ impl WormholeWindow {
 
     async fn start_send(
         &self,
-        bytes_fut: impl Future<Output = Result<Vec<u8>>>,
         dest_file_name: &str,
+        bytes_fut: impl Future<Output = Result<Vec<u8>>>,
     ) -> Result<()> {
         let imp = self.imp();
 
@@ -238,7 +238,7 @@ fn qrcode_texture_for_uri(uri: &WormholeTransferUri) -> Result<gdk::Texture> {
 async fn take_and_replace_premade_connection() -> Result<MailboxConnection<transfer::AppVersion>> {
     if let Some(connection) = PREMADE_CONNECTION.lock().await.take() {
         // Reinitialize a new premade connection for the next time.
-        WormholeWindow::init_premade_connection();
+        SendWindow::init_premade_connection();
 
         tracing::trace!("Connection taken");
 
@@ -253,7 +253,7 @@ async fn take_and_replace_premade_connection() -> Result<MailboxConnection<trans
         .expect("premade connection must have been initialized");
 
     // Reinitialize a new premade connection for the next time.
-    WormholeWindow::init_premade_connection();
+    SendWindow::init_premade_connection();
 
     tracing::trace!("Connection taken");
 

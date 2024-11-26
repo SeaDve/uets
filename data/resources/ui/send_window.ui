@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <template class="UetsWormholeWindow" parent="AdwWindow">
+  <template class="UetsSendWindow" parent="AdwWindow">
     <property name="default-width">320</property>
     <property name="default-height">544</property>
     <property name="width-request">320</property>
