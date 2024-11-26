@@ -1,5 +1,6 @@
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::Result;
+use futures_channel::oneshot;
 use gtk::{
     gio,
     glib::{self, clone},
@@ -168,15 +169,24 @@ impl Application {
 
         let data = if let Some(entity) = timeline.entity_list().get(entity_id) {
             tracing::debug!("Retrieved entity data from timeline");
+
             EntityData {
                 stock_id: entity.stock_id().cloned(),
             }
         } else if let Some(data) = self.entity_data_index().retrieve(entity_id) {
             tracing::debug!("Retrieved entity data from index");
+
             data
         } else {
             tracing::debug!("Gathering entity data from user");
-            EntryWindow::gather_data(&self.window()).await
+
+            match EntryWindow::gather_data(&self.window()).await {
+                Ok(data) => data,
+                Err(oneshot::Canceled) => {
+                    tracing::debug!("Gathering entity data was canceled; ignoring detected entity");
+                    return;
+                }
+            }
         };
 
         tracing::debug!(?data, "Handling detected entity `{}`", entity_id);

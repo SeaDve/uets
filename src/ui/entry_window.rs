@@ -27,6 +27,11 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
 
+            klass.install_action("entry-window.cancel", None, move |obj, _, _| {
+                let imp = obj.imp();
+
+                let _ = imp.result_tx.take().unwrap();
+            });
             klass.install_action("entry-window.done", None, move |obj, _, _| {
                 let imp = obj.imp();
 
@@ -68,7 +73,9 @@ glib::wrapper! {
 }
 
 impl EntryWindow {
-    pub async fn gather_data(parent: &impl IsA<gtk::Widget>) -> EntityData {
+    pub async fn gather_data(
+        parent: &impl IsA<gtk::Widget>,
+    ) -> Result<EntityData, oneshot::Canceled> {
         let root = parent.root().map(|r| r.downcast::<gtk::Window>().unwrap());
 
         let this = glib::Object::builder::<Self>()
@@ -83,11 +90,14 @@ impl EntryWindow {
 
         this.present();
 
-        result_rx.await.unwrap();
+        if let Err(err @ oneshot::Canceled) = result_rx.await {
+            this.close();
+            return Err(err);
+        }
 
         this.close();
 
-        this.gather_data_inner()
+        Ok(this.gather_data_inner())
     }
 
     fn gather_data_inner(&self) -> EntityData {

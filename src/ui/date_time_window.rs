@@ -227,7 +227,6 @@ impl DateTimeWindow {
 
         if let Err(err @ oneshot::Canceled) = result_rx.await {
             this.close();
-
             return Err(err);
         }
 
