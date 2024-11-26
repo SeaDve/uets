@@ -61,15 +61,13 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
-            let operation_mode = Application::get().settings().operation_mode();
-
+            let mode = Application::get().settings().operation_mode();
             self.stock_id_row
-                .set_visible(operation_mode.is_valid_entity_data_field(EntityDataField::StockId));
+                .set_visible(mode.is_valid_entity_data_field(EntityDataField::StockId));
             self.location_row
-                .set_visible(operation_mode.is_valid_entity_data_field(EntityDataField::Location));
-            self.expiration_dt_row.set_visible(
-                operation_mode.is_valid_entity_data_field(EntityDataField::ExpirationDt),
-            );
+                .set_visible(mode.is_valid_entity_data_field(EntityDataField::Location));
+            self.expiration_dt_row
+                .set_visible(mode.is_valid_entity_data_field(EntityDataField::ExpirationDt));
 
             let app = Application::get();
             let stock_ids = {
