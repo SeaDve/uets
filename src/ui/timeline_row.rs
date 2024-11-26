@@ -5,8 +5,8 @@ use gtk::{
 };
 
 use crate::{
-    entity_id::EntityId, format, settings::OperationMode, stock_id::StockId,
-    timeline_item::TimelineItem, timeline_item_kind::TimelineItemKind, Application,
+    entity_id::EntityId, format, stock_id::StockId, timeline_item::TimelineItem,
+    timeline_item_kind::TimelineItemKind, Application,
 };
 
 mod imp {
@@ -200,19 +200,11 @@ impl TimelineRow {
                 },
             );
 
-            let (enter_verb, exit_verb, stay_suffix) =
-                match Application::get().settings().operation_mode() {
-                    OperationMode::Counter | OperationMode::Attendance => {
-                        ("enters", "exits", "of stay")
-                    }
-                    OperationMode::Inventory | OperationMode::Refrigerator => {
-                        ("added", "removed", "of being kept")
-                    }
-                };
+            let operation_mode = Application::get().settings().operation_mode();
 
             let text = match item.kind() {
                 TimelineItemKind::Entry => {
-                    format!("<b>{}</b> {}", title, enter_verb)
+                    format!("<b>{}</b> {}", title, operation_mode.enter_verb())
                 }
                 TimelineItemKind::Exit => {
                     let entry_to_exit_duration = item
@@ -221,9 +213,9 @@ impl TimelineRow {
                     format!(
                         "<b>{}</b> {} after <i>{}</i> {}",
                         title,
-                        exit_verb,
+                        operation_mode.exit_verb(),
                         format::duration(entry_to_exit_duration),
-                        stay_suffix
+                        operation_mode.stay_suffix(),
                     )
                 }
             };

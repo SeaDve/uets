@@ -25,16 +25,6 @@ UETS is a universal system that tracks entities using RFID tags. It is designed 
 
 This is used for entities that don't have any specific data (e.g., mall entry counter).
 
-### Inventory
-
-This is used for entities that have lifetime, location, and quantity (e.g., stock room, department store, medicine storage).
-
-### Refrigerator
-
-This is used for entities that have lifetime and quantity (e.g., food storage).
-
-This is experimental as it is labor-intensive to tag entities with this kind.
-
 ### Attendance
 
 This is used for tracking attendance, whereas unauthorized entities are not allowed to enter (e.g., classroom, meeting room, school gate, establishment entry).
@@ -44,6 +34,16 @@ This is used for tracking attendance, whereas unauthorized entities are not allo
 This is used for tracking parking spaces and vehicles (e.g., parking lot).
 
 This is useful for tracking how long a vehicle has been parked and whether it is authorized to park.
+
+### Inventory
+
+This is used for entities that have lifetime, location, and quantity (e.g., stock room, department store, medicine storage).
+
+### Refrigerator
+
+This is used for entities that have lifetime and quantity (e.g., food storage).
+
+This is experimental as it is labor-intensive to tag entities with this kind.
 
 ## 🏗️ Building and Running
 

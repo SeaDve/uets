@@ -4,9 +4,10 @@
     <key name="operation-mode" type="s">
       <choices>
         <choice value="counter"/>
+        <choice value="attendance"/>
+        <choice value="parking"/>
         <choice value="inventory"/>
         <choice value="refrigerator"/>
-        <choice value="attendance"/>
       </choices>
       <default>"counter"</default>
     </key>

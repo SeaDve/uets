@@ -44,6 +44,34 @@
             </child>
             <child>
               <object class="AdwActionRow">
+                <property name="title">Attendance</property>
+                <property name="subtitle">Used for tracking attendance, alerting when unauthorized entity is detected (e.g., meeting rooms, establishment entry)</property>
+                <property name="activatable-widget">attendance_check_button</property>
+                <child type="prefix">
+                  <object class="GtkCheckButton" id="attendance_check_button">
+                    <property name="valign">center</property>
+                    <property name="action-name">settings-view.operation-mode</property>
+                    <property name="action-target">"attendance"</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title">Parking</property>
+                <property name="subtitle">Used for tracking parking spaces and vehicles (e.g., parking lots)</property>
+                <property name="activatable-widget">parking_check_button</property>
+                <child type="prefix">
+                  <object class="GtkCheckButton" id="parking_check_button">
+                    <property name="valign">center</property>
+                    <property name="action-name">settings-view.operation-mode</property>
+                    <property name="action-target">"parking"</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
                 <property name="title">Inventory</property>
                 <property name="subtitle">Used for tracking inventory items with lifetime, location, and quantity (e.g., stock rooms)</property>
                 <property name="activatable-widget">inventory_check_button</property>
@@ -66,20 +94,6 @@
                     <property name="valign">center</property>
                     <property name="action-name">settings-view.operation-mode</property>
                     <property name="action-target">"refrigerator"</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="AdwActionRow">
-                <property name="title">Attendance</property>
-                <property name="subtitle">Used for tracking attendance, alerting when unauthorized entity is detected (e.g., meeting rooms, establishment entry)</property>
-                <property name="activatable-widget">attendance_check_button</property>
-                <child type="prefix">
-                  <object class="GtkCheckButton" id="attendance_check_button">
-                    <property name="valign">center</property>
-                    <property name="action-name">settings-view.operation-mode</property>
-                    <property name="action-target">"attendance"</property>
                   </object>
                 </child>
               </object>
