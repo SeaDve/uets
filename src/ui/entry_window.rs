@@ -16,6 +16,8 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/entry_window.ui")]
     pub struct EntryWindow {
         #[template_child]
+        pub(super) stock_id_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
         pub(super) stock_id_dropdown: TemplateChild<gtk::DropDown>,
 
         pub(super) result_tx: RefCell<Option<oneshot::Sender<()>>>,
@@ -50,6 +52,10 @@ mod imp {
     impl ObjectImpl for EntryWindow {
         fn constructed(&self) {
             self.parent_constructed();
+
+            let operation_mode = Application::get().settings().operation_mode();
+
+            self.stock_id_row.set_visible(operation_mode.has_stocks());
 
             let app = Application::get();
             let stock_ids = {
