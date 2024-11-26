@@ -11,18 +11,11 @@ use gtk::{
     glib::{self, clone},
 };
 use qrcode::{render::svg, QrCode};
-use wormhole::{
-    rendezvous, transfer, transit, uri::WormholeTransferUri, AppConfig, AppID, MailboxConnection,
-    Wormhole,
-};
+use wormhole::{transfer, uri::WormholeTransferUri, MailboxConnection, Wormhole};
 
-use crate::{config::bypass_wormhole, format};
+use crate::{config, format, wormhole_ext};
 
 const WORMHOLE_CODE_LENGTH: usize = 4;
-const WORMHOLE_APP_ID: &str = "lothar.com/wormhole/text-or-file-xfer";
-const WORMHOLE_APP_RENDEZVOUS_URL: &str = rendezvous::DEFAULT_RENDEZVOUS_SERVER;
-const WORMHOLE_TRANSIT_RELAY_URL: &str = transit::DEFAULT_RELAY_SERVER;
-const WORMHOLE_TRANSIT_ABILITIES: transit::Abilities = transit::Abilities::FORCE_DIRECT;
 
 static PREMADE_CONNECTION: Mutex<Option<MailboxConnection<transfer::AppVersion>>> =
     Mutex::new(None);
@@ -104,7 +97,7 @@ impl WormholeWindow {
     ) -> Result<()> {
         let root = parent.root().map(|r| r.downcast::<gtk::Window>().unwrap());
 
-        if bypass_wormhole() {
+        if config::bypass_wormhole() {
             let bytes = bytes_fut.await?;
 
             let file = gio::File::for_path(
@@ -189,11 +182,7 @@ impl WormholeWindow {
         let wormhole =
             gio::CancellableFuture::new(Wormhole::connect(connection), imp.cancellable.clone())
                 .await??;
-        let relay_hints = vec![transit::RelayHint::from_urls(
-            None,
-            [WORMHOLE_TRANSIT_RELAY_URL.parse().unwrap()],
-        )
-        .unwrap()];
+        let relay_hints = wormhole_ext::relay_hints();
 
         imp.sending_page.set_fraction(0.0);
         imp.sending_page
@@ -208,7 +197,7 @@ impl WormholeWindow {
                 &mut bytes.as_slice(),
                 dest_file_name,
                 bytes.len() as u64,
-                WORMHOLE_TRANSIT_ABILITIES,
+                wormhole_ext::DEFAULT_TRANSIT_ABILITIES,
                 |transit_info| {
                     tracing::debug!("Wormhole transit info: {:?}", transit_info);
                 },
@@ -275,11 +264,7 @@ async fn init_premade_connection_inner() -> Result<()> {
     let mut stored = PREMADE_CONNECTION.lock().await;
 
     if stored.is_none() {
-        let app_config = AppConfig {
-            id: AppID::new(WORMHOLE_APP_ID),
-            rendezvous_url: WORMHOLE_APP_RENDEZVOUS_URL.into(),
-            app_version: transfer::AppVersion::default(),
-        };
+        let app_config = wormhole_ext::app_config();
         let connection = MailboxConnection::create(app_config, WORMHOLE_CODE_LENGTH).await?;
 
         tracing::trace!("Connection initialized");

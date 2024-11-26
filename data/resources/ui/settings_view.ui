@@ -8,7 +8,8 @@
       <object class="AdwPreferencesPage" id="page">
         <child>
           <object class="AdwPreferencesGroup">
-            <property name="title">Data Entry</property>
+            <property name="title">Entity Entry</property>
+            <property name="description">Modify entity entry parameters</property>
             <child>
               <object class="AdwActionRow">
                 <property name="title">Register Entity Data</property>

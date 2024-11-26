@@ -38,6 +38,7 @@ mod timeline_item;
 mod timeline_item_kind;
 mod ui;
 mod utils;
+mod wormhole_ext;
 
 use std::path::Path;
 
