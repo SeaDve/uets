@@ -94,4 +94,12 @@ impl EntityDataIndex {
     pub fn retrieve(&self, entity_id: &EntityId) -> Option<EntityData> {
         self.map.borrow().get(entity_id).cloned()
     }
+
+    pub fn retrieve_stock_ids(&self) -> Vec<StockId> {
+        self.map
+            .borrow()
+            .values()
+            .filter_map(|data| data.stock_id.clone())
+            .collect()
+    }
 }

@@ -1,8 +1,11 @@
 use adw::{prelude::*, subclass::prelude::*};
 use futures_channel::oneshot;
-use gtk::glib::{self, closure};
+use gtk::{
+    gio,
+    glib::{self, closure, BoxedAnyObject},
+};
 
-use crate::{entity_data::EntityData, stock::Stock, Application};
+use crate::{entity_data::EntityData, stock_id::StockId, Application};
 
 mod imp {
     use std::cell::RefCell;
@@ -48,13 +51,36 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
+            let app = Application::get();
+            let stock_ids = {
+                let mut vec = app
+                    .timeline()
+                    .stock_list()
+                    .iter()
+                    .map(|stock| stock.id().clone())
+                    .chain(app.entity_data_index().retrieve_stock_ids())
+                    .collect::<Vec<_>>();
+                vec.sort_unstable();
+                vec.dedup();
+                vec
+            };
+
+            let stock_id_model = gio::ListStore::new::<BoxedAnyObject>();
+            stock_id_model.splice(
+                0,
+                0,
+                &stock_ids
+                    .into_iter()
+                    .map(BoxedAnyObject::new)
+                    .collect::<Vec<_>>(),
+            );
+
             self.stock_id_dropdown
                 .set_expression(Some(gtk::ClosureExpression::new::<String>(
                     &[] as &[gtk::Expression],
-                    closure!(|stock: &Stock| stock.id().to_string()),
+                    closure!(|o: &BoxedAnyObject| o.borrow::<StockId>().to_string()),
                 )));
-            self.stock_id_dropdown
-                .set_model(Some(Application::get().timeline().stock_list()));
+            self.stock_id_dropdown.set_model(Some(&stock_id_model));
         }
 
         fn dispose(&self) {
@@ -103,10 +129,13 @@ impl EntryWindow {
     fn gather_data_inner(&self) -> EntityData {
         let imp = self.imp();
 
-        let stock_id = imp
-            .stock_id_dropdown
-            .selected_item()
-            .map(|stock| stock.downcast::<Stock>().unwrap().id().clone());
+        let stock_id = imp.stock_id_dropdown.selected_item().map(|stock| {
+            stock
+                .downcast::<BoxedAnyObject>()
+                .unwrap()
+                .borrow::<StockId>()
+                .clone()
+        });
 
         EntityData { stock_id }
     }
