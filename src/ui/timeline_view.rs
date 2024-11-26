@@ -17,8 +17,8 @@ use crate::{
     timeline::Timeline,
     timeline_item::TimelineItem,
     ui::{
-        date_time_button::DateTimeButton, search_entry::SearchEntry, timeline_row::TimelineRow,
-        wormhole_window::WormholeWindow,
+        date_time_button::DateTimeButton, search_entry::SearchEntry, send_window::SendWindow,
+        timeline_row::TimelineRow,
     },
     Application,
 };
@@ -459,7 +459,7 @@ impl TimelineView {
         };
 
         if let Err(err) =
-            WormholeWindow::send(bytes_fut, &report::file_name("Timeline Report", kind), self).await
+            SendWindow::send(&report::file_name("Timeline Report", kind), bytes_fut, self).await
         {
             tracing::error!("Failed to send report: {:?}", err);
 

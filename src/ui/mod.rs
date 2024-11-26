@@ -9,6 +9,7 @@ mod entry_window;
 mod information_row;
 mod receive_window;
 mod search_entry;
+mod send_window;
 mod settings_view;
 mod stock_details_pane;
 mod stock_row;
@@ -19,9 +20,7 @@ mod time_picker;
 mod timeline_row;
 mod timeline_view;
 mod window;
-mod wormhole_window;
 
 pub use self::{
-    entry_window::EntryWindow, test_window::TestWindow, window::Window,
-    wormhole_window::WormholeWindow,
+    entry_window::EntryWindow, send_window::SendWindow, test_window::TestWindow, window::Window,
 };
