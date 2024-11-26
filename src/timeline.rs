@@ -15,6 +15,7 @@ use crate::{
     entity_list::EntityList,
     log::Log,
     stock::{Stock, StockLogs},
+    stock_data::StockData,
     stock_id::StockId,
     stock_list::StockList,
     timeline_item::TimelineItem,
@@ -139,8 +140,8 @@ impl Timeline {
             let entities = edb
                 .iter(wtxn)?
                 .map(|res| {
-                    res.map(|(id, raw)| {
-                        let entity = Entity::from_db(id.clone(), raw);
+                    res.map(|(id, data)| {
+                        let entity = Entity::new(id.clone(), data);
                         (id, entity)
                     })
                 })
@@ -150,8 +151,8 @@ impl Timeline {
             let stocks = sdb
                 .iter(wtxn)?
                 .map(|res| {
-                    res.map(|(id, raw)| {
-                        let stock = Stock::from_db(id.clone(), raw);
+                    res.map(|(id, data)| {
+                        let stock = Stock::new(id.clone(), data);
                         (id, stock)
                     })
                 })
@@ -292,7 +293,7 @@ impl Timeline {
         let entity = self
             .entity_list()
             .get(entity_id)
-            .unwrap_or_else(|| Entity::new(entity_id.clone(), entity_data.stock_id.clone()));
+            .unwrap_or_else(|| Entity::new(entity_id.clone(), entity_data.clone()));
 
         // TODO Should this be allowed instead?
         //
@@ -326,15 +327,15 @@ impl Timeline {
         let stock = entity.stock_id().map(|stock_id| {
             self.stock_list()
                 .get(stock_id)
-                .unwrap_or_else(|| Stock::new(stock_id.clone()))
+                .unwrap_or_else(|| Stock::new(stock_id.clone(), StockData {}))
         });
 
         let (env, tdb, edb, sdb) = self.db();
         env.with_write_txn(|wtxn| {
             tdb.put(wtxn, &now_dt, &item.to_db())?;
-            edb.put(wtxn, entity.id(), &entity.to_db())?;
+            edb.put(wtxn, entity.id(), entity.data())?;
             if let Some(stock) = &stock {
-                sdb.put(wtxn, stock.id(), &stock.to_db())?;
+                sdb.put(wtxn, stock.id(), stock.data())?;
             }
             Ok(())
         })?;

@@ -4,7 +4,8 @@ use chrono::{DateTime, Utc};
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
 use crate::{
-    date_time_boxed::DateTimeBoxed, date_time_range::DateTimeRange, db, log::Log, stock_id::StockId,
+    date_time_boxed::DateTimeBoxed, date_time_range::DateTimeRange, log::Log,
+    stock_data::StockData, stock_id::StockId,
 };
 
 #[derive(Default)]
@@ -42,6 +43,7 @@ mod imp {
         pub(super) last_exit_dt: PhantomData<Option<DateTimeBoxed>>,
 
         pub(super) id: OnceCell<StockId>,
+        pub(super) data: OnceCell<StockData>,
 
         pub(super) logs: RefCell<StockLogs>,
     }
@@ -102,30 +104,22 @@ glib::wrapper! {
 }
 
 impl Stock {
-    pub fn new(id: StockId) -> Self {
+    pub fn new(id: StockId, data: StockData) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
         imp.id.set(id).unwrap();
+        imp.data.set(data).unwrap();
 
         this
-    }
-
-    pub fn from_db(id: StockId, _raw: db::RawStock) -> Self {
-        let this = glib::Object::new::<Self>();
-
-        let imp = this.imp();
-        imp.id.set(id).unwrap();
-
-        this
-    }
-
-    pub fn to_db(&self) -> db::RawStock {
-        db::RawStock {}
     }
 
     pub fn id(&self) -> &StockId {
         self.imp().id.get().unwrap()
+    }
+
+    pub fn data(&self) -> &StockData {
+        self.imp().data.get().unwrap()
     }
 
     pub fn n_inside_for_dt(&self, dt: DateTime<Utc>) -> u32 {

@@ -215,7 +215,7 @@ impl TimelineRow {
                         title,
                         operation_mode.exit_verb(),
                         format::duration(entry_to_exit_duration),
-                        operation_mode.stay_suffix(),
+                        operation_mode.entry_to_exit_duration_suffix(),
                     )
                 }
             };

@@ -9,7 +9,6 @@ use gtk::{
 use crate::{
     db,
     detector::Detector,
-    entity_data::EntityData,
     entity_data_index::EntityDataIndex,
     entity_id::EntityId,
     settings::Settings,
@@ -170,9 +169,7 @@ impl Application {
         let data = if let Some(entity) = timeline.entity_list().get(entity_id) {
             tracing::debug!("Retrieved entity data from timeline");
 
-            EntityData {
-                stock_id: entity.stock_id().cloned(),
-            }
+            entity.data().clone()
         } else if let Some(data) = self.entity_data_index().retrieve(entity_id) {
             tracing::debug!("Retrieved entity data from index");
 

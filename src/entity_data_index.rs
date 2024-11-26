@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, io::Cursor, time::Instant};
 
 use anyhow::{Context, Result};
-use calamine::{DataType, Reader};
+use calamine::{Data, DataType, Reader};
 
 use crate::{
     db::{self, EnvExt},
@@ -45,20 +45,21 @@ impl EntityDataIndex {
         let mut rows = range.rows();
 
         let col_title_row = rows.next().context("No column title")?;
-        let entity_id_col_idx = col_title_row
-            .iter()
-            .position(|cell| {
-                cell.as_string()
-                    .is_some_and(|s| matches!(s.to_lowercase().as_str(), "entity" | "entity id"))
-            })
-            .context("Missing entity id col")?;
-        let stock_id_col_idx = col_title_row.iter().position(|cell| {
-            cell.as_string().is_some_and(|s| {
-                matches!(
-                    s.to_lowercase().as_str(),
-                    "stock" | "stock id" | "stock name"
-                )
-            })
+        let entity_id_col_idx = find_position(col_title_row, |s| {
+            matches!(s.to_lowercase().as_str(), "entity" | "entity id")
+        })
+        .context("Missing entity id col")?;
+        let stock_id_col_idx = find_position(col_title_row, |s| {
+            matches!(
+                s.to_lowercase().as_str(),
+                "stock" | "stock id" | "stock name"
+            )
+        });
+        let location_col_idx = find_position(col_title_row, |s| {
+            s.to_lowercase().as_str().contains("location")
+        });
+        let expiration_dt_col_idx = find_position(col_title_row, |s| {
+            s.to_lowercase().as_str().contains("expiration")
         });
 
         let mut entity_data = Vec::new();
@@ -67,10 +68,17 @@ impl EntityDataIndex {
                 .as_string()
                 .context("Entity id doesn't contain string")?;
             let entity_id = EntityId::new(raw_entity_id);
-            let stock_id = stock_id_col_idx
-                .and_then(|idx| row[idx].as_string())
-                .map(StockId::new);
-            entity_data.push((entity_id, EntityData { stock_id }));
+
+            entity_data.push((
+                entity_id,
+                EntityData {
+                    stock_id: stock_id_col_idx
+                        .and_then(|idx| row[idx].as_string())
+                        .map(StockId::new),
+                    location: location_col_idx.and_then(|idx| row[idx].as_string()),
+                    expiration_dt: expiration_dt_col_idx.and_then(|idx| row[idx].as_string()),
+                },
+            ));
         }
 
         self.env.with_write_txn(|wtxn| {
@@ -102,4 +110,10 @@ impl EntityDataIndex {
             .filter_map(|data| data.stock_id.clone())
             .collect()
     }
+}
+
+fn find_position(col_title_row: &[Data], predicate: impl Fn(&str) -> bool) -> Option<usize> {
+    col_title_row
+        .iter()
+        .position(|cell| cell.as_string().is_some_and(|s| predicate(&s)))
 }

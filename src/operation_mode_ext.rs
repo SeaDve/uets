@@ -1,6 +1,17 @@
-use crate::settings::OperationMode;
+use crate::{
+    entity_data::{EntityDataField, OperationModeValidFields},
+    settings::OperationMode,
+};
 
 impl OperationMode {
+    pub fn is_valid_entity_data_field(&self, entity_field: EntityDataField) -> bool {
+        OperationModeValidFields::for_operation_mode(*self).contains(entity_field)
+    }
+
+    pub fn is_valid_entity_data(&self, entity_data: &crate::entity_data::EntityData) -> bool {
+        OperationModeValidFields::for_operation_mode(*self).is_valid_entity_data(entity_data)
+    }
+
     pub fn entities_view_icon_name(&self) -> &str {
         match self {
             OperationMode::Counter => "people-symbolic",
@@ -11,18 +22,21 @@ impl OperationMode {
         }
     }
 
-    pub fn has_stocks(&self) -> bool {
-        self.stocks_view_icon_name().is_some()
-    }
-
     pub fn stocks_view_icon_name(&self) -> Option<&str> {
-        match self {
+        let ret = match self {
             OperationMode::Counter => None,
             OperationMode::Attendance => None,
             OperationMode::Parking => None,
             OperationMode::Inventory => Some("preferences-desktop-apps-symbolic"),
             OperationMode::Refrigerator => Some("egg-symbolic"),
-        }
+        };
+
+        debug_assert_eq!(
+            ret.is_some(),
+            self.is_valid_entity_data_field(EntityDataField::StockId)
+        );
+
+        ret
     }
 
     pub fn enter_verb(&self) -> &str {
@@ -41,7 +55,7 @@ impl OperationMode {
         }
     }
 
-    pub fn stay_suffix(&self) -> &str {
+    pub fn entry_to_exit_duration_suffix(&self) -> &str {
         match self {
             OperationMode::Counter | OperationMode::Attendance => "of stay",
             OperationMode::Parking => "of parking",

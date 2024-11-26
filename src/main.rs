@@ -31,6 +31,7 @@ mod search_query;
 mod search_query_ext;
 mod settings;
 mod stock;
+mod stock_data;
 mod stock_id;
 mod stock_list;
 mod time_graph;

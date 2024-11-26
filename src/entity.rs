@@ -3,7 +3,10 @@ use std::fmt;
 use chrono::{DateTime, Utc};
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{date_time_range::DateTimeRange, db, entity_id::EntityId, log::Log, stock_id::StockId};
+use crate::{
+    date_time_range::DateTimeRange, entity_data::EntityData, entity_id::EntityId, log::Log,
+    stock_id::StockId,
+};
 
 mod imp {
     use std::{
@@ -20,7 +23,7 @@ mod imp {
         pub(super) is_inside: PhantomData<bool>,
 
         pub(super) id: OnceCell<EntityId>,
-        pub(super) stock_id: OnceCell<Option<StockId>>,
+        pub(super) data: OnceCell<EntityData>,
 
         pub(super) is_inside_log: RefCell<Log<bool>>,
     }
@@ -50,38 +53,26 @@ glib::wrapper! {
 }
 
 impl Entity {
-    pub fn new(id: EntityId, stock_id: Option<StockId>) -> Self {
+    pub fn new(id: EntityId, data: EntityData) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
         imp.id.set(id).unwrap();
-        imp.stock_id.set(stock_id).unwrap();
+        imp.data.set(data).unwrap();
 
         this
-    }
-
-    pub fn from_db(id: EntityId, raw: db::RawEntity) -> Self {
-        let this = glib::Object::new::<Self>();
-
-        let imp = this.imp();
-        imp.id.set(id).unwrap();
-        imp.stock_id.set(raw.stock_id).unwrap();
-
-        this
-    }
-
-    pub fn to_db(&self) -> db::RawEntity {
-        db::RawEntity {
-            stock_id: self.stock_id().cloned(),
-        }
     }
 
     pub fn id(&self) -> &EntityId {
         self.imp().id.get().unwrap()
     }
 
+    pub fn data(&self) -> &EntityData {
+        self.imp().data.get().unwrap()
+    }
+
     pub fn stock_id(&self) -> Option<&StockId> {
-        self.imp().stock_id.get().unwrap().as_ref()
+        self.data().stock_id.as_ref()
     }
 
     pub fn is_inside_for_dt(&self, dt: DateTime<Utc>) -> bool {

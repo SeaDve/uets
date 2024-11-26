@@ -5,7 +5,11 @@ use gtk::{
     glib::{self, closure, BoxedAnyObject},
 };
 
-use crate::{entity_data::EntityData, stock_id::StockId, Application};
+use crate::{
+    entity_data::{EntityData, EntityDataField},
+    stock_id::StockId,
+    Application,
+};
 
 mod imp {
     use std::cell::RefCell;
@@ -19,6 +23,10 @@ mod imp {
         pub(super) stock_id_row: TemplateChild<adw::ActionRow>,
         #[template_child]
         pub(super) stock_id_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
+        pub(super) location_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub(super) expiration_dt_row: TemplateChild<adw::EntryRow>,
 
         pub(super) result_tx: RefCell<Option<oneshot::Sender<()>>>,
     }
@@ -55,7 +63,13 @@ mod imp {
 
             let operation_mode = Application::get().settings().operation_mode();
 
-            self.stock_id_row.set_visible(operation_mode.has_stocks());
+            self.stock_id_row
+                .set_visible(operation_mode.is_valid_entity_data_field(EntityDataField::StockId));
+            self.location_row
+                .set_visible(operation_mode.is_valid_entity_data_field(EntityDataField::Location));
+            self.expiration_dt_row.set_visible(
+                operation_mode.is_valid_entity_data_field(EntityDataField::ExpirationDt),
+            );
 
             let app = Application::get();
             let stock_ids = {
@@ -143,6 +157,17 @@ impl EntryWindow {
                 .clone()
         });
 
-        EntityData { stock_id }
+        let data = EntityData {
+            stock_id,
+            location: Some(imp.location_row.text().to_string()).filter(|t| !t.is_empty()),
+            expiration_dt: Some(imp.expiration_dt_row.text().to_string()).filter(|t| !t.is_empty()),
+        };
+
+        debug_assert!(Application::get()
+            .settings()
+            .operation_mode()
+            .is_valid_entity_data(&data));
+
+        data
     }
 }
