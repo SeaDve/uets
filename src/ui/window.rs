@@ -2,7 +2,6 @@ use adw::subclass::prelude::*;
 use gtk::glib::{self, clone};
 
 use crate::{
-    settings::OperationMode,
     ui::{
         dashboard_view::DashboardView, entities_view::EntitiesView, settings_view::SettingsView,
         stocks_view::StocksView, timeline_view::TimelineView,
@@ -158,32 +157,13 @@ impl Window {
     fn update_stocks_entities_stack_pages_display(&self) {
         let imp = self.imp();
 
-        let operation_mode = Application::get().settings().operation_mode();
+        let mode = Application::get().settings().operation_mode();
 
-        match operation_mode {
-            OperationMode::Counter | OperationMode::Attendance => {
-                imp.stocks_stack_page.set_visible(false);
+        imp.entities_stack_page
+            .set_icon_name(Some(mode.entities_view_icon_name()));
 
-                imp.entities_stack_page
-                    .set_icon_name(Some("people-symbolic"));
-            }
-            OperationMode::Inventory | OperationMode::Refrigerator => {
-                imp.stocks_stack_page.set_visible(true);
-
-                match operation_mode {
-                    OperationMode::Inventory => {
-                        imp.stocks_stack_page
-                            .set_icon_name(Some("preferences-desktop-apps-symbolic"));
-                    }
-                    OperationMode::Refrigerator => {
-                        imp.stocks_stack_page.set_icon_name(Some("egg-symbolic"));
-                    }
-                    _ => unreachable!(),
-                }
-
-                imp.entities_stack_page
-                    .set_icon_name(Some("tag-outline-symbolic"));
-            }
-        };
+        imp.stocks_stack_page.set_visible(mode.has_stocks());
+        imp.stocks_stack_page
+            .set_icon_name(mode.stocks_view_icon_name());
     }
 }
