@@ -7,17 +7,9 @@ use gtk::{
     gio,
     glib::{self, clone},
 };
-use wormhole::{
-    rendezvous, transfer, transit, uri::WormholeTransferUri, AppConfig, AppID, Code,
-    MailboxConnection, Wormhole,
-};
+use wormhole::{transfer, uri::WormholeTransferUri, Code, MailboxConnection, Wormhole};
 
-use crate::{format, ui::camera::Camera};
-
-const WORMHOLE_APP_ID: &str = "lothar.com/wormhole/text-or-file-xfer";
-const WORMHOLE_APP_RENDEZVOUS_URL: &str = rendezvous::DEFAULT_RENDEZVOUS_SERVER;
-const WORMHOLE_TRANSIT_RELAY_URL: &str = transit::DEFAULT_RELAY_SERVER;
-const WORMHOLE_TRANSIT_ABILITIES: transit::Abilities = transit::Abilities::FORCE_DIRECT;
+use crate::{format, ui::camera::Camera, wormhole_ext};
 
 mod imp {
     use super::*;
@@ -117,11 +109,11 @@ impl ReceiveWindow {
         if let Err(err) = imp.code_camera.start().await {
             tracing::warn!("Failed to start camera: {:?}", err);
 
-            imp.title_label.set_label("Enter the Code");
+            imp.title_label.set_label("Enter Code");
 
             imp.code_camera_bin.set_visible(false);
         } else {
-            imp.title_label.set_label("Show or Enter the Code");
+            imp.title_label.set_label("Show or Enter Code");
 
             imp.code_camera.connect_code_detected(clone!(
                 #[strong]
@@ -152,11 +144,7 @@ impl ReceiveWindow {
         imp.stack.set_visible_child(&*imp.receiving_page);
         imp.title_label.set_label("Receiving");
 
-        let app_config = AppConfig {
-            id: AppID::new(WORMHOLE_APP_ID),
-            rendezvous_url: WORMHOLE_APP_RENDEZVOUS_URL.into(),
-            app_version: transfer::AppVersion::default(),
-        };
+        let app_config = wormhole_ext::app_config();
         let connection = gio::CancellableFuture::new(
             MailboxConnection::connect(app_config, code, false),
             imp.cancellable.clone(),
@@ -166,17 +154,13 @@ impl ReceiveWindow {
         let wormhole =
             gio::CancellableFuture::new(Wormhole::connect(connection), imp.cancellable.clone())
                 .await??;
-        let relay_hints = vec![transit::RelayHint::from_urls(
-            None,
-            [WORMHOLE_TRANSIT_RELAY_URL.parse().unwrap()],
-        )
-        .unwrap()];
+        let relay_hints = wormhole_ext::relay_hints();
 
         let request = gio::CancellableFuture::new(
             transfer::request_file(
                 wormhole,
                 relay_hints,
-                WORMHOLE_TRANSIT_ABILITIES,
+                wormhole_ext::DEFAULT_TRANSIT_ABILITIES,
                 self.cancellable_cancel_fut(),
             ),
             imp.cancellable.clone(),
