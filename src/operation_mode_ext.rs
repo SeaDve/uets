@@ -1,10 +1,10 @@
 use crate::{
-    entity_data::{EntityData, EntityDataField, ValidEntityFields},
+    entity_data::{EntityData, EntityDataFieldTy, ValidEntityFields},
     settings::OperationMode,
 };
 
 impl OperationMode {
-    pub fn is_valid_entity_data_field(&self, entity_field: EntityDataField) -> bool {
+    pub fn is_valid_entity_data_field_ty(&self, entity_field: EntityDataFieldTy) -> bool {
         ValidEntityFields::for_operation_mode(*self).contains(entity_field)
     }
 
@@ -33,7 +33,7 @@ impl OperationMode {
 
         debug_assert_eq!(
             ret.is_some(),
-            self.is_valid_entity_data_field(EntityDataField::StockId)
+            self.is_valid_entity_data_field_ty(EntityDataFieldTy::StockId)
         );
 
         ret

@@ -5,7 +5,7 @@ use calamine::{Data, DataType, Reader};
 
 use crate::{
     db::{self, EnvExt},
-    entity_data::EntityData,
+    entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_id::EntityId,
     stock_id::StockId,
 };
@@ -49,18 +49,28 @@ impl EntityDataIndex {
             matches!(s.to_lowercase().as_str(), "entity" | "entity id")
         })
         .context("Missing entity id col")?;
-        let stock_id_col_idx = find_position(col_title_row, |s| {
-            matches!(
-                s.to_lowercase().as_str(),
-                "stock" | "stock id" | "stock name"
-            )
-        });
-        let location_col_idx = find_position(col_title_row, |s| {
-            s.to_lowercase().as_str().contains("location")
-        });
-        let expiration_dt_col_idx = find_position(col_title_row, |s| {
-            s.to_lowercase().as_str().contains("expiration")
-        });
+
+        let col_idxs = EntityDataFieldTy::all()
+            .iter()
+            .filter_map(|field_ty| {
+                let col_idx = match field_ty {
+                    EntityDataFieldTy::StockId => find_position(col_title_row, |s| {
+                        matches!(
+                            s.to_lowercase().as_str(),
+                            "stock" | "stock id" | "stock name"
+                        )
+                    }),
+                    EntityDataFieldTy::Location => find_position(col_title_row, |s| {
+                        s.to_lowercase().as_str().contains("location")
+                    }),
+                    EntityDataFieldTy::ExpirationDt => find_position(col_title_row, |s| {
+                        s.to_lowercase().as_str().contains("expiration")
+                    }),
+                };
+
+                col_idx.map(|col_idx| (field_ty, col_idx))
+            })
+            .collect::<HashMap<_, _>>();
 
         let mut entity_data = Vec::new();
         for row in rows {
@@ -69,16 +79,22 @@ impl EntityDataIndex {
                 .context("Entity id doesn't contain string")?;
             let entity_id = EntityId::new(raw_entity_id);
 
-            entity_data.push((
-                entity_id,
-                EntityData {
-                    stock_id: stock_id_col_idx
-                        .and_then(|idx| row[idx].as_string())
-                        .map(StockId::new),
-                    location: location_col_idx.and_then(|idx| row[idx].as_string()),
-                    expiration_dt: expiration_dt_col_idx.and_then(|idx| row[idx].as_string()),
-                },
-            ));
+            let fields = col_idxs
+                .iter()
+                .filter_map(|(field_ty, &idx)| match field_ty {
+                    EntityDataFieldTy::StockId => row[idx]
+                        .as_string()
+                        .map(StockId::new)
+                        .map(EntityDataField::StockId),
+                    EntityDataFieldTy::Location => {
+                        row[idx].as_string().map(EntityDataField::Location)
+                    }
+                    EntityDataFieldTy::ExpirationDt => {
+                        row[idx].as_string().map(EntityDataField::ExpirationDt)
+                    }
+                });
+
+            entity_data.push((entity_id, EntityData::from_fields(fields)));
         }
 
         self.env.with_write_txn(|wtxn| {
@@ -107,7 +123,7 @@ impl EntityDataIndex {
         self.map
             .borrow()
             .values()
-            .filter_map(|data| data.stock_id.clone())
+            .filter_map(|data| data.stock_id().cloned())
             .collect()
     }
 }

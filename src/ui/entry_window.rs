@@ -6,7 +6,7 @@ use gtk::{
 };
 
 use crate::{
-    entity_data::{EntityData, EntityDataField},
+    entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     stock_id::StockId,
     Application,
 };
@@ -63,11 +63,11 @@ mod imp {
 
             let mode = Application::get().settings().operation_mode();
             self.stock_id_row
-                .set_visible(mode.is_valid_entity_data_field(EntityDataField::StockId));
+                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::StockId));
             self.location_row
-                .set_visible(mode.is_valid_entity_data_field(EntityDataField::Location));
+                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Location));
             self.expiration_dt_row
-                .set_visible(mode.is_valid_entity_data_field(EntityDataField::ExpirationDt));
+                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt));
 
             let app = Application::get();
             let stock_ids = {
@@ -155,11 +155,19 @@ impl EntryWindow {
                 .clone()
         });
 
-        let data = EntityData {
-            stock_id,
-            location: Some(imp.location_row.text().to_string()).filter(|t| !t.is_empty()),
-            expiration_dt: Some(imp.expiration_dt_row.text().to_string()).filter(|t| !t.is_empty()),
-        };
+        let data = EntityData::from_fields(
+            [
+                stock_id.map(EntityDataField::StockId),
+                Some(imp.location_row.text().to_string())
+                    .filter(|t| !t.is_empty())
+                    .map(EntityDataField::Location),
+                Some(imp.expiration_dt_row.text().to_string())
+                    .filter(|t| !t.is_empty())
+                    .map(EntityDataField::ExpirationDt),
+            ]
+            .into_iter()
+            .flatten(),
+        );
 
         debug_assert!(Application::get()
             .settings()

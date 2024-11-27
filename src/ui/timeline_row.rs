@@ -120,7 +120,7 @@ mod imp {
                 return;
             }
 
-            if let Some(ref item) = item {
+            if let Some(item) = &item {
                 let dt_fuzzy_text = format::fuzzy_dt(item.dt());
                 self.dt_label.set_label(&dt_fuzzy_text);
 
@@ -182,7 +182,7 @@ impl TimelineRow {
     fn update_status_label(&self) {
         let imp = self.imp();
 
-        if let Some(ref item) = self.item() {
+        if let Some(item) = &self.item() {
             let entity_id = item.entity_id();
 
             let entity = Application::get()

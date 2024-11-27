@@ -2,7 +2,7 @@ use adw::subclass::prelude::*;
 use gtk::glib::{self, clone};
 
 use crate::{
-    entity_data::EntityDataField,
+    entity_data::EntityDataFieldTy,
     ui::{
         dashboard_view::DashboardView, entities_view::EntitiesView, settings_view::SettingsView,
         stocks_view::StocksView, timeline_view::TimelineView,
@@ -164,7 +164,7 @@ impl Window {
             .set_icon_name(Some(mode.entities_view_icon_name()));
 
         imp.stocks_stack_page
-            .set_visible(mode.is_valid_entity_data_field(EntityDataField::StockId));
+            .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::StockId));
         imp.stocks_stack_page
             .set_icon_name(mode.stocks_view_icon_name());
     }

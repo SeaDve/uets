@@ -1,12 +1,9 @@
-use gtk::{
-    glib::{self, clone, closure_local},
-    prelude::*,
-    subclass::prelude::*,
-};
+use adw::{prelude::*, subclass::prelude::*};
+use gtk::glib::{self, clone, closure_local};
 
 use crate::{
-    date_time_range::DateTimeRange, entity::Entity, stock_id::StockId,
-    ui::information_row::InformationRow,
+    date_time_range::DateTimeRange, entity::Entity, entity_data::EntityDataFieldTy,
+    stock_id::StockId, ui::information_row::InformationRow,
 };
 
 mod imp {
@@ -36,8 +33,11 @@ mod imp {
         pub(super) stock_id_row: TemplateChild<InformationRow>,
         #[template_child]
         pub(super) is_inside_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) data_group: TemplateChild<adw::PreferencesGroup>,
 
         pub(super) dt_range: RefCell<DateTimeRange>,
+        pub(super) data_rows: RefCell<Vec<InformationRow>>,
 
         pub(super) entity_signals: OnceCell<glib::SignalGroup>,
     }
@@ -153,6 +153,25 @@ mod imp {
                     })
                     .unwrap_or_default(),
             );
+
+            for row in self.data_rows.take() {
+                self.data_group.remove(&row);
+            }
+
+            if let Some(entity) = &entity {
+                for field in entity.data().fields() {
+                    if field.ty() == EntityDataFieldTy::StockId {
+                        continue;
+                    }
+
+                    let row = InformationRow::new();
+                    row.set_title(&field.ty().to_string());
+                    row.set_value(field.to_string());
+
+                    self.data_group.add(&row);
+                    self.data_rows.borrow_mut().push(row);
+                }
+            }
 
             self.entity_signals
                 .get()

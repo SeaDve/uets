@@ -53,6 +53,11 @@
                 </child>
               </object>
             </child>
+            <child>
+              <object class="AdwPreferencesGroup" id="data_group">
+                <property name="title">Data</property>
+              </object>
+            </child>
           </object>
         </child>
       </object>

@@ -72,7 +72,7 @@ impl Entity {
     }
 
     pub fn stock_id(&self) -> Option<&StockId> {
-        self.data().stock_id.as_ref()
+        self.data().stock_id()
     }
 
     pub fn is_inside_for_dt(&self, dt: DateTime<Utc>) -> bool {

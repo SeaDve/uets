@@ -301,7 +301,7 @@ impl Timeline {
         // with different stock id. But if the same entity enters with a different stock id,
         // the id may have been reused on the a different item, I think this should be allowed,
         // or can it even happen?
-        if entity_data.stock_id.as_ref() != entity.stock_id() {
+        if entity_data.stock_id() != entity.stock_id() {
             bail!(
                 "Entity `{}` already handled with different stock id",
                 entity_id
