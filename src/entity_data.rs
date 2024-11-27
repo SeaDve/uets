@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{settings::OperationMode, stock_id::StockId};
 
 macro_rules! entity_data_field {
-    ($($field:ident($ty:ty), $display:expr),*) => {
+    ($($field:ident($ty:ty) => $display:expr),*) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
         pub enum EntityDataFieldTy {
             $($field),*
@@ -50,9 +50,9 @@ macro_rules! entity_data_field {
 }
 
 entity_data_field! {
-    StockId(StockId), "Stock Name",
-    Location(String), "Location",
-    ExpirationDt(String), "Expiration Date"
+    StockId(StockId) => "Stock Name",
+    Location(String) => "Location",
+    ExpirationDt(String) => "Expiration Date"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
