@@ -26,9 +26,9 @@ impl EntityData {
     }
 }
 
-pub struct OperationModeValidFields(&'static [(EntityDataField, bool)]);
+pub struct ValidEntityFields(&'static [(EntityDataField, bool)]);
 
-impl OperationModeValidFields {
+impl ValidEntityFields {
     pub fn for_operation_mode(operation_mode: OperationMode) -> Self {
         macro_rules! f {
             ($field:expr) => {

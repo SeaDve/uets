@@ -1,15 +1,15 @@
 use crate::{
-    entity_data::{EntityDataField, OperationModeValidFields},
+    entity_data::{EntityData, EntityDataField, ValidEntityFields},
     settings::OperationMode,
 };
 
 impl OperationMode {
     pub fn is_valid_entity_data_field(&self, entity_field: EntityDataField) -> bool {
-        OperationModeValidFields::for_operation_mode(*self).contains(entity_field)
+        ValidEntityFields::for_operation_mode(*self).contains(entity_field)
     }
 
-    pub fn is_valid_entity_data(&self, entity_data: &crate::entity_data::EntityData) -> bool {
-        OperationModeValidFields::for_operation_mode(*self).is_valid_entity_data(entity_data)
+    pub fn is_valid_entity_data(&self, entity_data: &EntityData) -> bool {
+        ValidEntityFields::for_operation_mode(*self).is_valid_entity_data(entity_data)
     }
 
     pub fn entities_view_icon_name(&self) -> &str {
