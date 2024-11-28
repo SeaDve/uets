@@ -7,7 +7,9 @@ use gtk::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{camera::Camera, entity_data::EntityData, entity_id::EntityId, Application};
+use crate::{
+    camera::Camera, config, entity_data::EntityData, entity_id::EntityId, rc522::Rc522, Application,
+};
 
 const CAMERA_LAST_DETECTED_RESET_DELAY: Duration = Duration::from_secs(2);
 
@@ -21,6 +23,7 @@ mod imp {
     #[derive(Default)]
     pub struct Detector {
         pub(super) camera: Camera,
+        pub(super) rc522: Rc522,
 
         pub(super) camera_last_detected: RefCell<Option<EntityId>>,
         pub(super) camera_last_detected_timeout: RefCell<Option<glib::SourceId>>,
@@ -38,50 +41,52 @@ mod imp {
 
             let obj = self.obj();
 
-            glib::spawn_future_local(clone!(
-                #[weak]
-                obj,
-                async move {
-                    let imp = obj.imp();
+            if !config::disable_camera_detector() {
+                glib::spawn_future_local(clone!(
+                    #[weak]
+                    obj,
+                    async move {
+                        let imp = obj.imp();
 
-                    loop {
-                        if !imp.camera.has_started() {
-                            if let Err(err) = imp.camera.start().await {
-                                tracing::error!("Failed to start camera: {:?}", err);
+                        loop {
+                            if !imp.camera.has_started() {
+                                if let Err(err) = imp.camera.start().await {
+                                    tracing::error!("Failed to start camera: {:?}", err);
+                                }
                             }
+
+                            glib::timeout_future(Duration::from_secs(3)).await;
+                        }
+                    }
+                ));
+
+                self.camera.connect_code_detected(clone!(
+                    #[weak]
+                    obj,
+                    move |_, qrcode| {
+                        let imp = obj.imp();
+
+                        let Some((id, data)) = entity_from_qrcode(qrcode) else {
+                            tracing::warn!("Invalid entity code: {}", qrcode);
+                            return;
+                        };
+
+                        if imp
+                            .camera_last_detected
+                            .borrow()
+                            .as_ref()
+                            .is_some_and(|last_detected| last_detected == &id)
+                        {
+                            return;
                         }
 
-                        glib::timeout_future(Duration::from_secs(3)).await;
+                        obj.emit_detected(&id, Some(&data));
+
+                        imp.camera_last_detected.replace(Some(id));
+                        obj.restart_camera_last_detected_timeout();
                     }
-                }
-            ));
-
-            self.camera.connect_code_detected(clone!(
-                #[weak]
-                obj,
-                move |_, qrcode| {
-                    let imp = obj.imp();
-
-                    let Some((id, data)) = entity_from_qrcode(qrcode) else {
-                        tracing::warn!("Invalid entity code: {}", qrcode);
-                        return;
-                    };
-
-                    if imp
-                        .camera_last_detected
-                        .borrow()
-                        .as_ref()
-                        .is_some_and(|last_detected| last_detected == &id)
-                    {
-                        return;
-                    }
-
-                    obj.emit_detected(&id, Some(&data));
-
-                    imp.camera_last_detected.replace(Some(id));
-                    obj.restart_camera_last_detected_timeout();
-                }
-            ));
+                ));
+            }
         }
 
         fn dispose(&self) {

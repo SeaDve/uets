@@ -11,6 +11,8 @@ async-lock = "3.4.0"
 calamine = "0.26.1"
 chrono = { version = "0.4", features = ["serde"] }
 dateparser = "0.2.1"
+embedded-hal = "1.0"
+embedded-hal-bus = "0.2.0"
 futures-channel = "0.3.31"
 fuzzy-matcher = "0.3.7"
 genpdf = { version = "0.2.0", features = ["images"] }
@@ -22,6 +24,8 @@ gvdb = { version = "0.7", features = ["gresource"] }
 heed = "0.20.5"
 image = "0.23"
 indexmap = { version = "2.6", features = ["serde"] }
+linux-embedded-hal = "0.4.0"
+mfrc522 = "0.8.0"
 plotters = "0.3.7"
 plotters-cairo = "0.7.0"
 regex = "1.11.1"

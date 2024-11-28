@@ -26,6 +26,7 @@ mod fuzzy_filter;
 mod fuzzy_sorter;
 mod log;
 mod operation_mode_ext;
+mod rc522;
 mod report;
 mod report_table;
 mod search_query;
