@@ -27,6 +27,14 @@ mod imp {
         pub(super) location_row: TemplateChild<adw::EntryRow>,
         #[template_child]
         pub(super) expiration_dt_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub(super) name_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub(super) sex_row: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub(super) email_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub(super) program_row: TemplateChild<adw::EntryRow>,
 
         pub(super) result_tx: RefCell<Option<oneshot::Sender<()>>>,
     }
@@ -68,6 +76,14 @@ mod imp {
                 .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Location));
             self.expiration_dt_row
                 .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt));
+            self.name_row
+                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Name));
+            self.sex_row
+                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Sex));
+            self.email_row
+                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Email));
+            self.program_row
+                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Program));
 
             let app = Application::get();
             let stock_ids = {
@@ -155,6 +171,8 @@ impl EntryWindow {
                 .clone()
         });
 
+        let operation_mode = Application::get().settings().operation_mode();
+
         let data = EntityData::from_fields(
             [
                 stock_id.map(EntityDataField::StockId),
@@ -164,12 +182,34 @@ impl EntryWindow {
                 Some(imp.expiration_dt_row.text().to_string())
                     .filter(|t| !t.is_empty())
                     .map(EntityDataField::ExpirationDt),
+                Some(imp.name_row.text().to_string())
+                    .filter(|t| !t.is_empty())
+                    .map(EntityDataField::Name),
+                operation_mode
+                    .is_valid_entity_data_field_ty(EntityDataFieldTy::Sex)
+                    .then(|| {
+                        imp.sex_row
+                            .selected_item()
+                            .map(|item| {
+                                item.downcast::<gtk::StringObject>()
+                                    .unwrap()
+                                    .string()
+                                    .to_string()
+                            })
+                            .map(EntityDataField::Sex)
+                    })
+                    .flatten(),
+                Some(imp.email_row.text().to_string())
+                    .filter(|t| !t.is_empty())
+                    .map(EntityDataField::Email),
+                Some(imp.program_row.text().to_string())
+                    .filter(|t| !t.is_empty())
+                    .map(EntityDataField::Program),
             ]
             .into_iter()
             .flatten(),
         );
 
-        let operation_mode = Application::get().settings().operation_mode();
         if !operation_mode.is_valid_entity_data(&data) {
             tracing::debug!(?operation_mode, "Invalid entity data: {:?}", data);
         }

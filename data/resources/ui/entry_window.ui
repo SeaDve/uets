@@ -49,6 +49,34 @@
                     <property name="title">Expiration Date</property>
                   </object>
                 </child>
+                <child>
+                  <object class="AdwEntryRow" id="name_row">
+                    <property name="title">Name</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwComboRow" id="sex_row">
+                    <property name="title">Sex</property>
+                    <property name="model">
+                      <object class="GtkStringList">
+                        <items>
+                          <item>Male</item>
+                          <item>Female</item>
+                        </items>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwEntryRow" id="email_row">
+                    <property name="title">Email</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwEntryRow" id="program_row">
+                    <property name="title">Program</property>
+                  </object>
+                </child>
               </object>
             </child>
           </object>
