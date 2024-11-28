@@ -6,7 +6,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::{camera::Camera, entity_id::EntityId};
+use crate::{camera::Camera, entity_data::EntityData, entity_id::EntityId};
 
 mod imp {
     use std::sync::OnceLock;
@@ -49,6 +49,18 @@ mod imp {
                     }
                 }
             ));
+
+            self.camera.connect_code_detected(clone!(
+                #[weak]
+                obj,
+                move |_, qrcode| {
+                    if let Some((id, data)) = entity_from_qrcode(qrcode) {
+                        obj.emit_detected(&id, Some(&data));
+                    } else {
+                        tracing::warn!("Invalid entity code: {}", qrcode);
+                    }
+                }
+            ));
         }
 
         fn dispose(&self) {
@@ -60,7 +72,7 @@ mod imp {
 
             SIGNALS.get_or_init(|| {
                 vec![Signal::builder("detected")
-                    .param_types([EntityId::static_type()])
+                    .param_types([EntityId::static_type(), Option::<EntityData>::static_type()])
                     .build()]
             })
         }
@@ -78,12 +90,12 @@ impl Detector {
 
     pub fn connect_detected<F>(&self, f: F) -> glib::SignalHandlerId
     where
-        F: Fn(&Self, &EntityId) + 'static,
+        F: Fn(&Self, &EntityId, Option<EntityData>) + 'static,
     {
         self.connect_closure(
             "detected",
             false,
-            closure_local!(|obj: &Self, id: &EntityId| f(obj, id)),
+            closure_local!(|obj: &Self, id: &EntityId, data: Option<EntityData>| f(obj, id, data)),
         )
     }
 
@@ -91,12 +103,12 @@ impl Detector {
         &self.imp().camera
     }
 
-    pub fn simulate_detected(&self, id: &EntityId) {
-        self.emit_detected(id);
+    pub fn simulate_detected(&self, id: &EntityId, data: Option<&EntityData>) {
+        self.emit_detected(id, data);
     }
 
-    fn emit_detected(&self, id: &EntityId) {
-        self.emit_by_name("detected", &[id])
+    fn emit_detected(&self, id: &EntityId, data: Option<&EntityData>) {
+        self.emit_by_name("detected", &[id, &data])
     }
 }
 
@@ -104,4 +116,16 @@ impl Default for Detector {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn entity_from_qrcode(code: &str) -> Option<(EntityId, EntityData)> {
+    entity_from_national_id(code).or_else(|| entity_from_qrfying_ncea(code))
+}
+
+fn entity_from_qrfying_ncea(code: &str) -> Option<(EntityId, EntityData)> {
+    None
+}
+
+fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
+    None
 }

@@ -90,6 +90,6 @@ impl TestWindow {
 
         imp.entity_id_entry.set_text("");
 
-        Application::get().detector().simulate_detected(&id);
+        Application::get().detector().simulate_detected(&id, None);
     }
 }

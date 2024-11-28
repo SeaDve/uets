@@ -9,6 +9,7 @@ use gtk::{
 use crate::{
     db,
     detector::Detector,
+    entity_data::EntityData,
     entity_data_index::EntityDataIndex,
     entity_id::EntityId,
     settings::Settings,
@@ -76,12 +77,14 @@ mod imp {
             self.detector.connect_detected(clone!(
                 #[weak]
                 obj,
-                move |_, entity_id| {
+                move |_, entity_id, entity_data| {
                     glib::spawn_future_local(clone!(
                         #[strong]
                         entity_id,
+                        #[strong]
+                        entity_data,
                         async move {
-                            obj.handle_detected(&entity_id).await;
+                            obj.handle_detected(&entity_id, entity_data).await;
                         }
                     ));
                 }
@@ -163,13 +166,17 @@ impl Application {
             .unwrap_or_else(|| Window::new(self))
     }
 
-    async fn handle_detected(&self, entity_id: &EntityId) {
+    async fn handle_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
         let timeline = self.timeline();
 
         let data = if let Some(entity) = timeline.entity_list().get(entity_id) {
             tracing::debug!("Retrieved entity data from timeline");
 
             entity.data().clone()
+        } else if let Some(data) = entity_data {
+            tracing::debug!("Using entity data from detector");
+
+            data
         } else if let Some(data) = self.entity_data_index().retrieve(entity_id) {
             tracing::debug!("Retrieved entity data from index");
 

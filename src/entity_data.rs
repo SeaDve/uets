@@ -1,5 +1,6 @@
 use std::fmt;
 
+use gtk::glib;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -56,7 +57,8 @@ entity_data_field! {
 }
 
 // TODO more efficient ser-de
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, glib::Boxed)]
+#[boxed_type(name = "UetsEntityData", nullable)]
 pub struct EntityData(IndexMap<EntityDataFieldTy, EntityDataField>);
 
 impl EntityData {
