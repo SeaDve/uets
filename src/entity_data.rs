@@ -56,6 +56,7 @@ entity_data_field! {
     ExpirationDt(String) => "Expiration Date",
 
     Name(String) => "Name",
+    Sex(String) => "Sex",
     Email(String) => "Email",
     Program(String) => "Program"
 }
@@ -101,6 +102,7 @@ impl ValidEntityFields {
 
         let person_valid_entity_fields = &[
             f!(EntityDataFieldTy::Name),
+            f!(EntityDataFieldTy::Sex),
             f!(EntityDataFieldTy::Email),
             f!(EntityDataFieldTy::Program),
         ];

@@ -244,16 +244,19 @@ fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
 
     Some((
         EntityId::new(data.subject.pcn),
-        EntityData::from_fields([EntityDataField::Name(format!(
-            "{}, {} {}",
-            data.subject.last_name.to_title_case(),
-            data.subject.first_name.to_title_case(),
-            data.subject
-                .middle_name
-                .chars()
-                .next()
-                .map(|c| format!("{}.", c.to_uppercase()))
-                .unwrap_or_default(),
-        ))]),
+        EntityData::from_fields([
+            EntityDataField::Name(format!(
+                "{}, {} {}",
+                data.subject.last_name.to_title_case(),
+                data.subject.first_name.to_title_case(),
+                data.subject
+                    .middle_name
+                    .chars()
+                    .next()
+                    .map(|c| format!("{}.", c.to_uppercase()))
+                    .unwrap_or_default(),
+            )),
+            EntityDataField::Sex(data.subject.sex),
+        ]),
     ))
 }

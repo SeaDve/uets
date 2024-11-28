@@ -69,6 +69,9 @@ impl EntityDataIndex {
                     EntityDataFieldTy::Name => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("name")
                     }),
+                    EntityDataFieldTy::Sex => {
+                        find_position(col_title_row, |s| s.to_lowercase().as_str().contains("sex"))
+                    }
                     EntityDataFieldTy::Email => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("email")
                     }),
@@ -102,6 +105,7 @@ impl EntityDataIndex {
                         row[idx].as_string().map(EntityDataField::ExpirationDt)
                     }
                     EntityDataFieldTy::Name => row[idx].as_string().map(EntityDataField::Name),
+                    EntityDataFieldTy::Sex => row[idx].as_string().map(EntityDataField::Sex),
                     EntityDataFieldTy::Email => row[idx].as_string().map(EntityDataField::Email),
                     EntityDataFieldTy::Program => {
                         row[idx].as_string().map(EntityDataField::Program)
