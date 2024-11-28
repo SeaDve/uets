@@ -2,7 +2,7 @@ use std::fmt;
 
 use gtk::glib;
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{settings::OperationMode, stock_id::StockId};
 
@@ -61,8 +61,7 @@ entity_data_field! {
     Program(String) => "Program"
 }
 
-// TODO more efficient ser-de
-#[derive(Debug, Clone, Serialize, Deserialize, glib::Boxed)]
+#[derive(Debug, Clone, glib::Boxed)]
 #[boxed_type(name = "UetsEntityData", nullable)]
 pub struct EntityData(IndexMap<EntityDataFieldTy, EntityDataField>);
 
@@ -88,6 +87,19 @@ impl EntityData {
             EntityDataField::StockId(stock_id) => stock_id,
             _ => panic!(),
         })
+    }
+}
+
+impl Serialize for EntityData {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(self.0.values())
+    }
+}
+
+impl<'de> Deserialize<'de> for EntityData {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let fields = Vec::<EntityDataField>::deserialize(deserializer)?;
+        Ok(Self(fields.into_iter().map(|f| (f.ty(), f)).collect()))
     }
 }
 
