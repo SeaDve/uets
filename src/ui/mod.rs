@@ -1,4 +1,4 @@
-mod camera;
+mod camera_viewfinder;
 mod dashboard_view;
 mod date_time_button;
 mod date_time_window;

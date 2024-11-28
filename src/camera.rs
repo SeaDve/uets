@@ -1,25 +1,26 @@
 use anyhow::{anyhow, Result};
 use futures_channel::oneshot;
-use gst::prelude::*;
+use gst::{prelude::*, subclass::prelude::*};
 use gtk::{
     gdk, gio,
     glib::{self, clone, closure_local},
-    subclass::prelude::*,
 };
 
+const GTK_SINK_NAME: &str = "gtksink";
+
 mod imp {
-    use std::{cell::RefCell, sync::OnceLock};
+    use std::{cell::RefCell, marker::PhantomData, sync::OnceLock};
 
     use glib::subclass::Signal;
     use gst::bus::BusWatchGuard;
 
     use super::*;
 
-    #[derive(Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/seadve/Uets/ui/camera.ui")]
+    #[derive(Default, glib::Properties)]
+    #[properties(wrapper_type = super::Camera)]
     pub struct Camera {
-        #[template_child]
-        pub(super) picture: TemplateChild<gtk::Picture>,
+        #[property(get = Self::paintable)]
+        pub(super) paintable: PhantomData<Option<gdk::Paintable>>,
 
         pub(super) pipeline: RefCell<Option<(gst::Pipeline, BusWatchGuard)>>,
         pub(super) async_done_tx: RefCell<Option<oneshot::Sender<()>>>,
@@ -29,26 +30,14 @@ mod imp {
     impl ObjectSubclass for Camera {
         const NAME: &'static str = "UetsCamera";
         type Type = super::Camera;
-        type ParentType = gtk::Widget;
-
-        fn class_init(klass: &mut Self::Class) {
-            klass.bind_template();
-        }
-
-        fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
-            obj.init_template();
-        }
     }
 
+    #[glib::derived_properties]
     impl ObjectImpl for Camera {
         fn dispose(&self) {
             let obj = self.obj();
 
-            if let Err(err) = obj.stop() {
-                tracing::warn!("Failed to stop camera on stop: {:?}", err);
-            }
-
-            self.dispose_template();
+            obj.stop();
         }
 
         fn signals() -> &'static [Signal] {
@@ -62,12 +51,18 @@ mod imp {
         }
     }
 
-    impl WidgetImpl for Camera {}
+    impl Camera {
+        fn paintable(&self) -> Option<gdk::Paintable> {
+            self.pipeline.borrow().as_ref().map(|(pipeline, _)| {
+                let gtksink = pipeline.by_name(GTK_SINK_NAME).unwrap();
+                gtksink.property::<gdk::Paintable>("paintable")
+            })
+        }
+    }
 }
 
 glib::wrapper! {
-    pub struct Camera(ObjectSubclass<imp::Camera>)
-        @extends gtk::Widget;
+    pub struct Camera(ObjectSubclass<imp::Camera>);
 }
 
 impl Camera {
@@ -91,12 +86,13 @@ impl Camera {
 
         if imp.pipeline.borrow().is_some() {
             tracing::warn!("Camera already started");
+
             return Ok(());
         }
 
         let v4l2_device_path = gio::spawn_blocking(v4l2_device_path).await.unwrap()?;
         let pipeline = gst::parse::launch(&format!(
-            "v4l2src device={v4l2_device_path} ! tee name=t ! queue ! videoconvert ! zbar ! fakesink t. ! queue ! videoconvert ! gtk4paintablesink name=gtksink"
+            "v4l2src device={v4l2_device_path} ! tee name=t ! queue ! videoconvert ! zbar ! fakesink t. ! queue ! videoconvert ! gtk4paintablesink name={GTK_SINK_NAME}"
         ))?
         .downcast::<gst::Pipeline>()
         .unwrap();
@@ -112,11 +108,7 @@ impl Camera {
             .unwrap();
         imp.pipeline
             .replace(Some((pipeline.clone(), bus_watch_guard)));
-
-        let gtksink = pipeline.by_name("gtksink").unwrap();
-
-        let paintable = gtksink.property::<gdk::Paintable>("paintable");
-        imp.picture.set_paintable(Some(&paintable));
+        self.notify_paintable();
 
         let (async_done_tx, async_done_rx) = oneshot::channel();
         imp.async_done_tx.replace(Some(async_done_tx));
@@ -130,21 +122,22 @@ impl Camera {
 
         async_done_rx.await.unwrap();
 
+        tracing::debug!("Camera started");
+
         Ok(())
     }
 
-    pub fn stop(&self) -> Result<()> {
+    pub fn stop(&self) {
         let imp = self.imp();
-
-        imp.picture.set_paintable(gdk::Paintable::NONE);
 
         if let Some((pipeline, _bus_watch_guard)) = imp.pipeline.take() {
             if let Err(err) = pipeline.set_state(gst::State::Null) {
                 tracing::warn!("Failed to set pipeline to Null: {}", err);
             }
+            self.notify_paintable();
         }
 
-        Ok(())
+        tracing::debug!("Camera stopped");
     }
 
     fn handle_bus_message(&self, message: &gst::Message) -> glib::ControlFlow {
@@ -231,6 +224,12 @@ impl Camera {
                 glib::ControlFlow::Continue
             }
         }
+    }
+}
+
+impl Default for Camera {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

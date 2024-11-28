@@ -9,7 +9,7 @@ use gtk::{
 };
 use wormhole::{transfer, uri::WormholeTransferUri, Code, MailboxConnection, Wormhole};
 
-use crate::{format, ui::camera::Camera, wormhole_ext};
+use crate::{camera::Camera, format, ui::camera_viewfinder::CameraViewfinder, wormhole_ext};
 
 mod imp {
     use super::*;
@@ -22,9 +22,7 @@ mod imp {
         #[template_child]
         pub(super) code_page: TemplateChild<gtk::Box>,
         #[template_child]
-        pub(super) code_camera_bin: TemplateChild<adw::Bin>,
-        #[template_child]
-        pub(super) code_camera: TemplateChild<Camera>,
+        pub(super) code_camera_viewfinder: TemplateChild<CameraViewfinder>,
         #[template_child]
         pub(super) code_entry: TemplateChild<adw::EntryRow>,
         #[template_child]
@@ -37,6 +35,7 @@ mod imp {
         pub(super) close_button: TemplateChild<gtk::Button>,
 
         pub(super) cancellable: gio::Cancellable,
+        pub(super) code_camera: Camera,
     }
 
     #[glib::object_subclass]
@@ -54,7 +53,15 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for ReceiveWindow {}
+    impl ObjectImpl for ReceiveWindow {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            self.code_camera_viewfinder
+                .set_camera(Some(self.code_camera.clone()));
+        }
+    }
+
     impl WidgetImpl for ReceiveWindow {}
 
     impl WindowImpl for ReceiveWindow {
@@ -63,9 +70,7 @@ mod imp {
 
             self.cancellable.cancel();
 
-            if let Err(err) = self.code_camera.stop() {
-                tracing::warn!("Failed to stop camera: {:?}", err);
-            }
+            self.code_camera.stop();
 
             self.parent_close_request()
         }
@@ -111,7 +116,7 @@ impl ReceiveWindow {
 
             imp.title_label.set_label("Enter Code");
 
-            imp.code_camera_bin.set_visible(false);
+            imp.code_camera_viewfinder.set_visible(false);
         } else {
             imp.title_label.set_label("Show or Enter Code");
 
@@ -137,9 +142,7 @@ impl ReceiveWindow {
         });
         let code = rx.await.unwrap();
 
-        if let Err(err) = imp.code_camera.stop() {
-            tracing::warn!("Failed to stop camera: {:?}", err);
-        }
+        imp.code_camera.stop();
 
         imp.stack.set_visible_child(&*imp.receiving_page);
         imp.title_label.set_label("Receiving");

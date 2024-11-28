@@ -9,6 +9,7 @@
 )]
 
 mod application;
+mod camera;
 mod colors;
 mod config;
 mod date_time_boxed;
