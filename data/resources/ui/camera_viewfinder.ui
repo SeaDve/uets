@@ -7,5 +7,8 @@
     <child>
       <object class="GtkPicture" id="picture"/>
     </child>
+    <style>
+      <class name="camera-viewfinder"/>
+    </style>
   </template>
 </interface>

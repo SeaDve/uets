@@ -1,3 +1,4 @@
+mod camera_live_feed_window;
 mod camera_viewfinder;
 mod dashboard_view;
 mod date_time_button;

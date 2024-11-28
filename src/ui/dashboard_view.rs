@@ -7,7 +7,10 @@ use gtk::{
 use crate::{
     date_time_range::DateTimeRange,
     format,
-    ui::{information_row::InformationRow, time_graph::TimeGraph},
+    ui::{
+        camera_live_feed_window::CameraLiveFeedWindow, information_row::InformationRow,
+        time_graph::TimeGraph,
+    },
     Application,
 };
 
@@ -49,6 +52,23 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+
+            klass.install_action(
+                "dashboard-view.show-camera-live-feed",
+                None,
+                move |obj, _, _| {
+                    let root = obj.root().map(|r| r.downcast::<gtk::Window>().unwrap());
+
+                    let window = CameraLiveFeedWindow::new();
+                    window.set_modal(true);
+                    window.set_transient_for(root.as_ref());
+
+                    let camera = Application::get().detector().camera().clone();
+                    window.set_camera(Some(camera));
+
+                    window.present();
+                },
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {

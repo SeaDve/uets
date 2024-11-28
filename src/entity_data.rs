@@ -55,6 +55,7 @@ entity_data_field! {
     ExpirationDt(String) => "Expiration Date"
 }
 
+// TODO more efficient ser-de
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntityData(IndexMap<EntityDataFieldTy, EntityDataField>);
 

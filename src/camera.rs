@@ -140,6 +140,10 @@ impl Camera {
         tracing::debug!("Camera stopped");
     }
 
+    pub fn has_started(&self) -> bool {
+        self.imp().pipeline.borrow().is_some()
+    }
+
     fn handle_bus_message(&self, message: &gst::Message) -> glib::ControlFlow {
         use gst::MessageView;
 

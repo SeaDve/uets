@@ -34,7 +34,6 @@
                                 <property name="height-request">150</property>
                                 <property name="overflow">hidden</property>
                                 <style>
-                                  <class name="code-camera-bin"/>
                                   <class name="card"/>
                                 </style>
                               </object>

@@ -1,10 +1,12 @@
+use std::time::Duration;
+
 use gtk::{
-    glib::{self, closure_local},
+    glib::{self, clone, closure_local},
     prelude::*,
     subclass::prelude::*,
 };
 
-use crate::entity_id::EntityId;
+use crate::{camera::Camera, entity_id::EntityId};
 
 mod imp {
     use std::sync::OnceLock;
@@ -14,7 +16,9 @@ mod imp {
     use super::*;
 
     #[derive(Default)]
-    pub struct Detector {}
+    pub struct Detector {
+        pub(super) camera: Camera,
+    }
 
     #[glib::object_subclass]
     impl ObjectSubclass for Detector {
@@ -23,6 +27,34 @@ mod imp {
     }
 
     impl ObjectImpl for Detector {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            let obj = self.obj();
+
+            glib::spawn_future_local(clone!(
+                #[weak]
+                obj,
+                async move {
+                    let imp = obj.imp();
+
+                    loop {
+                        if !imp.camera.has_started() {
+                            if let Err(err) = imp.camera.start().await {
+                                tracing::error!("Failed to start camera: {:?}", err);
+                            }
+                        }
+
+                        glib::timeout_future(Duration::from_secs(3)).await;
+                    }
+                }
+            ));
+        }
+
+        fn dispose(&self) {
+            self.camera.stop();
+        }
+
         fn signals() -> &'static [Signal] {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
 
@@ -53,6 +85,10 @@ impl Detector {
             false,
             closure_local!(|obj: &Self, id: &EntityId| f(obj, id)),
         )
+    }
+
+    pub fn camera(&self) -> &Camera {
+        &self.imp().camera
     }
 
     pub fn simulate_detected(&self, id: &EntityId) {

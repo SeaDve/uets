@@ -41,6 +41,10 @@ mod imp {
                 .sync_create()
                 .build();
         }
+
+        fn dispose(&self) {
+            self.dispose_template();
+        }
     }
 
     impl WidgetImpl for CameraViewfinder {}
