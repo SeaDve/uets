@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{camera::Camera, entity_data::EntityData, entity_id::EntityId, Application};
 
-// FIXME don't allow duplicates within a period of time
+const CAMERA_LAST_DETECTED_RESET_DELAY: Duration = Duration::from_secs(2);
 
 mod imp {
-    use std::sync::OnceLock;
+    use std::{cell::RefCell, sync::OnceLock};
 
     use gtk::glib::subclass::Signal;
 
@@ -21,6 +21,9 @@ mod imp {
     #[derive(Default)]
     pub struct Detector {
         pub(super) camera: Camera,
+
+        pub(super) camera_last_detected: RefCell<Option<EntityId>>,
+        pub(super) camera_last_detected_timeout: RefCell<Option<glib::SourceId>>,
     }
 
     #[glib::object_subclass]
@@ -57,11 +60,26 @@ mod imp {
                 #[weak]
                 obj,
                 move |_, qrcode| {
-                    if let Some((id, data)) = entity_from_qrcode(qrcode) {
-                        obj.emit_detected(&id, Some(&data));
-                    } else {
+                    let imp = obj.imp();
+
+                    let Some((id, data)) = entity_from_qrcode(qrcode) else {
                         tracing::warn!("Invalid entity code: {}", qrcode);
+                        return;
+                    };
+
+                    if imp
+                        .camera_last_detected
+                        .borrow()
+                        .as_ref()
+                        .is_some_and(|last_detected| last_detected == &id)
+                    {
+                        return;
                     }
+
+                    obj.emit_detected(&id, Some(&data));
+
+                    imp.camera_last_detected.replace(Some(id));
+                    obj.restart_camera_last_detected_timeout();
                 }
             ));
         }
@@ -112,6 +130,29 @@ impl Detector {
 
     fn emit_detected(&self, id: &EntityId, data: Option<&EntityData>) {
         self.emit_by_name("detected", &[id, &data])
+    }
+
+    fn restart_camera_last_detected_timeout(&self) {
+        let imp = self.imp();
+
+        if let Some(source_id) = imp.camera_last_detected_timeout.take() {
+            source_id.remove();
+        }
+
+        let source_id = glib::timeout_add_local_once(
+            CAMERA_LAST_DETECTED_RESET_DELAY,
+            clone!(
+                #[weak(rename_to = obj)]
+                self,
+                move || {
+                    let imp = obj.imp();
+                    imp.camera_last_detected_timeout.replace(None);
+
+                    imp.camera_last_detected.replace(None);
+                },
+            ),
+        );
+        imp.camera_last_detected_timeout.replace(Some(source_id));
     }
 }
 
