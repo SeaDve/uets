@@ -12,7 +12,7 @@ use crate::{
     entity_data::EntityData,
     entity_data_index::EntityDataIndex,
     entity_id::EntityId,
-    settings::Settings,
+    settings::{OperationMode, Settings},
     timeline::Timeline,
     ui::{EntryWindow, SendWindow, TestWindow, Window},
     APP_ID, GRESOURCE_PREFIX,
@@ -181,7 +181,7 @@ impl Application {
             tracing::debug!("Retrieved entity data from index");
 
             data
-        } else {
+        } else if self.settings().operation_mode() != OperationMode::Counter {
             tracing::debug!("Gathering entity data from user");
 
             match EntryWindow::gather_data(&self.window()).await {
@@ -191,6 +191,10 @@ impl Application {
                     return;
                 }
             }
+        } else {
+            tracing::debug!("Using empty entity data for counter mode");
+
+            EntityData::new()
         };
 
         tracing::debug!(?data, "Handling detected entity `{}`", entity_id);
