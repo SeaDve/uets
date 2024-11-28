@@ -5,9 +5,15 @@ use gtk::{
     prelude::*,
     subclass::prelude::*,
 };
+use heck::ToTitleCase;
 use serde::{Deserialize, Serialize};
 
-use crate::{camera::Camera, entity_data::EntityData, entity_id::EntityId, Application};
+use crate::{
+    camera::Camera,
+    entity_data::{EntityData, EntityDataField},
+    entity_id::EntityId,
+    Application,
+};
 
 const CAMERA_LAST_DETECTED_RESET_DELAY: Duration = Duration::from_secs(2);
 
@@ -166,7 +172,6 @@ fn entity_from_qrcode(code: &str) -> Option<(EntityId, EntityData)> {
     entity_from_national_id(code).or_else(|| entity_from_qrfying_ncea(code))
 }
 
-#[allow(unused)]
 fn entity_from_qrfying_ncea(code: &str) -> Option<(EntityId, EntityData)> {
     if !Application::get()
         .settings()
@@ -184,7 +189,14 @@ fn entity_from_qrfying_ncea(code: &str) -> Option<(EntityId, EntityData)> {
     let bpsu_email = substrings.next()?;
     let program = substrings.next()?;
 
-    Some((EntityId::new(student_id), EntityData::new()))
+    Some((
+        EntityId::new(student_id),
+        EntityData::from_fields([
+            EntityDataField::Name(name.to_string()),
+            EntityDataField::Email(bpsu_email.to_string()),
+            EntityDataField::Program(program.to_string()),
+        ]),
+    ))
 }
 
 fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
@@ -200,19 +212,29 @@ fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
 
     #[derive(Serialize, Deserialize)]
     pub struct Subject {
+        #[serde(rename = "lName")]
         last_name: String,
+        #[serde(rename = "fName")]
         first_name: String,
+        #[serde(rename = "mName")]
         middle_name: String,
+        #[serde(rename = "sex")]
         sex: String,
+        #[serde(rename = "DOB")]
         date_of_birth: String,
+        #[serde(rename = "POB")]
         place_of_birth: String,
+        #[serde(rename = "PCN")]
         pcn: String,
     }
 
     #[derive(Serialize, Deserialize)]
     pub struct Data {
+        #[serde(rename = "DateIssued")]
         date_issued: String,
+        #[serde(rename = "Issuer")]
         issuer: String,
+        #[serde(rename = "subject")]
         subject: Subject,
     }
 
@@ -220,5 +242,18 @@ fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
         .inspect_err(|err| tracing::debug!("Failed to deserialize national id data: {:?}", err))
         .ok()?;
 
-    Some((EntityId::new(data.subject.pcn), EntityData::new()))
+    Some((
+        EntityId::new(data.subject.pcn),
+        EntityData::from_fields([EntityDataField::Name(format!(
+            "{}, {} {}",
+            data.subject.last_name.to_title_case(),
+            data.subject.first_name.to_title_case(),
+            data.subject
+                .middle_name
+                .chars()
+                .next()
+                .map(|c| format!("{}.", c.to_uppercase()))
+                .unwrap_or_default(),
+        ))]),
+    ))
 }

@@ -66,6 +66,15 @@ impl EntityDataIndex {
                     EntityDataFieldTy::ExpirationDt => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("expiration")
                     }),
+                    EntityDataFieldTy::Name => find_position(col_title_row, |s| {
+                        s.to_lowercase().as_str().contains("name")
+                    }),
+                    EntityDataFieldTy::Email => find_position(col_title_row, |s| {
+                        s.to_lowercase().as_str().contains("email")
+                    }),
+                    EntityDataFieldTy::Program => find_position(col_title_row, |s| {
+                        s.to_lowercase().as_str().contains("program")
+                    }),
                 };
 
                 col_idx.map(|col_idx| (field_ty, col_idx))
@@ -91,6 +100,11 @@ impl EntityDataIndex {
                     }
                     EntityDataFieldTy::ExpirationDt => {
                         row[idx].as_string().map(EntityDataField::ExpirationDt)
+                    }
+                    EntityDataFieldTy::Name => row[idx].as_string().map(EntityDataField::Name),
+                    EntityDataFieldTy::Email => row[idx].as_string().map(EntityDataField::Email),
+                    EntityDataFieldTy::Program => {
+                        row[idx].as_string().map(EntityDataField::Program)
                     }
                 });
 

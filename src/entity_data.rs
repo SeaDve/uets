@@ -53,7 +53,11 @@ macro_rules! entity_data_field {
 entity_data_field! {
     StockId(StockId) => "Stock Name",
     Location(String) => "Location",
-    ExpirationDt(String) => "Expiration Date"
+    ExpirationDt(String) => "Expiration Date",
+
+    Name(String) => "Name",
+    Email(String) => "Email",
+    Program(String) => "Program"
 }
 
 // TODO more efficient ser-de
@@ -62,10 +66,6 @@ entity_data_field! {
 pub struct EntityData(IndexMap<EntityDataFieldTy, EntityDataField>);
 
 impl EntityData {
-    pub fn new() -> Self {
-        Self(IndexMap::new())
-    }
-
     pub fn from_fields(fields: impl IntoIterator<Item = EntityDataField>) -> Self {
         Self(fields.into_iter().map(|f| (f.ty(), f)).collect())
     }

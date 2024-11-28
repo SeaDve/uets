@@ -60,7 +60,6 @@ mod imp {
                     let root = obj.root().map(|r| r.downcast::<gtk::Window>().unwrap());
 
                     let window = CameraLiveFeedWindow::new();
-                    window.set_modal(true);
                     window.set_transient_for(root.as_ref());
 
                     let camera = Application::get().detector().camera().clone();
