@@ -5,6 +5,7 @@ use gtk::{
     prelude::*,
     subclass::prelude::*,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{camera::Camera, entity_data::EntityData, entity_id::EntityId};
 
@@ -122,10 +123,38 @@ fn entity_from_qrcode(code: &str) -> Option<(EntityId, EntityData)> {
     entity_from_national_id(code).or_else(|| entity_from_qrfying_ncea(code))
 }
 
+#[allow(unused)]
 fn entity_from_qrfying_ncea(code: &str) -> Option<(EntityId, EntityData)> {
-    None
+    let mut substrings = code.splitn(4, '_');
+    let name = substrings.next()?;
+    let student_id = substrings.next()?;
+    let bpsu_email = substrings.next()?;
+    let program = substrings.next()?;
+    Some((EntityId::new(student_id), EntityData::new()))
 }
 
 fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
-    None
+    #[derive(Serialize, Deserialize)]
+    pub struct Subject {
+        last_name: String,
+        first_name: String,
+        middle_name: String,
+        sex: String,
+        date_of_birth: String,
+        place_of_birth: String,
+        pcn: String,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub struct Data {
+        date_issued: String,
+        issuer: String,
+        subject: Subject,
+    }
+
+    let data = serde_json::from_str::<Data>(code)
+        .inspect_err(|err| tracing::debug!("Failed to deserialize national id data: {:?}", err))
+        .ok()?;
+
+    Some((EntityId::new(data.subject.pcn), EntityData::new()))
 }
