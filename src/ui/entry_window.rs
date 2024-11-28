@@ -169,10 +169,10 @@ impl EntryWindow {
             .flatten(),
         );
 
-        debug_assert!(Application::get()
-            .settings()
-            .operation_mode()
-            .is_valid_entity_data(&data));
+        let operation_mode = Application::get().settings().operation_mode();
+        if !operation_mode.is_valid_entity_data(&data) {
+            tracing::debug!(?operation_mode, "Invalid entity data: {:?}", data);
+        }
 
         data
     }

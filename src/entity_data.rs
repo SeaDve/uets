@@ -99,9 +99,15 @@ impl ValidEntityFields {
             };
         }
 
+        let person_valid_entity_fields = &[
+            f!(EntityDataFieldTy::Name),
+            f!(EntityDataFieldTy::Email),
+            f!(EntityDataFieldTy::Program),
+        ];
+
         Self(match operation_mode {
-            OperationMode::Counter => &[],
-            OperationMode::Attendance => &[],
+            OperationMode::Counter => person_valid_entity_fields,
+            OperationMode::Attendance => person_valid_entity_fields,
             OperationMode::Parking => &[f!(EntityDataFieldTy::Location)],
             OperationMode::Inventory => &[
                 f!(req EntityDataFieldTy::StockId),
@@ -126,6 +132,6 @@ impl ValidEntityFields {
             } else {
                 true
             }
-        })
+        }) && entity_data.fields().all(|f| self.contains(f.ty()))
     }
 }
