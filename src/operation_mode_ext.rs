@@ -12,6 +12,16 @@ impl OperationMode {
         ValidEntityFields::for_operation_mode(*self).is_valid_entity_data(entity_data)
     }
 
+    pub fn is_for_person(&self) -> bool {
+        match self {
+            OperationMode::Counter => true,
+            OperationMode::Attendance => true,
+            OperationMode::Parking => false,
+            OperationMode::Inventory => false,
+            OperationMode::Refrigerator => false,
+        }
+    }
+
     pub fn entities_view_icon_name(&self) -> &str {
         match self {
             OperationMode::Counter => "people-symbolic",

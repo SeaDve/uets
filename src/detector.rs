@@ -7,7 +7,7 @@ use gtk::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{camera::Camera, entity_data::EntityData, entity_id::EntityId};
+use crate::{camera::Camera, entity_data::EntityData, entity_id::EntityId, Application};
 
 mod imp {
     use std::sync::OnceLock;
@@ -125,15 +125,36 @@ fn entity_from_qrcode(code: &str) -> Option<(EntityId, EntityData)> {
 
 #[allow(unused)]
 fn entity_from_qrfying_ncea(code: &str) -> Option<(EntityId, EntityData)> {
+    if !Application::get()
+        .settings()
+        .operation_mode()
+        .is_for_person()
+    {
+        tracing::debug!("Operation mode is not for person");
+
+        return None;
+    }
+
     let mut substrings = code.splitn(4, '_');
     let name = substrings.next()?;
     let student_id = substrings.next()?;
     let bpsu_email = substrings.next()?;
     let program = substrings.next()?;
+
     Some((EntityId::new(student_id), EntityData::new()))
 }
 
 fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
+    if !Application::get()
+        .settings()
+        .operation_mode()
+        .is_for_person()
+    {
+        tracing::debug!("Operation mode is not for person");
+
+        return None;
+    }
+
     #[derive(Serialize, Deserialize)]
     pub struct Subject {
         last_name: String,
