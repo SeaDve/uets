@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{camera::Camera, entity_data::EntityData, entity_id::EntityId, Application};
 
+// FIXME don't allow duplicates within a period of time
+
 mod imp {
     use std::sync::OnceLock;
 
