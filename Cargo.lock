@@ -3174,6 +3174,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rppal"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b37e992f3222e304708025de77c9e395068a347449d0d7164f52d3beccdbd8d"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "rust_xlsxwriter"
 version = "0.79.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3951,6 +3960,7 @@ dependencies = [
  "plotters-cairo",
  "qrcode",
  "regex",
+ "rppal",
  "rust_xlsxwriter",
  "serde",
  "serde_json",

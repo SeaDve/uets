@@ -1,4 +1,4 @@
-use adw::subclass::prelude::*;
+use adw::{prelude::*, subclass::prelude::*};
 use gtk::glib::{self, clone};
 
 use crate::{
@@ -11,6 +11,7 @@ use crate::{
 };
 
 mod imp {
+
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
@@ -130,6 +131,17 @@ mod imp {
             self.timeline_view.bind_timeline(timeline);
 
             obj.update_stocks_entities_stack_pages_display();
+
+            match rppal::system::DeviceInfo::new() {
+                Ok(device_info) => {
+                    tracing::debug!("Running on {}", device_info.model());
+
+                    obj.fullscreen();
+                }
+                Err(err) => {
+                    tracing::warn!("Failed to get device info: {:?}", err);
+                }
+            }
         }
     }
 
