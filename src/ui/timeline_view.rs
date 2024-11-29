@@ -459,8 +459,12 @@ impl TimelineView {
                 .await
         };
 
-        if let Err(err) =
-            SendWindow::send(&report::file_name("Timeline Report", kind), bytes_fut, self).await
+        if let Err(err) = SendWindow::send(
+            &report::file_name("Timeline Report", kind),
+            bytes_fut,
+            Some(self),
+        )
+        .await
         {
             tracing::error!("Failed to send report: {:?}", err);
 

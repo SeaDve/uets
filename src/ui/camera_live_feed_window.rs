@@ -17,7 +17,7 @@ mod imp {
     impl ObjectSubclass for CameraLiveFeedWindow {
         const NAME: &'static str = "UetsCameraLiveFeedWindow";
         type Type = super::CameraLiveFeedWindow;
-        type ParentType = adw::Window;
+        type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
@@ -35,13 +35,12 @@ mod imp {
     }
 
     impl WidgetImpl for CameraLiveFeedWindow {}
-    impl WindowImpl for CameraLiveFeedWindow {}
-    impl AdwWindowImpl for CameraLiveFeedWindow {}
+    impl AdwDialogImpl for CameraLiveFeedWindow {}
 }
 
 glib::wrapper! {
     pub struct CameraLiveFeedWindow(ObjectSubclass<imp::CameraLiveFeedWindow>)
-        @extends gtk::Widget, gtk::Window, adw::Window;
+        @extends gtk::Widget, adw::Dialog;
 }
 
 impl CameraLiveFeedWindow {

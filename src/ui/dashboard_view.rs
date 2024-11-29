@@ -1,8 +1,5 @@
-use gtk::{
-    glib::{self, clone},
-    prelude::*,
-    subclass::prelude::*,
-};
+use adw::{prelude::*, subclass::prelude::*};
+use gtk::glib::{self, clone};
 
 use crate::{
     date_time_range::DateTimeRange,
@@ -57,15 +54,12 @@ mod imp {
                 "dashboard-view.show-camera-live-feed",
                 None,
                 move |obj, _, _| {
-                    let root = obj.root().map(|r| r.downcast::<gtk::Window>().unwrap());
-
                     let window = CameraLiveFeedWindow::new();
-                    window.set_transient_for(root.as_ref());
 
                     let camera = Application::get().detector().camera().clone();
                     window.set_camera(Some(camera));
 
-                    window.present();
+                    window.present(Some(obj));
                 },
             );
         }

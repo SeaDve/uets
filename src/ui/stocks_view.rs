@@ -75,6 +75,7 @@ impl StockSort {
     }
 }
 
+#[allow(deprecated)]
 mod imp {
     use std::{
         cell::{OnceCell, RefCell},
@@ -461,8 +462,12 @@ impl StocksView {
             )
             .build();
 
-        if let Err(err) =
-            SendWindow::send(&report::file_name("Stocks Report", kind), bytes_fut, self).await
+        if let Err(err) = SendWindow::send(
+            &report::file_name("Stocks Report", kind),
+            bytes_fut,
+            Some(self),
+        )
+        .await
         {
             tracing::error!("Failed to send report: {:?}", err);
 

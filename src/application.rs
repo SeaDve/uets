@@ -173,7 +173,7 @@ impl Application {
         } else if self.settings().operation_mode() != OperationMode::Counter {
             tracing::debug!("Gathering entity data from user");
 
-            match EntryWindow::gather_data(&self.window()).await {
+            match EntryWindow::gather_data(Some(&self.window())).await {
                 Ok(data) => data,
                 Err(oneshot::Canceled) => {
                     tracing::debug!("Gathering entity data was canceled; ignoring detected entity");

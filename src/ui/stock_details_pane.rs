@@ -344,7 +344,7 @@ impl StockDetailsPane {
         if let Err(err) = SendWindow::send(
             &report::file_name(&format!("Stock Report for “{}”", stock.id()), kind),
             bytes_fut,
-            self,
+            Some(self),
         )
         .await
         {

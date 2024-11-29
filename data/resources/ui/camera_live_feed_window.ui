@@ -1,60 +1,55 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <template class="UetsCameraLiveFeedWindow" parent="AdwWindow">
-    <property name="default-width">320</property>
-    <property name="default-height">544</property>
-    <property name="width-request">320</property>
-    <property name="height-request">544</property>
-    <property name="content">
-      <object class="GtkWindowHandle">
-        <property name="child">
+  <template class="UetsCameraLiveFeedWindow" parent="AdwDialog">
+    <property name="width-request">360</property>
+    <property name="height-request">420</property>
+    <property name="child">
+      <object class="GtkBox">
+        <property name="vexpand">True</property>
+        <property name="margin-start">24</property>
+        <property name="margin-end">24</property>
+        <property name="margin-top">24</property>
+        <property name="margin-bottom">24</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">24</property>
+        <child>
           <object class="GtkBox">
             <property name="vexpand">True</property>
-            <property name="margin-start">24</property>
-            <property name="margin-end">24</property>
-            <property name="margin-top">24</property>
-            <property name="margin-bottom">24</property>
+            <property name="valign">center</property>
+            <property name="spacing">12</property>
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkBox">
-                <property name="vexpand">True</property>
-                <property name="valign">center</property>
-                <property name="spacing">12</property>
-                <property name="orientation">vertical</property>
-                <child>
-                  <object class="UetsCameraViewfinder" id="viewfinder">
-                    <property name="width-request">240</property>
-                    <property name="height-request">150</property>
-                    <property name="overflow">hidden</property>
-                    <style>
-                      <class name="card"/>
-                    </style>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="title_label">
-                    <property name="wrap">True</property>
-                    <property name="justify">center</property>
-                    <property name="label">Live Feed</property>
-                    <style>
-                      <class name="title-1"/>
-                    </style>
-                  </object>
-                </child>
+              <object class="UetsCameraViewfinder" id="viewfinder">
+                <property name="width-request">240</property>
+                <property name="height-request">150</property>
+                <property name="overflow">hidden</property>
+                <style>
+                  <class name="card"/>
+                </style>
               </object>
             </child>
             <child>
-              <object class="GtkButton" id="close_button">
-                <property name="action-name">window.close</property>
-                <property name="label">Close</property>
-                <property name="halign">center</property>
+              <object class="GtkLabel" id="title_label">
+                <property name="wrap">True</property>
+                <property name="justify">center</property>
+                <property name="label">Live Feed</property>
                 <style>
-                  <class name="pill"/>
+                  <class name="title-1"/>
                 </style>
               </object>
             </child>
           </object>
-        </property>
+        </child>
+        <child>
+          <object class="GtkButton" id="close_button">
+            <property name="action-name">window.close</property>
+            <property name="label">Close</property>
+            <property name="halign">center</property>
+            <style>
+              <class name="pill"/>
+            </style>
+          </object>
+        </child>
       </object>
     </property>
   </template>

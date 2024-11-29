@@ -1,15 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <template class="UetsEntryWindow" parent="AdwWindow">
-    <property name="default-width">320</property>
-    <property name="default-height">544</property>
-    <property name="width-request">320</property>
-    <property name="height-request">544</property>
-    <property name="content">
-      <object class="GtkBox">
-        <property name="orientation">vertical</property>
-        <property name="margin-bottom">24</property>
-        <child>
+  <template class="UetsEntryWindow" parent="AdwDialog">
+    <property name="width-request">360</property>
+    <property name="height-request">420</property>
+    <property name="child">
+      <object class="AdwToolbarView">
+        <child type="top">
           <object class="AdwHeaderBar">
             <property name="show-start-title-buttons">False</property>
             <property name="show-end-title-buttons">False</property>
@@ -18,12 +14,9 @@
                 <property name="title">Enter Data</property>
               </object>
             </property>
-            <style>
-              <class name="flat"/>
-            </style>
           </object>
         </child>
-        <child>
+        <property name="content">
           <object class="AdwPreferencesPage">
             <property name="vexpand">True</property>
             <child>
@@ -80,9 +73,13 @@
               </object>
             </child>
           </object>
-        </child>
-        <child>
+        </property>
+        <child type="bottom">
           <object class="GtkBox">
+            <property name="margin-start">24</property>
+            <property name="margin-end">24</property>
+            <property name="margin-top">24</property>
+            <property name="margin-bottom">24</property>
             <property name="halign">center</property>
             <property name="spacing">12</property>
             <child>

@@ -46,7 +46,7 @@ mod imp {
     impl ObjectSubclass for DateTimeWindow {
         const NAME: &'static str = "UetsDateTimeWindow";
         type Type = super::DateTimeWindow;
-        type ParentType = adw::Window;
+        type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
@@ -195,26 +195,20 @@ mod imp {
     }
 
     impl WidgetImpl for DateTimeWindow {}
-    impl WindowImpl for DateTimeWindow {}
-    impl AdwWindowImpl for DateTimeWindow {}
+    impl AdwDialogImpl for DateTimeWindow {}
 }
 
 glib::wrapper! {
     pub struct DateTimeWindow(ObjectSubclass<imp::DateTimeWindow>)
-        @extends gtk::Widget, gtk::Window, adw::Window;
+        @extends gtk::Widget, adw::Dialog;
 }
 
 impl DateTimeWindow {
     pub async fn pick(
         initial_range: DateTimeRange,
-        parent: &impl IsA<gtk::Widget>,
+        parent: Option<&impl IsA<gtk::Widget>>,
     ) -> Result<DateTimeRange, oneshot::Canceled> {
-        let root = parent.root().map(|r| r.downcast::<gtk::Window>().unwrap());
-
-        let this = glib::Object::builder::<Self>()
-            .property("transient-for", root)
-            .property("modal", true)
-            .build();
+        let this = glib::Object::new::<Self>();
 
         this.update_ui_from_range(initial_range);
 
@@ -223,7 +217,7 @@ impl DateTimeWindow {
         let (result_tx, result_rx) = oneshot::channel();
         imp.result_tx.replace(Some(result_tx));
 
-        this.present();
+        this.present(parent);
 
         if let Err(err @ oneshot::Canceled) = result_rx.await {
             this.close();

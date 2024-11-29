@@ -52,7 +52,7 @@ mod imp {
     impl ObjectSubclass for SendWindow {
         const NAME: &'static str = "UetsSendWindow";
         type Type = super::SendWindow;
-        type ParentType = adw::Window;
+        type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
@@ -72,13 +72,12 @@ mod imp {
     }
 
     impl WidgetImpl for SendWindow {}
-    impl WindowImpl for SendWindow {}
-    impl AdwWindowImpl for SendWindow {}
+    impl AdwDialogImpl for SendWindow {}
 }
 
 glib::wrapper! {
     pub struct SendWindow(ObjectSubclass<imp::SendWindow>)
-        @extends gtk::Widget, gtk::Window, adw::Window;
+        @extends gtk::Widget, adw::Dialog;
 }
 
 impl SendWindow {
@@ -93,10 +92,8 @@ impl SendWindow {
     pub async fn send(
         dest_file_name: &str,
         bytes_fut: impl Future<Output = Result<Vec<u8>>>,
-        parent: &impl IsA<gtk::Widget>,
+        parent: Option<&impl IsA<gtk::Widget>>,
     ) -> Result<()> {
-        let root = parent.root().map(|r| r.downcast::<gtk::Window>().unwrap());
-
         if config::bypass_wormhole() {
             let bytes = bytes_fut.await?;
 
@@ -122,11 +119,8 @@ impl SendWindow {
             return Ok(());
         }
 
-        let this = glib::Object::builder::<Self>()
-            .property("transient-for", root)
-            .property("modal", true)
-            .build();
-        this.present();
+        let this = glib::Object::new::<Self>();
+        this.present(parent);
 
         if let Err(err) = this.start_send(dest_file_name, bytes_fut).await {
             if !err.is::<gio::Cancelled>() {

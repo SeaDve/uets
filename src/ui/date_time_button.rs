@@ -37,7 +37,7 @@ mod imp {
                     range
                 };
 
-                if let Ok(new_range) = DateTimeWindow::pick(initial_range, &obj).await {
+                if let Ok(new_range) = DateTimeWindow::pick(initial_range, Some(&obj)).await {
                     obj.set_range(new_range);
                 }
             });

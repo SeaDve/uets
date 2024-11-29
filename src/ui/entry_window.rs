@@ -40,7 +40,7 @@ mod imp {
     impl ObjectSubclass for EntryWindow {
         const NAME: &'static str = "UetsEntryWindow";
         type Type = super::EntryWindow;
-        type ParentType = adw::Window;
+        type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
@@ -102,32 +102,26 @@ mod imp {
     }
 
     impl WidgetImpl for EntryWindow {}
-    impl WindowImpl for EntryWindow {}
-    impl AdwWindowImpl for EntryWindow {}
+    impl AdwDialogImpl for EntryWindow {}
 }
 
 glib::wrapper! {
     pub struct EntryWindow(ObjectSubclass<imp::EntryWindow>)
-        @extends gtk::Widget, gtk::Window, adw::Window;
+        @extends gtk::Widget, adw::Dialog;
 }
 
 impl EntryWindow {
     pub async fn gather_data(
-        parent: &impl IsA<gtk::Widget>,
+        parent: Option<&impl IsA<gtk::Widget>>,
     ) -> Result<EntityData, oneshot::Canceled> {
-        let root = parent.root().map(|r| r.downcast::<gtk::Window>().unwrap());
-
-        let this = glib::Object::builder::<Self>()
-            .property("transient-for", root)
-            .property("modal", true)
-            .build();
+        let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
 
         let (result_tx, result_rx) = oneshot::channel();
         imp.result_tx.replace(Some(result_tx));
 
-        this.present();
+        this.present(parent);
 
         if let Err(err @ oneshot::Canceled) = result_rx.await {
             this.close();

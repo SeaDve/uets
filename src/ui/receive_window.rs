@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, error, rc::Rc};
 
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::{ensure, Result};
@@ -10,6 +10,17 @@ use gtk::{
 use wormhole::{transfer, uri::WormholeTransferUri, Code, MailboxConnection, Wormhole};
 
 use crate::{camera::Camera, format, ui::camera_viewfinder::CameraViewfinder, wormhole_ext};
+
+#[derive(Debug)]
+pub struct InvalidFileExtension;
+
+impl std::fmt::Display for InvalidFileExtension {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Invalid file extension")
+    }
+}
+
+impl error::Error for InvalidFileExtension {}
 
 mod imp {
     use super::*;
@@ -42,7 +53,7 @@ mod imp {
     impl ObjectSubclass for ReceiveWindow {
         const NAME: &'static str = "UetsReceiveWindow";
         type Type = super::ReceiveWindow;
-        type ParentType = adw::Window;
+        type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
@@ -64,48 +75,48 @@ mod imp {
 
     impl WidgetImpl for ReceiveWindow {}
 
-    impl WindowImpl for ReceiveWindow {
-        fn close_request(&self) -> glib::Propagation {
+    impl AdwDialogImpl for ReceiveWindow {
+        fn closed(&self) {
             tracing::trace!("Close request");
 
             self.cancellable.cancel();
 
             self.code_camera.stop();
 
-            self.parent_close_request()
+            self.parent_closed();
         }
     }
-
-    impl AdwWindowImpl for ReceiveWindow {}
 }
 
 glib::wrapper! {
     pub struct ReceiveWindow(ObjectSubclass<imp::ReceiveWindow>)
-        @extends gtk::Widget, gtk::Window, adw::Window;
+        @extends gtk::Widget, adw::Dialog;
 }
 
 impl ReceiveWindow {
-    pub async fn receive(parent: &impl IsA<gtk::Widget>) -> Result<(String, Vec<u8>)> {
-        let root = parent.root().map(|r| r.downcast::<gtk::Window>().unwrap());
+    pub async fn receive(
+        valid_file_extensions: &[&str],
+        parent: Option<&impl IsA<gtk::Widget>>,
+    ) -> Result<(String, Vec<u8>)> {
+        let this = glib::Object::new::<Self>();
+        this.present(parent);
 
-        let this = glib::Object::builder::<Self>()
-            .property("transient-for", root)
-            .property("modal", true)
-            .build();
-        this.present();
-
-        let ret = this.start_receive().await;
+        let ret = this.start_receive(valid_file_extensions).await;
 
         this.close();
 
         ret
     }
 
-    async fn start_receive(&self) -> Result<(String, Vec<u8>)> {
+    async fn start_receive(&self, valid_file_extensions: &[&str]) -> Result<(String, Vec<u8>)> {
         let imp = self.imp();
 
         imp.stack.set_visible_child(&*imp.code_page);
         imp.title_label.set_label("Starting Camera");
+        imp.file_name_label.set_label(&format!(
+            "Valid file extensions: {}",
+            valid_file_extensions.join(", ")
+        ));
         imp.close_button.set_label("Cancel");
 
         let (tx, rx) = oneshot::channel();
@@ -115,8 +126,6 @@ impl ReceiveWindow {
             tracing::warn!("Failed to start camera: {:?}", err);
 
             imp.title_label.set_label("Enter Code");
-
-            imp.code_camera_viewfinder.set_visible(false);
         } else {
             imp.title_label.set_label("Show or Enter Code");
 
@@ -172,6 +181,13 @@ impl ReceiveWindow {
         .ok_or(gio::Cancelled)?;
         let request_file_size = request.file_size();
         let request_file_name = request.file_name();
+
+        if !valid_file_extensions
+            .iter()
+            .any(|file_extension| request_file_name.ends_with(file_extension))
+        {
+            return Err(InvalidFileExtension.into());
+        }
 
         imp.file_name_label.set_label(&format!(
             "{} ({})",

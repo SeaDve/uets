@@ -1,7 +1,10 @@
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
 use std::process::Command;
 
-use crate::{ui::receive_window::ReceiveWindow, Application};
+use crate::{
+    ui::receive_window::{InvalidFileExtension, ReceiveWindow},
+    Application,
+};
 
 mod imp {
     use super::*;
@@ -36,27 +39,26 @@ mod imp {
                 |obj, _, _| async move {
                     let app = Application::get();
 
-                    match ReceiveWindow::receive(&obj).await {
-                        Ok((file_name, bytes)) => {
-                            if [".xls", ".xlsx", ".xlsm", ".xlsb", ".xla", ".xlam", ".ods"]
-                                .iter()
-                                .any(|ext| file_name.ends_with(ext))
+                    let valid_file_extensions =
+                        &[".xls", ".xlsx", ".xlsm", ".xlsb", ".xla", ".xlam", ".ods"];
+                    match ReceiveWindow::receive(valid_file_extensions, Some(&obj)).await {
+                        Ok((_, bytes)) => {
+                            if let Err(err) =
+                                app.timeline().insert_entities_from_workbook_bytes(&bytes)
                             {
-                                if let Err(err) =
-                                    app.timeline().insert_entities_from_workbook_bytes(&bytes)
-                                {
-                                    tracing::error!("Failed to register entity data: {:?}", err);
+                                tracing::error!("Failed to register entity data: {:?}", err);
 
-                                    app.add_message_toast("Failed to register entity data");
-                                } else {
-                                    app.add_message_toast("Entity data registered");
-                                }
+                                app.add_message_toast("Failed to register entity data");
                             } else {
-                                app.add_message_toast("Unknown file type");
+                                app.add_message_toast("Entity data registered");
                             }
                         }
                         Err(err) => {
-                            app.add_message_toast("Failed to receive file");
+                            if err.is::<InvalidFileExtension>() {
+                                app.add_message_toast("Unknown file type");
+                            } else {
+                                app.add_message_toast("Failed to receive file");
+                            }
 
                             tracing::error!("Failed to receive file: {:?}", err)
                         }
