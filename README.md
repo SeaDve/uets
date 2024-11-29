@@ -49,17 +49,11 @@ This is experimental as it is labor-intensive to tag entities with this kind.
 ## 🏗️ Building and Running
 
 1. Set up a toolbox container.
-   - Run, `toolbox create --image quay.io/toolbx-images/debian-toolbox:12`
+   - Run, `toolbox create --distro ubuntu --release 24.04`
 2. Set up Rust via `rustup`.
    - Optionally, install `rust-analyzer` via `rustup component add rust-analyzer`.
-3. Install the required dependencies.
-
-```sh
-sudo apt install libgtk-4-dev libadwaita-1-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good libzbar-dev gstreamer1.0-plugins-bad
-```
-
-4. Use `./run` to build and run the project.
-   - `./run`
+3. Run `./setup` to install the required dependencies.
+4. Run `./run` to build and run the project.
 
 ## 🔃 Syncing code to the Pi
 

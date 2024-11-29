@@ -1,0 +1,11 @@
+#!/bin/sh
+
+sudo apt install \
+   libgtk-4-dev \
+   libadwaita-1-dev \
+   libgstreamer1.0-dev \
+   libgstreamer-plugins-base1.0-dev \
+   libzbar-dev \
+   gstreamer1.0-plugins-good \
+   gstreamer1.0-plugins-bad \
+   libfontconfig1-dev

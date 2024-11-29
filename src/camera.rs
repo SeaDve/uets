@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, ensure, Result};
 use futures_channel::oneshot;
 use gst::{prelude::*, subclass::prelude::*};
 use gtk::{
@@ -84,11 +84,7 @@ impl Camera {
     pub async fn start(&self) -> Result<()> {
         let imp = self.imp();
 
-        if imp.pipeline.borrow().is_some() {
-            tracing::warn!("Camera already started");
-
-            return Ok(());
-        }
+        ensure!(imp.pipeline.borrow().is_none(), "Camera already started");
 
         let v4l2_device_path = gio::spawn_blocking(v4l2_device_path).await.unwrap()?;
         let pipeline = gst::parse::launch(&format!(
