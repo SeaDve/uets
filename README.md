@@ -55,6 +55,16 @@ This is experimental as it is labor-intensive to tag entities with this kind.
 3. Run `./setup` to install the required dependencies.
 4. Run `./run` to build and run the project.
 
+## 🔧 Setting up Touchscreen Rotation
+
+1. Add the following to `/etc/udev/rules.d/99-calibration.rules`:
+
+```
+ATTRS{name}=="wch.cn USB2IIC_CTP_CONTROL", ENV{LIBINPUT_CALIBRATION_MATRIX}="0 1 0 -1 0 1"
+```
+
+2. Reboot the system.
+
 ## 🔃 Syncing code to the Pi
 
 ```sh
