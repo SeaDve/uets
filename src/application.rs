@@ -10,7 +10,6 @@ use crate::{
     db,
     detector::Detector,
     entity_data::EntityData,
-    entity_data_index::EntityDataIndex,
     entity_id::EntityId,
     settings::{OperationMode, Settings},
     timeline::Timeline,
@@ -29,7 +28,6 @@ mod imp {
         pub(super) detector: Detector,
         pub(super) env: OnceCell<heed::Env>,
         pub(super) timeline: OnceCell<Timeline>,
-        pub(super) entity_data_index: OnceCell<EntityDataIndex>,
     }
 
     #[glib::object_subclass]
@@ -58,10 +56,9 @@ mod imp {
             let obj = self.obj();
 
             match init_env() {
-                Ok((env, timeline, entity_data_index)) => {
+                Ok((env, timeline)) => {
                     self.env.set(env).unwrap();
                     self.timeline.set(timeline).unwrap();
-                    self.entity_data_index.set(entity_data_index).unwrap();
                 }
                 Err(err) => {
                     tracing::debug!("Failed to init env: {:?}", err);
@@ -147,10 +144,6 @@ impl Application {
         self.imp().timeline.get().unwrap()
     }
 
-    pub fn entity_data_index(&self) -> &EntityDataIndex {
-        self.imp().entity_data_index.get().unwrap()
-    }
-
     pub fn present_test_window(&self) {
         TestWindow::new(self).present();
     }
@@ -169,18 +162,14 @@ impl Application {
     async fn handle_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
         let timeline = self.timeline();
 
-        let data = if let Some(entity) = timeline.entity_list().get(entity_id) {
-            tracing::debug!("Retrieved entity data from timeline");
-
-            entity.data().clone()
-        } else if let Some(data) = entity_data {
+        let data = if let Some(data) = entity_data {
             tracing::debug!("Using entity data from detector");
 
             data
-        } else if let Some(data) = self.entity_data_index().retrieve(entity_id) {
-            tracing::debug!("Retrieved entity data from index");
+        } else if let Some(entity) = timeline.entity_list().get(entity_id) {
+            tracing::debug!("Retrieved entity data from timeline");
 
-            data
+            entity.data().clone()
         } else if self.settings().operation_mode() != OperationMode::Counter {
             tracing::debug!("Gathering entity data from user");
 
@@ -227,11 +216,10 @@ impl Application {
     }
 }
 
-fn init_env() -> Result<(heed::Env, Timeline, EntityDataIndex)> {
+fn init_env() -> Result<(heed::Env, Timeline)> {
     let env = db::new_env()?;
 
     let timeline = Timeline::load_from_env(env.clone())?;
-    let entity_data_index = EntityDataIndex::load_from_env(env.clone())?;
 
-    Ok((env, timeline, entity_data_index))
+    Ok((env, timeline))
 }

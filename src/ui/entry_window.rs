@@ -1,14 +1,11 @@
 use adw::{prelude::*, subclass::prelude::*};
 use futures_channel::oneshot;
-use gtk::{
-    gio,
-    glib::{self, closure, BoxedAnyObject},
-};
+use gtk::glib::{self, closure};
 
 use crate::{
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
-    stock_id::StockId,
-    Application,
+    stock::Stock,
+    utils, Application,
 };
 
 mod imp {
@@ -85,36 +82,18 @@ mod imp {
             self.program_row
                 .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Program));
 
-            let app = Application::get();
-            let stock_ids = {
-                let mut vec = app
-                    .timeline()
-                    .stock_list()
-                    .iter()
-                    .map(|stock| stock.id().clone())
-                    .chain(app.entity_data_index().retrieve_stock_ids())
-                    .collect::<Vec<_>>();
-                vec.sort_unstable();
-                vec.dedup();
-                vec
-            };
-
-            let stock_id_model = gio::ListStore::new::<BoxedAnyObject>();
-            stock_id_model.splice(
-                0,
-                0,
-                &stock_ids
-                    .into_iter()
-                    .map(BoxedAnyObject::new)
-                    .collect::<Vec<_>>(),
+            let stock_sorter = utils::new_sorter::<Stock>(false, |a, b| a.id().cmp(b.id()));
+            let sorted_stock_model = gtk::SortListModel::new(
+                Some(Application::get().timeline().stock_list().clone()),
+                Some(stock_sorter),
             );
 
             self.stock_id_dropdown
                 .set_expression(Some(gtk::ClosureExpression::new::<String>(
                     &[] as &[gtk::Expression],
-                    closure!(|o: &BoxedAnyObject| o.borrow::<StockId>().to_string()),
+                    closure!(|stock: &Stock| stock.id().to_string()),
                 )));
-            self.stock_id_dropdown.set_model(Some(&stock_id_model));
+            self.stock_id_dropdown.set_model(Some(&sorted_stock_model));
         }
 
         fn dispose(&self) {
@@ -163,19 +142,14 @@ impl EntryWindow {
     fn gather_data_inner(&self) -> EntityData {
         let imp = self.imp();
 
-        let stock_id = imp.stock_id_dropdown.selected_item().map(|stock| {
-            stock
-                .downcast::<BoxedAnyObject>()
-                .unwrap()
-                .borrow::<StockId>()
-                .clone()
-        });
-
         let operation_mode = Application::get().settings().operation_mode();
 
         let data = EntityData::from_fields(
             [
-                stock_id.map(EntityDataField::StockId),
+                imp.stock_id_dropdown
+                    .selected_item()
+                    .map(|stock| stock.downcast::<Stock>().unwrap().id().clone())
+                    .map(EntityDataField::StockId),
                 Some(imp.location_row.text().to_string())
                     .filter(|t| !t.is_empty())
                     .map(EntityDataField::Location),

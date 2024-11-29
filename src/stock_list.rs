@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
 use indexmap::{map::Entry, IndexMap};
 
@@ -60,19 +62,18 @@ impl StockList {
         self.imp().list.borrow().len()
     }
 
-    pub fn get(&self, id: &StockId) -> Option<Stock> {
-        self.imp().list.borrow().get(id).cloned()
+    pub fn contains(&self, id: &StockId) -> bool {
+        self.imp().list.borrow().contains_key(id)
     }
 
-    pub fn iter(&self) -> impl DoubleEndedIterator<Item = Stock> + '_ {
-        ListModelExtManual::iter(self).map(|item| item.unwrap())
+    pub fn get(&self, id: &StockId) -> Option<Stock> {
+        self.imp().list.borrow().get(id).cloned()
     }
 
     pub fn insert(&self, stock: Stock) {
         let imp = self.imp();
 
-        let id = stock.id();
-        let (index, removed, added) = match imp.list.borrow_mut().entry(id.clone()) {
+        let (index, removed, added) = match imp.list.borrow_mut().entry(stock.id().clone()) {
             Entry::Occupied(entry) => (entry.index(), 1, 1),
             Entry::Vacant(entry) => {
                 let index = entry.index();
@@ -82,6 +83,46 @@ impl StockList {
         };
 
         self.items_changed(index as u32, removed, added);
+    }
+
+    pub fn insert_many(&self, stock: Vec<Stock>) -> u32 {
+        let mut updated_indices = HashSet::new();
+        let mut n_appended = 0;
+
+        {
+            let mut list = self.imp().list.borrow_mut();
+
+            for stock in stock {
+                let (index, prev_value) = list.insert_full(stock.id().clone(), stock);
+
+                if prev_value.is_some() {
+                    updated_indices.insert(index);
+                } else {
+                    n_appended += 1;
+                }
+            }
+        }
+
+        let index_of_first_append = self.n_items() - n_appended;
+
+        // Emit about the appended items first, so GTK would know about
+        // the new items and it won't error out because the n_items
+        // does not match what GTK expect
+        if n_appended != 0 {
+            self.items_changed(index_of_first_append, 0, n_appended);
+        }
+
+        // This is emitted individually because each updated item
+        // may be on different indices
+        for index in updated_indices {
+            // Only emit if the updated item is before the first appended item
+            // because it is already handled by the emission above
+            if (index as u32) < index_of_first_append {
+                self.items_changed(index as u32, 1, 1);
+            }
+        }
+
+        n_appended
     }
 
     pub fn clear(&self) {

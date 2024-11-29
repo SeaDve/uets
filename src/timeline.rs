@@ -424,6 +424,34 @@ impl Timeline {
         Ok(())
     }
 
+    pub fn insert_entities(&self, entities: Vec<Entity>) -> Result<()> {
+        let stocks = entities
+            .iter()
+            .filter_map(|entity| entity.stock_id())
+            .filter(|stock_id| !self.stock_list().contains(stock_id))
+            .map(|stock_id| Stock::new(stock_id.clone(), StockData {}))
+            .collect::<Vec<_>>();
+
+        let (env, _, edb, sdb) = self.db();
+        env.with_write_txn(|wtxn| {
+            for entity in &entities {
+                edb.put(wtxn, entity.id(), entity.data())?;
+            }
+            for stock in &stocks {
+                sdb.put(wtxn, stock.id(), stock.data())?;
+            }
+            Ok(())
+        })?;
+
+        let n_appended_entities = self.entity_list().insert_many(entities);
+        tracing::debug!("Appended `{}` new entities", n_appended_entities);
+
+        let n_appended_stocks = self.stock_list().insert_many(stocks);
+        tracing::debug!("Appended `{}` new stocks", n_appended_stocks);
+
+        Ok(())
+    }
+
     pub fn reset(&self) -> Result<()> {
         let imp = self.imp();
 

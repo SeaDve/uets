@@ -42,7 +42,9 @@ mod imp {
                                 .iter()
                                 .any(|ext| file_name.ends_with(ext))
                             {
-                                if let Err(err) = app.entity_data_index().register(&bytes) {
+                                if let Err(err) =
+                                    app.timeline().insert_entities_from_workbook_bytes(&bytes)
+                                {
                                     tracing::error!("Failed to register entity data: {:?}", err);
 
                                     app.add_message_toast("Failed to register entity data");

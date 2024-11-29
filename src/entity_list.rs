@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
 use indexmap::{map::Entry, IndexMap};
 
@@ -67,8 +69,7 @@ impl EntityList {
     pub fn insert(&self, entity: Entity) {
         let imp = self.imp();
 
-        let id = entity.id();
-        let (index, removed, added) = match imp.list.borrow_mut().entry(id.clone()) {
+        let (index, removed, added) = match imp.list.borrow_mut().entry(entity.id().clone()) {
             Entry::Occupied(entry) => (entry.index(), 1, 1),
             Entry::Vacant(entry) => {
                 let index = entry.index();
@@ -78,6 +79,46 @@ impl EntityList {
         };
 
         self.items_changed(index as u32, removed, added);
+    }
+
+    pub fn insert_many(&self, entities: Vec<Entity>) -> u32 {
+        let mut updated_indices = HashSet::new();
+        let mut n_appended = 0;
+
+        {
+            let mut list = self.imp().list.borrow_mut();
+
+            for entity in entities {
+                let (index, prev_value) = list.insert_full(entity.id().clone(), entity);
+
+                if prev_value.is_some() {
+                    updated_indices.insert(index);
+                } else {
+                    n_appended += 1;
+                }
+            }
+        }
+
+        let index_of_first_append = self.n_items() - n_appended;
+
+        // Emit about the appended items first, so GTK would know about
+        // the new items and it won't error out because the n_items
+        // does not match what GTK expect
+        if n_appended != 0 {
+            self.items_changed(index_of_first_append, 0, n_appended);
+        }
+
+        // This is emitted individually because each updated item
+        // may be on different indices
+        for index in updated_indices {
+            // Only emit if the updated item is before the first appended item
+            // because it is already handled by the emission above
+            if (index as u32) < index_of_first_append {
+                self.items_changed(index as u32, 1, 1);
+            }
+        }
+
+        n_appended
     }
 
     pub fn clear(&self) {

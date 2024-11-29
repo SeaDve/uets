@@ -13,7 +13,7 @@ use crate::{
     entity_data::EntityData, entity_id::EntityId, stock_data::StockData, stock_id::StockId, APP_ID,
 };
 
-const N_NAMED_DBS: u32 = 4;
+const N_NAMED_DBS: u32 = 3;
 
 pub type TimelineDbType = heed::Database<SerdeJson<DateTime<Utc>>, SerdeJson<RawTimelineItem>>;
 pub const TIMELINE_DB_NAME: &str = "timeline";
@@ -23,9 +23,6 @@ pub const ENTITIES_DB_NAME: &str = "entities";
 
 pub type StocksDbType = heed::Database<SerdeJson<StockId>, SerdeJson<StockData>>;
 pub const STOCKS_DB_NAME: &str = "stocks";
-
-pub type EntityDataIndexDbType = heed::Database<SerdeJson<EntityId>, SerdeJson<EntityData>>;
-pub const ENTITY_DATA_INDEX_DB_NAME: &str = "entity_data_index";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RawTimelineItem {
