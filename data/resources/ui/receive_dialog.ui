@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <template class="UetsSendWindow" parent="AdwDialog">
+  <template class="UetsReceiveDialog" parent="AdwDialog">
     <property name="width-request">360</property>
     <property name="height-request">420</property>
     <property name="child">
@@ -20,47 +20,35 @@
             <child>
               <object class="GtkStack" id="stack">
                 <child>
-                  <object class="GtkSpinner" id="loading_page">
-                    <property name="width-request">36</property>
-                    <property name="height-request">36</property>
-                    <property name="halign">center</property>
-                    <property name="valign">center</property>
-                    <property name="spinning">True</property>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkBox" id="loaded_page">
+                  <object class="GtkBox" id="code_page">
                     <property name="orientation">vertical</property>
                     <property name="spacing">6</property>
-                    <property name="halign">center</property>
                     <child>
-                      <object class="GtkImage" id="qrcode_image">
-                        <property name="width-request">180</property>
-                        <property name="height-request">180</property>
+                      <object class="UetsCameraViewfinder" id="code_camera_viewfinder">
+                        <property name="width-request">240</property>
+                        <property name="height-request">150</property>
                         <property name="overflow">hidden</property>
-                        <property name="halign">center</property>
                         <style>
                           <class name="card"/>
                         </style>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="code_label">
-                        <property name="wrap">True</property>
-                        <property name="justify">center</property>
-                        <property name="halign">center</property>
-                        <property name="selectable">True</property>
+                      <object class="GtkListBox">
                         <style>
-                          <class name="code-label"/>
-                          <class name="card"/>
-                          <class name="caption"/>
+                          <class name="boxed-list"/>
                         </style>
+                        <child>
+                          <object class="AdwEntryRow" id="code_entry">
+                            <property name="title">Transmit Code</property>
+                          </object>
+                        </child>
                       </object>
                     </child>
                   </object>
                 </child>
                 <child>
-                  <object class="GtkProgressBar" id="sending_page">
+                  <object class="GtkProgressBar" id="receiving_page">
                     <property name="valign">center</property>
                     <property name="halign">center</property>
                     <property name="show-text">True</property>

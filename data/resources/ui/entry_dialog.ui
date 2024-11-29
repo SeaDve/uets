@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <template class="UetsEntryWindow" parent="AdwDialog">
+  <template class="UetsEntryDialog" parent="AdwDialog">
     <property name="width-request">360</property>
     <property name="height-request">420</property>
     <property name="child">

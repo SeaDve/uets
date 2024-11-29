@@ -14,8 +14,8 @@ mod imp {
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/seadve/Uets/ui/entry_window.ui")]
-    pub struct EntryWindow {
+    #[template(resource = "/io/github/seadve/Uets/ui/entry_dialog.ui")]
+    pub struct EntryDialog {
         #[template_child]
         pub(super) stock_id_row: TemplateChild<adw::ActionRow>,
         #[template_child]
@@ -37,9 +37,9 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for EntryWindow {
-        const NAME: &'static str = "UetsEntryWindow";
-        type Type = super::EntryWindow;
+    impl ObjectSubclass for EntryDialog {
+        const NAME: &'static str = "UetsEntryDialog";
+        type Type = super::EntryDialog;
         type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
@@ -62,7 +62,7 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for EntryWindow {
+    impl ObjectImpl for EntryDialog {
         fn constructed(&self) {
             self.parent_constructed();
 
@@ -101,16 +101,16 @@ mod imp {
         }
     }
 
-    impl WidgetImpl for EntryWindow {}
-    impl AdwDialogImpl for EntryWindow {}
+    impl WidgetImpl for EntryDialog {}
+    impl AdwDialogImpl for EntryDialog {}
 }
 
 glib::wrapper! {
-    pub struct EntryWindow(ObjectSubclass<imp::EntryWindow>)
+    pub struct EntryDialog(ObjectSubclass<imp::EntryDialog>)
         @extends gtk::Widget, adw::Dialog;
 }
 
-impl EntryWindow {
+impl EntryDialog {
     pub async fn gather_data(
         parent: Option<&impl IsA<gtk::Widget>>,
     ) -> Result<EntityData, oneshot::Canceled> {

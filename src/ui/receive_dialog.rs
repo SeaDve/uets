@@ -26,8 +26,8 @@ mod imp {
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/seadve/Uets/ui/receive_window.ui")]
-    pub struct ReceiveWindow {
+    #[template(resource = "/io/github/seadve/Uets/ui/receive_dialog.ui")]
+    pub struct ReceiveDialog {
         #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
@@ -50,9 +50,9 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for ReceiveWindow {
-        const NAME: &'static str = "UetsReceiveWindow";
-        type Type = super::ReceiveWindow;
+    impl ObjectSubclass for ReceiveDialog {
+        const NAME: &'static str = "UetsReceiveDialog";
+        type Type = super::ReceiveDialog;
         type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
@@ -64,7 +64,7 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for ReceiveWindow {
+    impl ObjectImpl for ReceiveDialog {
         fn constructed(&self) {
             self.parent_constructed();
 
@@ -73,9 +73,9 @@ mod imp {
         }
     }
 
-    impl WidgetImpl for ReceiveWindow {}
+    impl WidgetImpl for ReceiveDialog {}
 
-    impl AdwDialogImpl for ReceiveWindow {
+    impl AdwDialogImpl for ReceiveDialog {
         fn closed(&self) {
             tracing::trace!("Close request");
 
@@ -89,11 +89,11 @@ mod imp {
 }
 
 glib::wrapper! {
-    pub struct ReceiveWindow(ObjectSubclass<imp::ReceiveWindow>)
+    pub struct ReceiveDialog(ObjectSubclass<imp::ReceiveDialog>)
         @extends gtk::Widget, adw::Dialog;
 }
 
-impl ReceiveWindow {
+impl ReceiveDialog {
     pub async fn receive(
         valid_file_extensions: &[&str],
         parent: Option<&impl IsA<gtk::Widget>>,

@@ -24,8 +24,8 @@ mod imp {
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/seadve/Uets/ui/send_window.ui")]
-    pub struct SendWindow {
+    #[template(resource = "/io/github/seadve/Uets/ui/send_dialog.ui")]
+    pub struct SendDialog {
         #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
@@ -49,9 +49,9 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for SendWindow {
-        const NAME: &'static str = "UetsSendWindow";
-        type Type = super::SendWindow;
+    impl ObjectSubclass for SendDialog {
+        const NAME: &'static str = "UetsSendDialog";
+        type Type = super::SendDialog;
         type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
@@ -63,7 +63,7 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for SendWindow {
+    impl ObjectImpl for SendDialog {
         fn dispose(&self) {
             self.cancellable.cancel();
 
@@ -71,16 +71,16 @@ mod imp {
         }
     }
 
-    impl WidgetImpl for SendWindow {}
-    impl AdwDialogImpl for SendWindow {}
+    impl WidgetImpl for SendDialog {}
+    impl AdwDialogImpl for SendDialog {}
 }
 
 glib::wrapper! {
-    pub struct SendWindow(ObjectSubclass<imp::SendWindow>)
+    pub struct SendDialog(ObjectSubclass<imp::SendDialog>)
         @extends gtk::Widget, adw::Dialog;
 }
 
-impl SendWindow {
+impl SendDialog {
     pub fn init_premade_connection() {
         glib::spawn_future_local(async {
             if let Err(err) = init_premade_connection_inner().await {
@@ -232,7 +232,7 @@ fn qrcode_texture_for_uri(uri: &WormholeTransferUri) -> Result<gdk::Texture> {
 async fn take_and_replace_premade_connection() -> Result<MailboxConnection<transfer::AppVersion>> {
     if let Some(connection) = PREMADE_CONNECTION.lock().await.take() {
         // Reinitialize a new premade connection for the next time.
-        SendWindow::init_premade_connection();
+        SendDialog::init_premade_connection();
 
         tracing::trace!("Connection taken");
 
@@ -247,7 +247,7 @@ async fn take_and_replace_premade_connection() -> Result<MailboxConnection<trans
         .expect("premade connection must have been initialized");
 
     // Reinitialize a new premade connection for the next time.
-    SendWindow::init_premade_connection();
+    SendDialog::init_premade_connection();
 
     tracing::trace!("Connection taken");
 

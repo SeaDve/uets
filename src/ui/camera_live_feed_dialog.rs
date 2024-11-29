@@ -7,16 +7,16 @@ mod imp {
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/seadve/Uets/ui/camera_live_feed_window.ui")]
-    pub struct CameraLiveFeedWindow {
+    #[template(resource = "/io/github/seadve/Uets/ui/camera_live_feed_dialog.ui")]
+    pub struct CameraLiveFeedDialog {
         #[template_child]
         pub(super) viewfinder: TemplateChild<CameraViewfinder>,
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for CameraLiveFeedWindow {
-        const NAME: &'static str = "UetsCameraLiveFeedWindow";
-        type Type = super::CameraLiveFeedWindow;
+    impl ObjectSubclass for CameraLiveFeedDialog {
+        const NAME: &'static str = "UetsCameraLiveFeedDialog";
+        type Type = super::CameraLiveFeedDialog;
         type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
@@ -28,22 +28,22 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for CameraLiveFeedWindow {
+    impl ObjectImpl for CameraLiveFeedDialog {
         fn dispose(&self) {
             self.dispose_template();
         }
     }
 
-    impl WidgetImpl for CameraLiveFeedWindow {}
-    impl AdwDialogImpl for CameraLiveFeedWindow {}
+    impl WidgetImpl for CameraLiveFeedDialog {}
+    impl AdwDialogImpl for CameraLiveFeedDialog {}
 }
 
 glib::wrapper! {
-    pub struct CameraLiveFeedWindow(ObjectSubclass<imp::CameraLiveFeedWindow>)
+    pub struct CameraLiveFeedDialog(ObjectSubclass<imp::CameraLiveFeedDialog>)
         @extends gtk::Widget, adw::Dialog;
 }
 
-impl CameraLiveFeedWindow {
+impl CameraLiveFeedDialog {
     pub fn new() -> Self {
         glib::Object::new()
     }

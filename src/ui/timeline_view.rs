@@ -17,7 +17,7 @@ use crate::{
     timeline::Timeline,
     timeline_item::TimelineItem,
     ui::{
-        date_time_button::DateTimeButton, search_entry::SearchEntry, send_window::SendWindow,
+        date_time_button::DateTimeButton, search_entry::SearchEntry, send_dialog::SendDialog,
         timeline_row::TimelineRow,
     },
     Application,
@@ -459,7 +459,7 @@ impl TimelineView {
                 .await
         };
 
-        if let Err(err) = SendWindow::send(
+        if let Err(err) = SendDialog::send(
             &report::file_name("Timeline Report", kind),
             bytes_fut,
             Some(self),

@@ -2,7 +2,7 @@ use gtk::{gio, glib, prelude::*, subclass::prelude::*};
 use std::process::Command;
 
 use crate::{
-    ui::receive_window::{InvalidFileExtension, ReceiveWindow},
+    ui::receive_dialog::{InvalidFileExtension, ReceiveDialog},
     Application,
 };
 
@@ -41,7 +41,7 @@ mod imp {
 
                     let valid_file_extensions =
                         &[".xls", ".xlsx", ".xlsm", ".xlsb", ".xla", ".xlam", ".ods"];
-                    match ReceiveWindow::receive(valid_file_extensions, Some(&obj)).await {
+                    match ReceiveDialog::receive(valid_file_extensions, Some(&obj)).await {
                         Ok((_, bytes)) => {
                             if let Err(err) =
                                 app.timeline().insert_entities_from_workbook_bytes(&bytes)

@@ -1,6 +1,6 @@
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{date_time_range::DateTimeRange, ui::date_time_window::DateTimeWindow};
+use crate::{date_time_range::DateTimeRange, ui::date_time_dialog::DateTimeDialog};
 
 mod imp {
     use std::cell::Cell;
@@ -37,7 +37,7 @@ mod imp {
                     range
                 };
 
-                if let Ok(new_range) = DateTimeWindow::pick(initial_range, Some(&obj)).await {
+                if let Ok(new_range) = DateTimeDialog::pick(initial_range, Some(&obj)).await {
                     obj.set_range(new_range);
                 }
             });

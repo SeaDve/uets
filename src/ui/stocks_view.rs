@@ -17,7 +17,7 @@ use crate::{
     stock_id::StockId,
     stock_list::StockList,
     ui::{
-        date_time_button::DateTimeButton, search_entry::SearchEntry, send_window::SendWindow,
+        date_time_button::DateTimeButton, search_entry::SearchEntry, send_dialog::SendDialog,
         stock_details_pane::StockDetailsPane, stock_row::StockRow,
     },
     utils::new_sorter,
@@ -462,7 +462,7 @@ impl StocksView {
             )
             .build();
 
-        if let Err(err) = SendWindow::send(
+        if let Err(err) = SendDialog::send(
             &report::file_name("Stocks Report", kind),
             bytes_fut,
             Some(self),

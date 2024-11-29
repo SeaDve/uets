@@ -13,7 +13,7 @@ use crate::{
     entity_id::EntityId,
     settings::{OperationMode, Settings},
     timeline::Timeline,
-    ui::{EntryWindow, SendWindow, TestWindow, Window},
+    ui::{EntryDialog, SendDialog, TestWindow, Window},
     APP_ID, GRESOURCE_PREFIX,
 };
 
@@ -66,7 +66,7 @@ mod imp {
                 }
             }
 
-            SendWindow::init_premade_connection();
+            SendDialog::init_premade_connection();
 
             obj.setup_actions();
             obj.setup_accels();
@@ -173,7 +173,7 @@ impl Application {
         } else if self.settings().operation_mode() != OperationMode::Counter {
             tracing::debug!("Gathering entity data from user");
 
-            match EntryWindow::gather_data(Some(&self.window())).await {
+            match EntryDialog::gather_data(Some(&self.window())).await {
                 Ok(data) => data,
                 Err(oneshot::Canceled) => {
                     tracing::debug!("Gathering entity data was canceled; ignoring detected entity");

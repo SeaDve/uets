@@ -19,7 +19,7 @@ use crate::{
     stock_id::StockId,
     ui::{
         date_time_button::DateTimeButton, entity_details_pane::EntityDetailsPane,
-        entity_row::EntityRow, search_entry::SearchEntry, send_window::SendWindow,
+        entity_row::EntityRow, search_entry::SearchEntry, send_dialog::SendDialog,
     },
     utils::new_sorter,
     Application,
@@ -479,7 +479,7 @@ impl EntitiesView {
             )
             .build();
 
-        if let Err(err) = SendWindow::send(
+        if let Err(err) = SendDialog::send(
             &report::file_name("Entities Report", kind),
             bytes_fut,
             Some(self),

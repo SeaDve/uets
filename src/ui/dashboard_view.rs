@@ -5,7 +5,7 @@ use crate::{
     date_time_range::DateTimeRange,
     format,
     ui::{
-        camera_live_feed_window::CameraLiveFeedWindow, information_row::InformationRow,
+        camera_live_feed_dialog::CameraLiveFeedDialog, information_row::InformationRow,
         time_graph::TimeGraph,
     },
     Application,
@@ -54,12 +54,12 @@ mod imp {
                 "dashboard-view.show-camera-live-feed",
                 None,
                 move |obj, _, _| {
-                    let window = CameraLiveFeedWindow::new();
+                    let dialog = CameraLiveFeedDialog::new();
 
                     let camera = Application::get().detector().camera().clone();
-                    window.set_camera(Some(camera));
+                    dialog.set_camera(Some(camera));
 
-                    window.present(Some(obj));
+                    dialog.present(Some(obj));
                 },
             );
         }
