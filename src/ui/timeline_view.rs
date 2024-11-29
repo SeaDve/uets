@@ -63,7 +63,7 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/timeline_view.ui")]
     pub struct TimelineView {
         #[template_child]
-        pub(super) vbox: TemplateChild<gtk::Box>, // Unused
+        pub(super) toolbar_view: TemplateChild<adw::ToolbarView>, // Unused
         #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
@@ -133,6 +133,7 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
+            self.list_view.remove_css_class("view");
             self.is_sticky.set(true);
 
             let obj = self.obj();

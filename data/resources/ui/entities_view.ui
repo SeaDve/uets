@@ -31,64 +31,59 @@
           <object class="GtkSeparator"/>
         </property>
         <property name="content">
-          <object class="GtkBox">
-            <property name="orientation">vertical</property>
-            <child>
+          <object class="AdwToolbarView">
+            <child type="top">
               <object class="GtkBox">
-                <property name="margin-top">6</property>
-                <property name="margin-bottom">6</property>
-                <property name="margin-start">6</property>
-                <property name="margin-end">6</property>
-                <property name="orientation">vertical</property>
-                <property name="spacing">6</property>
+                <style>
+                  <class name="toolbar"/>
+                </style>
                 <child>
                   <object class="UetsSearchEntry" id="search_entry">
                     <property name="hexpand">True</property>
                     <property name="placeholder-text">Search Entities</property>
                   </object>
                 </child>
+              </object>
+            </child>
+            <child type="top">
+              <object class="GtkBox">
+                <style>
+                  <class name="toolbar"/>
+                </style>
                 <child>
-                  <object class="GtkBox">
-                    <property name="spacing">6</property>
-                    <child>
-                      <object class="GtkDropDown" id="entity_zone_dropdown"/>
-                    </child>
-                    <child>
-                      <object class="UetsDateTimeButton" id="dt_button"/>
-                    </child>
-                    <child>
-                      <object class="GtkSeparator"/>
-                    </child>
-                    <child>
-                      <object class="GtkDropDown" id="entity_sort_dropdown"/>
-                    </child>
-                    <child>
-                      <object class="GtkSeparator"/>
-                    </child>
-                    <child>
-                      <object class="GtkMenuButton">
-                        <property name="icon-name">share-alt-symbolic</property>
-                        <property name="menu-model">share_report_menu</property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkSeparator"/>
-                    </child>
-                    <child>
-                      <object class="GtkLabel" id="n_results_label">
-                        <style>
-                          <class name="dim-label"/>
-                        </style>
-                      </object>
-                    </child>
+                  <object class="GtkDropDown" id="entity_zone_dropdown"/>
+                </child>
+                <child>
+                  <object class="UetsDateTimeButton" id="dt_button"/>
+                </child>
+                <child>
+                  <object class="GtkSeparator"/>
+                </child>
+                <child>
+                  <object class="GtkDropDown" id="entity_sort_dropdown"/>
+                </child>
+                <child>
+                  <object class="GtkSeparator"/>
+                </child>
+                <child>
+                  <object class="GtkMenuButton">
+                    <property name="icon-name">share-alt-symbolic</property>
+                    <property name="menu-model">share_report_menu</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkSeparator"/>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="n_results_label">
+                    <style>
+                      <class name="dim-label"/>
+                    </style>
                   </object>
                 </child>
               </object>
             </child>
-            <child>
-              <object class="GtkSeparator"/>
-            </child>
-            <child>
+            <property name="content">
               <object class="GtkStack" id="stack">
                 <property name="transition-type">crossfade</property>
                 <child>
@@ -123,7 +118,7 @@
                   </object>
                 </child>
               </object>
-            </child>
+            </property>
           </object>
         </property>
       </object>

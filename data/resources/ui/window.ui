@@ -8,9 +8,8 @@
     <property name="content">
       <object class="AdwToastOverlay" id="toast_overlay">
         <property name="child">
-          <object class="GtkBox">
-            <property name="orientation">vertical</property>
-            <child>
+          <object class="AdwToolbarView">
+            <property name="content">
               <object class="AdwViewStack" id="view_stack">
                 <property name="vexpand">True</property>
                 <child>
@@ -62,8 +61,8 @@
                   </object>
                 </child>
               </object>
-            </child>
-            <child>
+            </property>
+            <child type="bottom">
               <object class="GtkWindowHandle">
                 <property name="child">
                   <object class="AdwViewSwitcherBar">
