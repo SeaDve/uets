@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template class="UetsDateTimeDialog" parent="AdwDialog">
-    <property name="content-width">360</property>
+    <property name="content-width">378</property>
     <property name="content-height">540</property>
     <property name="child">
       <object class="AdwToolbarView">
