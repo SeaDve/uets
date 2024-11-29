@@ -172,10 +172,10 @@ impl Default for Detector {
 }
 
 fn entity_from_qrcode(code: &str) -> Option<(EntityId, EntityData)> {
-    entity_from_national_id(code).or_else(|| entity_from_qrfying_ncea(code))
+    entity_from_national_id(code).or_else(|| entity_from_qrifying_cea(code))
 }
 
-fn entity_from_qrfying_ncea(code: &str) -> Option<(EntityId, EntityData)> {
+fn entity_from_qrifying_cea(code: &str) -> Option<(EntityId, EntityData)> {
     if !Application::get()
         .settings()
         .operation_mode()
