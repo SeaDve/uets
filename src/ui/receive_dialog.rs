@@ -115,7 +115,11 @@ impl ReceiveDialog {
         imp.title_label.set_label("Starting Camera");
         imp.file_name_label.set_label(&format!(
             "Valid file extensions: {}",
-            valid_file_extensions.join(", ")
+            valid_file_extensions
+                .iter()
+                .map(|extension| format!("<b>{}</b>", glib::markup_escape_text(extension)))
+                .collect::<Vec<_>>()
+                .join(", ")
         ));
         imp.close_button.set_label("Cancel");
 
@@ -191,8 +195,8 @@ impl ReceiveDialog {
 
         imp.file_name_label.set_label(&format!(
             "{} ({})",
-            request_file_name,
-            glib::format_size(request_file_size)
+            glib::markup_escape_text(&request_file_name),
+            glib::markup_escape_text(&glib::format_size(request_file_size))
         ));
 
         let mut bytes = Vec::new();
