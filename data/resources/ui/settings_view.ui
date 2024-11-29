@@ -108,6 +108,18 @@
                 <property name="title">Developer Options</property>
                 <child>
                   <object class="AdwActionRow">
+                    <property name="title">Fullscreen Window</property>
+                    <property name="subtitle">Fullscreens the main window</property>
+                    <child>
+                      <object class="GtkButton" id="fullscreen_window_button">
+                        <property name="valign">center</property>
+                        <property name="label">Fullscreen</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow">
                     <property name="title">Show Test Window</property>
                     <property name="subtitle">Opens the test window</property>
                     <child>

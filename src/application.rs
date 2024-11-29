@@ -159,7 +159,7 @@ impl Application {
         self.window().add_toast(adw::Toast::new(message));
     }
 
-    fn window(&self) -> Window {
+    pub fn window(&self) -> Window {
         self.windows()
             .into_iter()
             .find_map(|w| w.downcast::<Window>().ok())
