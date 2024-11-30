@@ -13,6 +13,7 @@ use crate::{
     config,
     entity_data::{EntityData, EntityDataField},
     entity_id::EntityId,
+    sound::Sound,
     Application,
 };
 
@@ -73,24 +74,27 @@ mod imp {
                     move |_, qrcode| {
                         let imp = obj.imp();
 
-                        let Some((id, data)) = entity_from_qrcode(qrcode) else {
+                        if let Some((id, data)) = entity_from_qrcode(qrcode) {
+                            if imp
+                                .camera_last_detected
+                                .borrow()
+                                .as_ref()
+                                .is_some_and(|last_detected| last_detected == &id)
+                            {
+                                return;
+                            }
+
+                            obj.emit_detected(&id, Some(&data));
+
+                            imp.camera_last_detected.replace(Some(id));
+                            obj.restart_camera_last_detected_timeout();
+
+                            Sound::DetectedSuccess.play();
+                        } else {
                             tracing::warn!("Invalid entity code: {}", qrcode);
-                            return;
-                        };
 
-                        if imp
-                            .camera_last_detected
-                            .borrow()
-                            .as_ref()
-                            .is_some_and(|last_detected| last_detected == &id)
-                        {
-                            return;
+                            Sound::DetectedError.play();
                         }
-
-                        obj.emit_detected(&id, Some(&data));
-
-                        imp.camera_last_detected.replace(Some(id));
-                        obj.restart_camera_last_detected_timeout();
                     }
                 ));
             }
@@ -138,6 +142,8 @@ impl Detector {
 
     pub fn simulate_detected(&self, id: &EntityId, data: Option<&EntityData>) {
         self.emit_detected(id, data);
+
+        Sound::DetectedSuccess.play();
     }
 
     fn emit_detected(&self, id: &EntityId, data: Option<&EntityData>) {

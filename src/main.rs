@@ -30,6 +30,7 @@ mod report_table;
 mod search_query;
 mod search_query_ext;
 mod settings;
+mod sound;
 mod stock;
 mod stock_data;
 mod stock_id;
