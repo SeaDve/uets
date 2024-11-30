@@ -1,9 +1,12 @@
-use gtk::{glib, subclass::prelude::*};
+use gtk::{
+    glib::{self, clone},
+    subclass::prelude::*,
+};
 
-use crate::camera::Camera;
+use crate::camera::{Camera, CameraState};
 
 mod imp {
-    use std::cell::RefCell;
+    use std::cell::{OnceCell, RefCell};
 
     use super::*;
 
@@ -11,10 +14,17 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/camera_viewfinder.ui")]
     pub struct CameraViewfinder {
         #[template_child]
+        pub(super) stack: TemplateChild<gtk::Stack>,
+        #[template_child]
+        pub(super) spinner: TemplateChild<gtk::Spinner>,
+        #[template_child]
         pub(super) picture: TemplateChild<gtk::Picture>,
+        #[template_child]
+        pub(super) error_label: TemplateChild<gtk::Label>,
 
         pub(super) camera: RefCell<Option<Camera>>,
         pub(super) camera_bindings: glib::BindingGroup,
+        pub(super) camera_signals: OnceCell<glib::SignalGroup>,
     }
 
     #[glib::object_subclass]
@@ -36,10 +46,27 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
+            let obj = self.obj();
+
             self.camera_bindings
                 .bind("paintable", &*self.picture, "paintable")
                 .sync_create()
                 .build();
+
+            let signals = glib::SignalGroup::new::<Camera>();
+            signals.connect_notify_local(
+                Some("state"),
+                clone!(
+                    #[weak]
+                    obj,
+                    move |_, _| {
+                        obj.update_stack();
+                    }
+                ),
+            );
+            self.camera_signals.set(signals).unwrap();
+
+            obj.update_stack();
         }
 
         fn dispose(&self) {
@@ -63,7 +90,29 @@ impl CameraViewfinder {
     pub fn set_camera(&self, camera: Option<Camera>) {
         let imp = self.imp();
 
+        imp.camera.replace(camera.clone());
+
         imp.camera_bindings.set_source(camera.as_ref());
-        imp.camera.replace(camera);
+        imp.camera_signals
+            .get()
+            .unwrap()
+            .set_target(camera.as_ref());
+
+        self.update_stack();
+    }
+
+    fn update_stack(&self) {
+        let imp = self.imp();
+
+        match imp.camera.borrow().as_ref().map(|c| c.state()) {
+            None | Some(CameraState::Idle) | Some(CameraState::Loading) => {
+                imp.stack.set_visible_child(&*imp.spinner)
+            }
+            Some(CameraState::Loaded) => imp.stack.set_visible_child(&*imp.picture),
+            Some(CameraState::Error { message }) => {
+                imp.error_label.set_label(&message);
+                imp.stack.set_visible_child(&*imp.error_label)
+            }
+        }
     }
 }

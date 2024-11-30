@@ -1,5 +1,4 @@
 use anyhow::{anyhow, ensure, Result};
-use futures_channel::oneshot;
 use gst::{prelude::*, subclass::prelude::*};
 use gtk::{
     gdk, gio,
@@ -7,6 +6,19 @@ use gtk::{
 };
 
 const GTK_SINK_NAME: &str = "gtksink";
+const V4L2_SRC_NAME: &str = "v4l2src";
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, glib::Boxed)]
+#[boxed_type(name = "UetsCameraState")]
+pub enum CameraState {
+    #[default]
+    Idle,
+    Loading,
+    Loaded,
+    Error {
+        message: String,
+    },
+}
 
 mod imp {
     use std::{cell::RefCell, marker::PhantomData, sync::OnceLock};
@@ -21,9 +33,10 @@ mod imp {
     pub struct Camera {
         #[property(get = Self::paintable)]
         pub(super) paintable: PhantomData<Option<gdk::Paintable>>,
+        #[property(get)]
+        pub(super) state: RefCell<CameraState>,
 
         pub(super) pipeline: RefCell<Option<(gst::Pipeline, BusWatchGuard)>>,
-        pub(super) async_done_tx: RefCell<Option<oneshot::Sender<()>>>,
     }
 
     #[glib::object_subclass]
@@ -84,14 +97,24 @@ impl Camera {
     pub async fn start(&self) -> Result<()> {
         let imp = self.imp();
 
-        ensure!(imp.pipeline.borrow().is_none(), "Camera already started");
+        ensure!(
+            matches!(self.state(), CameraState::Idle | CameraState::Error { .. }),
+            "Camera is already loading or loaded"
+        );
 
-        let v4l2_device_path = gio::spawn_blocking(v4l2_device_path).await.unwrap()?;
-        let pipeline = gst::parse::launch(&format!(
-            "v4l2src device={v4l2_device_path} ! tee name=t ! queue ! videoconvert ! zbar ! fakesink t. ! queue ! videoconvert ! gtk4paintablesink name={GTK_SINK_NAME}"
-        ))?
-        .downcast::<gst::Pipeline>()
-        .unwrap();
+        self.set_state(CameraState::Loading);
+
+        let v4l2_device_path = gio::spawn_blocking(v4l2_device_path).await.unwrap();
+
+        let pipeline = match gst::parse::launch(&format!("v4l2src name={V4L2_SRC_NAME} ! tee name=t ! queue ! videoconvert ! zbar ! fakesink t. ! queue ! videoconvert ! gtk4paintablesink name={GTK_SINK_NAME}")) {
+            Ok(pipeline) => pipeline.downcast::<gst::Pipeline>().unwrap(),
+            Err(err) => {
+                self.set_state(CameraState::Error {
+                    message: err.to_string(),
+                });
+                return Err(err.into());
+            }
+        };
         let bus_watch_guard = pipeline
             .bus()
             .unwrap()
@@ -102,21 +125,33 @@ impl Camera {
                 move |_, message| obj.handle_bus_message(message)
             ))
             .unwrap();
+
+        match v4l2_device_path {
+            Ok(device_path) => {
+                let v4l2src = pipeline.by_name(V4L2_SRC_NAME).unwrap();
+                v4l2src.set_property("device", &device_path);
+            }
+            Err(err) => {
+                tracing::debug!("Failed to get v4l2 device path: {:?}", err);
+            }
+        }
+
         imp.pipeline
             .replace(Some((pipeline.clone(), bus_watch_guard)));
         self.notify_paintable();
 
-        let (async_done_tx, async_done_rx) = oneshot::channel();
-        imp.async_done_tx.replace(Some(async_done_tx));
-
-        let state_change = pipeline.set_state(gst::State::Playing)?;
-        if state_change != gst::StateChangeSuccess::Async {
-            if let Some(async_done_tx) = imp.async_done_tx.take() {
-                let _ = async_done_tx.send(());
+        let state_change = match pipeline.set_state(gst::State::Playing) {
+            Ok(state_change) => state_change,
+            Err(err) => {
+                self.set_state(CameraState::Error {
+                    message: err.to_string(),
+                });
+                return Err(err.into());
             }
+        };
+        if state_change != gst::StateChangeSuccess::Async {
+            self.set_state(CameraState::Loaded);
         }
-
-        async_done_rx.await.unwrap();
 
         tracing::debug!("Camera started");
 
@@ -133,11 +168,20 @@ impl Camera {
             self.notify_paintable();
         }
 
+        self.set_state(CameraState::Idle);
+
         tracing::debug!("Camera stopped");
     }
 
-    pub fn has_started(&self) -> bool {
-        self.imp().pipeline.borrow().is_some()
+    fn set_state(&self, state: CameraState) {
+        let imp = self.imp();
+
+        if state == self.state() {
+            return;
+        }
+
+        imp.state.replace(state);
+        self.notify_state();
     }
 
     fn handle_bus_message(&self, message: &gst::Message) -> glib::ControlFlow {
@@ -147,9 +191,7 @@ impl Camera {
 
         match message.view() {
             MessageView::AsyncDone(_) => {
-                if let Some(async_done_tx) = imp.async_done_tx.take() {
-                    let _ = async_done_tx.send(());
-                }
+                self.set_state(CameraState::Loaded);
 
                 glib::ControlFlow::Continue
             }
@@ -202,9 +244,9 @@ impl Camera {
             MessageView::Error(e) => {
                 tracing::error!("Received error message on bus: {:?}", e);
 
-                if let Some(async_done_tx) = imp.async_done_tx.take() {
-                    let _ = async_done_tx.send(());
-                }
+                self.set_state(CameraState::Error {
+                    message: e.error().to_string(),
+                });
 
                 glib::ControlFlow::Break
             }

@@ -9,7 +9,7 @@ use heck::ToTitleCase;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    camera::Camera,
+    camera::{Camera, CameraState},
     config,
     entity_data::{EntityData, EntityDataField},
     entity_id::EntityId,
@@ -53,7 +53,10 @@ mod imp {
                         let imp = obj.imp();
 
                         loop {
-                            if !imp.camera.has_started() {
+                            if matches!(
+                                imp.camera.state(),
+                                CameraState::Idle | CameraState::Error { .. }
+                            ) {
                                 if let Err(err) = imp.camera.start().await {
                                     tracing::error!("Failed to start camera: {:?}", err);
                                 }
