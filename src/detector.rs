@@ -93,6 +93,8 @@ mod imp {
                         } else {
                             tracing::warn!("Invalid entity code: {}", qrcode);
 
+                            Application::get().add_message_toast("Unknown QR code format");
+
                             Sound::DetectedError.play();
                         }
                     }
