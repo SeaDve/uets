@@ -104,7 +104,15 @@ impl Camera {
 
         self.set_state(CameraState::Loading);
 
-        let v4l2_device_path = gio::spawn_blocking(v4l2_device_path).await.unwrap();
+        let v4l2_device_path = match gio::spawn_blocking(v4l2_device_path).await.unwrap() {
+            Ok(device_path) => device_path,
+            Err(err) => {
+                self.set_state(CameraState::Error {
+                    message: err.to_string(),
+                });
+                return Err(err);
+            }
+        };
 
         let pipeline = match gst::parse::launch(&format!("v4l2src name={V4L2_SRC_NAME} ! tee name=t ! queue ! videoconvert ! zbar ! fakesink t. ! queue ! videoconvert ! gtk4paintablesink name={GTK_SINK_NAME}")) {
             Ok(pipeline) => pipeline.downcast::<gst::Pipeline>().unwrap(),
@@ -126,15 +134,8 @@ impl Camera {
             ))
             .unwrap();
 
-        match v4l2_device_path {
-            Ok(device_path) => {
-                let v4l2src = pipeline.by_name(V4L2_SRC_NAME).unwrap();
-                v4l2src.set_property("device", &device_path);
-            }
-            Err(err) => {
-                tracing::debug!("Failed to get v4l2 device path: {:?}", err);
-            }
-        }
+        let v4l2src = pipeline.by_name(V4L2_SRC_NAME).unwrap();
+        v4l2src.set_property("device", &v4l2_device_path);
 
         imp.pipeline
             .replace(Some((pipeline.clone(), bus_watch_guard)));
