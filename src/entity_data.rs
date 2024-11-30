@@ -61,6 +61,17 @@ entity_data_field! {
     Program(String) => "Program"
 }
 
+macro_rules! entity_data_getter {
+    ($fn_name:ident, $field:ident, $return_ty:ty) => {
+        pub fn $fn_name(&self) -> Option<$return_ty> {
+            self.0.get(&EntityDataFieldTy::$field).map(|f| match f {
+                EntityDataField::$field(value) => value,
+                _ => unreachable!(),
+            })
+        }
+    };
+}
+
 #[derive(Debug, Clone, glib::Boxed)]
 #[boxed_type(name = "UetsEntityData", nullable)]
 pub struct EntityData(IndexMap<EntityDataFieldTy, EntityDataField>);
@@ -82,12 +93,8 @@ impl EntityData {
         self.0.values()
     }
 
-    pub fn stock_id(&self) -> Option<&StockId> {
-        self.0.get(&EntityDataFieldTy::StockId).map(|f| match f {
-            EntityDataField::StockId(stock_id) => stock_id,
-            _ => panic!(),
-        })
-    }
+    entity_data_getter!(stock_id, StockId, &StockId);
+    entity_data_getter!(name, Name, &String);
 }
 
 impl Serialize for EntityData {

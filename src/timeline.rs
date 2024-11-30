@@ -287,7 +287,11 @@ impl Timeline {
         }
     }
 
-    pub fn handle_detected(&self, entity_id: &EntityId, entity_data: EntityData) -> Result<()> {
+    pub fn handle_detected(
+        &self,
+        entity_id: &EntityId,
+        entity_data: EntityData,
+    ) -> Result<TimelineItemKind> {
         let imp = self.imp();
 
         let entity = self
@@ -421,7 +425,7 @@ impl Timeline {
 
         debug_assert!(imp.list.borrow().keys().is_sorted());
 
-        Ok(())
+        Ok(item_kind)
     }
 
     pub fn insert_entities(&self, entities: Vec<Entity>) -> Result<()> {

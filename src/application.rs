@@ -13,6 +13,7 @@ use crate::{
     entity_id::EntityId,
     settings::{OperationMode, Settings},
     timeline::Timeline,
+    timeline_item_kind::TimelineItemKind,
     ui::{EntryDialog, SendDialog, TestWindow, Window},
     APP_ID, GRESOURCE_PREFIX,
 };
@@ -190,8 +191,25 @@ impl Application {
 
         // TODO If the mode is inventory or refrigerator, don't handle the detected entity
         // if it doesn't have a stock id.
-        if let Err(err) = timeline.handle_detected(entity_id, data) {
-            tracing::error!("Failed to handle entity: {:?}", err);
+        let entity_name = data.name().cloned();
+        match timeline.handle_detected(entity_id, data) {
+            Ok(item_kind) => {
+                if let Some(name) = entity_name {
+                    match item_kind {
+                        TimelineItemKind::Entry => {
+                            self.add_message_toast(&format!("Welcome, {}!", name));
+                        }
+                        TimelineItemKind::Exit => {
+                            self.add_message_toast(&format!("Goodbye, {}!", name));
+                        }
+                    }
+                }
+            }
+            Err(err) => {
+                tracing::error!("Failed to handle entity: {:?}", err);
+
+                self.add_message_toast("Can't handle entity");
+            }
         }
     }
 
