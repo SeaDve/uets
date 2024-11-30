@@ -4,7 +4,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::{date_time_range::DateTimeRange, entity::Entity};
+use crate::{date_time_range::DateTimeRange, entity::Entity, Application};
 
 mod imp {
     use std::cell::{OnceCell, RefCell};
@@ -67,7 +67,18 @@ mod imp {
             );
             self.entity_signals.set(entity_signals).unwrap();
 
+            Application::get()
+                .settings()
+                .connect_operation_mode_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_avatar_icon_name();
+                    }
+                ));
+
             obj.update_zone_label();
+            obj.update_avatar_icon_name();
         }
 
         fn dispose(&self) {
@@ -141,5 +152,16 @@ impl EntityRow {
         } else {
             imp.zone_label.set_label("");
         }
+    }
+
+    fn update_avatar_icon_name(&self) {
+        let imp = self.imp();
+
+        imp.avatar.set_icon_name(Some(
+            Application::get()
+                .settings()
+                .operation_mode()
+                .entities_view_icon_name(),
+        ));
     }
 }

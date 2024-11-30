@@ -24,8 +24,8 @@ impl OperationMode {
 
     pub fn entities_view_icon_name(&self) -> &str {
         match self {
-            OperationMode::Counter => "people-symbolic",
-            OperationMode::Attendance => "people-symbolic",
+            OperationMode::Counter => "person-symbolic",
+            OperationMode::Attendance => "person-symbolic",
             OperationMode::Parking => "driving-symbolic",
             OperationMode::Inventory => "tag-outline-symbolic",
             OperationMode::Refrigerator => "tag-outline-symbolic",

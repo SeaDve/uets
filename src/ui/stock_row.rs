@@ -4,7 +4,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::{date_time_range::DateTimeRange, stock::Stock};
+use crate::{date_time_range::DateTimeRange, stock::Stock, Application};
 
 mod imp {
     use std::cell::{OnceCell, RefCell};
@@ -67,7 +67,18 @@ mod imp {
             );
             self.stock_signals.set(stock_signals).unwrap();
 
+            Application::get()
+                .settings()
+                .connect_operation_mode_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_avatar_icon_name();
+                    }
+                ));
+
             obj.update_n_inside_label();
+            obj.update_avatar_icon_name();
         }
 
         fn dispose(&self) {
@@ -129,5 +140,16 @@ impl StockRow {
         } else {
             imp.n_inside_label.set_label("");
         }
+    }
+
+    fn update_avatar_icon_name(&self) {
+        let imp = self.imp();
+
+        imp.avatar.set_icon_name(
+            Application::get()
+                .settings()
+                .operation_mode()
+                .stocks_view_icon_name(),
+        );
     }
 }
