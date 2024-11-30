@@ -192,13 +192,17 @@ impl TimelineRow {
                 .expect("entity must be known");
 
             let entity_uri = format!("entity:{}", entity_id);
-            let title = entity.stock_id().map_or_else(
-                || format!("<a href=\"{entity_uri}\">{entity_id}</a>"),
-                |stock_id| {
-                    let stock_uri = format!("stock:{}", stock_id);
-                    format!("<a href=\"{stock_uri}\">{stock_id}</a> (<a href=\"{entity_uri}\">{entity_id}</a>)")
-                },
-            );
+            let title = if let Some(stock_id) = entity.stock_id() {
+                let stock_uri = format!("stock:{}", stock_id);
+                format!("<a href=\"{stock_uri}\">{stock_id}</a> (<a href=\"{entity_uri}\">{entity_id}</a>)")
+            } else {
+                let entity_display = entity
+                    .data()
+                    .name()
+                    .cloned()
+                    .unwrap_or_else(|| entity_id.to_string());
+                format!("<a href=\"{entity_uri}\">{entity_display}</a>")
+            };
 
             let operation_mode = Application::get().settings().operation_mode();
 
