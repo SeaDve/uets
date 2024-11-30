@@ -73,12 +73,12 @@ mod imp {
                     #[weak]
                     obj,
                     move |_| {
-                        obj.update_avatar_icon_name();
+                        obj.update_avatar_display();
                     }
                 ));
 
             obj.update_zone_label();
-            obj.update_avatar_icon_name();
+            obj.update_avatar_display();
         }
 
         fn dispose(&self) {
@@ -97,17 +97,20 @@ mod imp {
             }
 
             if let Some(entity) = &entity {
-                let text = if let Some(stock_id) = entity.stock_id() {
-                    format!("{} ({})", entity.id(), stock_id)
+                if let Some(name) = entity.data().name() {
+                    self.title_label.set_label(name);
+                    self.avatar.set_text(Some(name));
                 } else {
-                    entity.id().to_string()
-                };
-                self.title_label.set_label(&text);
-
-                self.avatar.set_text(Some(&entity.id().to_string()));
+                    let text = if let Some(stock_id) = entity.stock_id() {
+                        format!("{} ({})", entity.id(), stock_id)
+                    } else {
+                        entity.id().to_string()
+                    };
+                    self.title_label.set_label(&text);
+                    self.avatar.set_text(Some(&entity.id().to_string()));
+                }
             } else {
                 self.title_label.set_label("");
-
                 self.avatar.set_text(None);
             }
 
@@ -118,6 +121,7 @@ mod imp {
 
             self.entity.replace(entity);
             obj.update_zone_label();
+            obj.update_avatar_display();
             obj.notify_entity();
         }
     }
@@ -154,14 +158,20 @@ impl EntityRow {
         }
     }
 
-    fn update_avatar_icon_name(&self) {
+    fn update_avatar_display(&self) {
         let imp = self.imp();
 
-        imp.avatar.set_icon_name(Some(
-            Application::get()
-                .settings()
-                .operation_mode()
-                .entities_view_icon_name(),
-        ));
+        let has_name = self.entity().is_some_and(|e| e.data().name().is_some());
+
+        imp.avatar.set_show_initials(has_name);
+
+        if !has_name {
+            imp.avatar.set_icon_name(Some(
+                Application::get()
+                    .settings()
+                    .operation_mode()
+                    .entities_view_icon_name(),
+            ));
+        }
     }
 }
