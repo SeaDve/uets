@@ -1,6 +1,6 @@
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{date_time_range::DateTimeRange, ui::date_time_dialog::DateTimeDialog};
+use crate::{date_time_range::DateTimeRange, ui::date_time_range_dialog::DateTimeRangeDialog};
 
 mod imp {
     use std::cell::Cell;
@@ -8,9 +8,9 @@ mod imp {
     use super::*;
 
     #[derive(Default, glib::Properties, gtk::CompositeTemplate)]
-    #[properties(wrapper_type = super::DateTimeButton)]
-    #[template(resource = "/io/github/seadve/Uets/ui/date_time_button.ui")]
-    pub struct DateTimeButton {
+    #[properties(wrapper_type = super::DateTimeRangeButton)]
+    #[template(resource = "/io/github/seadve/Uets/ui/date_time_range_button.ui")]
+    pub struct DateTimeRangeButton {
         #[property(get, set = Self::set_range, explicit_notify)]
         pub(super) range: Cell<DateTimeRange>,
 
@@ -21,9 +21,9 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for DateTimeButton {
-        const NAME: &'static str = "UetsDateTimeButton";
-        type Type = super::DateTimeButton;
+    impl ObjectSubclass for DateTimeRangeButton {
+        const NAME: &'static str = "UetsDateTimeRangeButton";
+        type Type = super::DateTimeRangeButton;
         type ParentType = gtk::Widget;
 
         fn class_init(klass: &mut Self::Class) {
@@ -37,7 +37,7 @@ mod imp {
                     range
                 };
 
-                if let Ok(new_range) = DateTimeDialog::pick(initial_range, Some(&obj)).await {
+                if let Ok(new_range) = DateTimeRangeDialog::pick(initial_range, Some(&obj)).await {
                     obj.set_range(new_range);
                 }
             });
@@ -49,7 +49,7 @@ mod imp {
     }
 
     #[glib::derived_properties]
-    impl ObjectImpl for DateTimeButton {
+    impl ObjectImpl for DateTimeRangeButton {
         fn constructed(&self) {
             self.parent_constructed();
 
@@ -63,9 +63,9 @@ mod imp {
         }
     }
 
-    impl WidgetImpl for DateTimeButton {}
+    impl WidgetImpl for DateTimeRangeButton {}
 
-    impl DateTimeButton {
+    impl DateTimeRangeButton {
         fn set_range(&self, range: DateTimeRange) {
             let obj = self.obj();
 
@@ -81,11 +81,11 @@ mod imp {
 }
 
 glib::wrapper! {
-    pub struct DateTimeButton(ObjectSubclass<imp::DateTimeButton>)
+    pub struct DateTimeRangeButton(ObjectSubclass<imp::DateTimeRangeButton>)
         @extends gtk::Widget;
 }
 
-impl DateTimeButton {
+impl DateTimeRangeButton {
     pub fn new() -> Self {
         glib::Object::new()
     }

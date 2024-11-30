@@ -54,7 +54,7 @@
                   <object class="GtkDropDown" id="entity_zone_dropdown"/>
                 </child>
                 <child>
-                  <object class="UetsDateTimeButton" id="dt_button"/>
+                  <object class="UetsDateTimeRangeButton" id="dt_range_button"/>
                 </child>
                 <child>
                   <object class="GtkSeparator"/>

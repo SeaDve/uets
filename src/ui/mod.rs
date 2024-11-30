@@ -1,9 +1,9 @@
 mod camera_live_feed_dialog;
 mod camera_viewfinder;
 mod dashboard_view;
-mod date_time_button;
-mod date_time_dialog;
 mod date_time_picker;
+mod date_time_range_button;
+mod date_time_range_dialog;
 mod entities_view;
 mod entity_details_pane;
 mod entity_row;

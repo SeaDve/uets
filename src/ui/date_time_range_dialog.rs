@@ -13,8 +13,8 @@ mod imp {
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/seadve/Uets/ui/date_time_dialog.ui")]
-    pub struct DateTimeDialog {
+    #[template(resource = "/io/github/seadve/Uets/ui/date_time_range_dialog.ui")]
+    pub struct DateTimeRangeDialog {
         #[template_child]
         pub(super) range_kind_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
@@ -35,9 +35,9 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for DateTimeDialog {
-        const NAME: &'static str = "UetsDateTimeDialog";
-        type Type = super::DateTimeDialog;
+    impl ObjectSubclass for DateTimeRangeDialog {
+        const NAME: &'static str = "UetsDateTimeRangeDialog";
+        type Type = super::DateTimeRangeDialog;
         type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
@@ -60,7 +60,7 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for DateTimeDialog {
+    impl ObjectImpl for DateTimeRangeDialog {
         fn constructed(&self) {
             self.parent_constructed();
 
@@ -143,16 +143,16 @@ mod imp {
         }
     }
 
-    impl WidgetImpl for DateTimeDialog {}
-    impl AdwDialogImpl for DateTimeDialog {}
+    impl WidgetImpl for DateTimeRangeDialog {}
+    impl AdwDialogImpl for DateTimeRangeDialog {}
 }
 
 glib::wrapper! {
-    pub struct DateTimeDialog(ObjectSubclass<imp::DateTimeDialog>)
+    pub struct DateTimeRangeDialog(ObjectSubclass<imp::DateTimeRangeDialog>)
         @extends gtk::Widget, adw::Dialog;
 }
 
-impl DateTimeDialog {
+impl DateTimeRangeDialog {
     pub async fn pick(
         initial_range: DateTimeRange,
         parent: Option<&impl IsA<gtk::Widget>>,

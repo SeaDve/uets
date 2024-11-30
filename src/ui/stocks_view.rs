@@ -17,8 +17,8 @@ use crate::{
     stock_id::StockId,
     stock_list::StockList,
     ui::{
-        date_time_button::DateTimeButton, search_entry::SearchEntry, send_dialog::SendDialog,
-        stock_details_pane::StockDetailsPane, stock_row::StockRow,
+        date_time_range_button::DateTimeRangeButton, search_entry::SearchEntry,
+        send_dialog::SendDialog, stock_details_pane::StockDetailsPane, stock_row::StockRow,
     },
     utils::new_sorter,
     Application,
@@ -94,7 +94,7 @@ mod imp {
         #[template_child]
         pub(super) search_entry: TemplateChild<SearchEntry>,
         #[template_child]
-        pub(super) dt_button: TemplateChild<DateTimeButton>,
+        pub(super) dt_range_button: TemplateChild<DateTimeRangeButton>,
         #[template_child]
         pub(super) stock_sort_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
@@ -120,7 +120,7 @@ mod imp {
 
         pub(super) fuzzy_filter: OnceCell<FuzzyFilter>,
 
-        pub(super) dt_button_range_notify_id: OnceCell<glib::SignalHandlerId>,
+        pub(super) dt_range_button_range_notify_id: OnceCell<glib::SignalHandlerId>,
         pub(super) stock_sort_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
 
         pub(super) rows: RefCell<Vec<WeakRef<StockRow>>>,
@@ -164,15 +164,16 @@ mod imp {
                 }
             ));
 
-            let dt_button_range_notify_id = self.dt_button.connect_range_notify(clone!(
-                #[weak]
-                obj,
-                move |button| {
-                    obj.handle_dt_button_range_notify(button);
-                }
-            ));
-            self.dt_button_range_notify_id
-                .set(dt_button_range_notify_id)
+            let dt_range_button_range_notify_id =
+                self.dt_range_button.connect_range_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |button| {
+                        obj.handle_dt_range_button_range_notify(button);
+                    }
+                ));
+            self.dt_range_button_range_notify_id
+                .set(dt_range_button_range_notify_id)
                 .unwrap();
 
             self.stock_sort_dropdown
@@ -400,10 +401,12 @@ impl StocksView {
 
         let dt_range = queries.dt_range(S::FROM, S::TO);
 
-        let dt_button_range_notify_id = imp.dt_button_range_notify_id.get().unwrap();
-        imp.dt_button.block_signal(dt_button_range_notify_id);
-        imp.dt_button.set_range(dt_range);
-        imp.dt_button.unblock_signal(dt_button_range_notify_id);
+        let dt_range_button_range_notify_id = imp.dt_range_button_range_notify_id.get().unwrap();
+        imp.dt_range_button
+            .block_signal(dt_range_button_range_notify_id);
+        imp.dt_range_button.set_range(dt_range);
+        imp.dt_range_button
+            .unblock_signal(dt_range_button_range_notify_id);
 
         self.set_dt_range(dt_range);
 
@@ -506,7 +509,7 @@ impl StocksView {
         imp.search_entry.set_queries(queries);
     }
 
-    fn handle_dt_button_range_notify(&self, button: &DateTimeButton) {
+    fn handle_dt_range_button_range_notify(&self, button: &DateTimeRangeButton) {
         let imp = self.imp();
 
         let dt_range = button.range();
