@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Local, TimeDelta, Utc};
+use chrono::TimeDelta;
 use gtk::glib;
 
 pub fn transfer_progress(sent_bytes: u64, total_bytes: u64) -> String {
@@ -7,19 +7,6 @@ pub fn transfer_progress(sent_bytes: u64, total_bytes: u64) -> String {
         glib::format_size(sent_bytes),
         glib::format_size(total_bytes)
     )
-}
-
-pub fn fuzzy_dt(dt: DateTime<Utc>) -> String {
-    let dt = dt.with_timezone(&Local);
-    let now = Local::now();
-
-    if dt.year() == now.year() && dt.month() == now.month() && dt.day() == now.day() {
-        dt.format("today at %r").to_string() // today at 13:21:16 AM
-    } else if (now - dt).num_hours() <= 30 {
-        dt.format("yesterday at %r").to_string() // yesterday at 13:21:16 AM
-    } else {
-        dt.format("%a, %-d %b %Y at %r").to_string() // Sun, 3 Nov 2024 at 13:21:16 AM
-    }
 }
 
 /// Formats time as duration.

@@ -19,19 +19,13 @@ impl SearchQueriesDateTimeRangeExt for SearchQueries {
 
     fn set_dt_range(&mut self, start_iden: &str, end_iden: &str, dt_range: DateTimeRange) {
         if let Some(end) = dt_range.end {
-            self.replace_all_iden_or_insert(
-                end_iden,
-                &date_time::parseable_format(&end).to_string(),
-            );
+            self.replace_all_iden_or_insert(end_iden, &date_time::format::parseable(end));
         } else {
             self.remove_all_iden(end_iden);
         }
 
         if let Some(start) = dt_range.start {
-            self.replace_all_iden_or_insert(
-                start_iden,
-                &date_time::parseable_format(&start).to_string(),
-            );
+            self.replace_all_iden_or_insert(start_iden, &date_time::format::parseable(start));
         } else {
             self.remove_all_iden(start_iden);
         }

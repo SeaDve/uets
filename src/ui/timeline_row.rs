@@ -5,7 +5,7 @@ use gtk::{
 };
 
 use crate::{
-    entity_id::EntityId, format, stock_id::StockId, timeline_item::TimelineItem,
+    date_time, entity_id::EntityId, format, stock_id::StockId, timeline_item::TimelineItem,
     timeline_item_kind::TimelineItemKind, Application,
 };
 
@@ -121,7 +121,7 @@ mod imp {
             }
 
             if let Some(item) = &item {
-                let dt_fuzzy_text = format::fuzzy_dt(item.dt());
+                let dt_fuzzy_text = date_time::format::fuzzy(item.dt());
                 self.dt_label.set_label(&dt_fuzzy_text);
 
                 match item.kind() {

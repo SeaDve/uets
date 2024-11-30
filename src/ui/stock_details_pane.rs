@@ -5,8 +5,8 @@ use gtk::{
 };
 
 use crate::{
+    date_time,
     date_time_range::DateTimeRange,
-    format,
     report::{self, ReportKind},
     report_table,
     stock::Stock,
@@ -406,8 +406,11 @@ impl StockDetailsPane {
             .as_ref()
             .map(|s| s.last_entry_dt_for_dt_range(&imp.dt_range.borrow()))
             .unwrap_or_default();
-        imp.last_entry_dt_row
-            .set_value(last_entry_dt.map(format::fuzzy_dt).unwrap_or_default());
+        imp.last_entry_dt_row.set_value(
+            last_entry_dt
+                .map(date_time::format::fuzzy)
+                .unwrap_or_default(),
+        );
     }
 
     fn update_last_exit_dt_row(&self) {
@@ -418,8 +421,11 @@ impl StockDetailsPane {
             .as_ref()
             .map(|s| s.last_exit_dt_for_dt_range(&imp.dt_range.borrow()))
             .unwrap_or_default();
-        imp.last_exit_dt_row
-            .set_value(last_exit_dt.map(format::fuzzy_dt).unwrap_or_default());
+        imp.last_exit_dt_row.set_value(
+            last_exit_dt
+                .map(date_time::format::fuzzy)
+                .unwrap_or_default(),
+        );
     }
 
     fn update_graphs_data(&self) {

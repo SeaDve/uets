@@ -5,6 +5,7 @@ use gtk::glib::{self, closure};
 use crate::{
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     stock::Stock,
+    ui::date_time_button::DateTimeButton,
     utils, Application,
 };
 
@@ -23,7 +24,9 @@ mod imp {
         #[template_child]
         pub(super) location_row: TemplateChild<adw::EntryRow>,
         #[template_child]
-        pub(super) expiration_dt_row: TemplateChild<adw::EntryRow>,
+        pub(super) expiration_dt_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub(super) expiration_dt_button: TemplateChild<DateTimeButton>,
         #[template_child]
         pub(super) name_row: TemplateChild<adw::EntryRow>,
         #[template_child]
@@ -147,10 +150,14 @@ impl EntryDialog {
                 Some(imp.location_row.text().to_string())
                     .filter(|t| !t.is_empty())
                     .map(EntityDataField::Location),
-                Some(imp.expiration_dt_row.text().to_string())
-                    .filter(|t| !t.is_empty())
-                    .map(|_| chrono::Utc::now()) // FIXME
-                    .map(EntityDataField::ExpirationDt),
+                operation_mode
+                    .is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt)
+                    .then(|| {
+                        imp.expiration_dt_button
+                            .dt()
+                            .map(|dt| EntityDataField::ExpirationDt(dt.0))
+                    })
+                    .flatten(),
                 Some(imp.name_row.text().to_string())
                     .filter(|t| !t.is_empty())
                     .map(EntityDataField::Name),

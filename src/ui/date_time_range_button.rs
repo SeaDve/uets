@@ -29,18 +29,24 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
 
-            klass.install_action_async("date-time-button.pick", None, |obj, _, _| async move {
-                let range = obj.range();
-                let initial_range = if range.is_all_time() {
-                    DateTimeRange::today()
-                } else {
-                    range
-                };
+            klass.install_action_async(
+                "date-time-range-button.pick",
+                None,
+                |obj, _, _| async move {
+                    let range = obj.range();
+                    let initial_range = if range.is_all_time() {
+                        DateTimeRange::today()
+                    } else {
+                        range
+                    };
 
-                if let Ok(new_range) = DateTimeRangeDialog::pick(initial_range, Some(&obj)).await {
-                    obj.set_range(new_range);
-                }
-            });
+                    if let Ok(new_range) =
+                        DateTimeRangeDialog::pick(initial_range, Some(&obj)).await
+                    {
+                        obj.set_range(new_range);
+                    }
+                },
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {

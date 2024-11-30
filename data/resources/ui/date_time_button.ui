@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="UetsDateTimeButton">
+    <property name="layout-manager">
+      <object class="GtkBinLayout"/>
+    </property>
+    <child>
+      <object class="GtkMenuButton" id="button">
+        <property name="child">
+          <object class="GtkLabel" id="label">
+            <property name="valign">center</property>
+            <property name="use-markup">True</property>
+            <property name="wrap">True</property>
+            <property name="justify">center</property>
+            <style>
+              <class name="caption-heading"/>
+            </style>
+          </object>
+        </property>
+        <property name="popover">
+          <object class="GtkPopover">
+            <property name="has-arrow">False</property>
+            <property name="child">
+              <object class="GtkOverlay">
+                <property name="child">
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">6</property>
+                    <child>
+                      <object class="GtkLabel" id="dt_label">
+                        <style>
+                          <class name="heading"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="UetsDateTimePicker" id="dt_picker"/>
+                    </child>
+                  </object>
+                </property>
+                <child type="overlay">
+                  <object class="GtkBox">
+                    <property name="margin-end">6</property>
+                    <property name="margin-bottom">6</property>
+                    <property name="halign">end</property>
+                    <property name="valign">end</property>
+                    <property name="spacing">6</property>
+                    <child>
+                      <object class="GtkButton">
+                        <property name="icon-name">edit-clear-symbolic</property>
+                        <property name="action-name">date-time-button.clear</property>
+                        <style>
+                          <class name="circular"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton">
+                        <property name="icon-name">check-plain-symbolic</property>
+                        <property name="action-name">date-time-button.done</property>
+                        <style>
+                          <class name="suggested-action"/>
+                          <class name="circular"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </property>
+          </object>
+        </property>
+      </object>
+    </child>
+  </template>
+</interface>

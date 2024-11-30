@@ -2,8 +2,8 @@ use adw::{prelude::*, subclass::prelude::*};
 use gtk::glib::{self, clone};
 
 use crate::{
+    date_time,
     date_time_range::DateTimeRange,
-    format,
     ui::{
         camera_live_feed_dialog::CameraLiveFeedDialog, information_row::InformationRow,
         time_graph::TimeGraph,
@@ -220,7 +220,7 @@ impl DashboardView {
         let last_entry_dt = Application::get().timeline().last_entry_dt();
         imp.last_entry_dt_row.set_value(
             last_entry_dt
-                .map(|dt_boxed| format::fuzzy_dt(dt_boxed.0))
+                .map(|dt_boxed| date_time::format::fuzzy(dt_boxed.0))
                 .unwrap_or_default(),
         );
     }
@@ -231,7 +231,7 @@ impl DashboardView {
         let last_exit_dt = Application::get().timeline().last_exit_dt();
         imp.last_exit_dt_row.set_value(
             last_exit_dt
-                .map(|dt_boxed| format::fuzzy_dt(dt_boxed.0))
+                .map(|dt_boxed| date_time::format::fuzzy(dt_boxed.0))
                 .unwrap_or_default(),
         );
     }

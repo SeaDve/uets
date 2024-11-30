@@ -1,6 +1,7 @@
 mod camera_live_feed_dialog;
 mod camera_viewfinder;
 mod dashboard_view;
+mod date_time_button;
 mod date_time_picker;
 mod date_time_range_button;
 mod date_time_range_dialog;

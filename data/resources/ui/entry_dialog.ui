@@ -37,8 +37,13 @@
                   </object>
                 </child>
                 <child>
-                  <object class="AdwEntryRow" id="expiration_dt_row">
+                  <object class="AdwActionRow" id="expiration_dt_row">
                     <property name="title">Expiration Date</property>
+                    <child type="suffix">
+                      <object class="UetsDateTimeButton" id="expiration_dt_button">
+                        <property name="valign">center</property>
+                      </object>
+                    </child>
                   </object>
                 </child>
                 <child>

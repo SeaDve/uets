@@ -6,7 +6,7 @@
     </property>
     <child>
       <object class="GtkButton" id="button">
-        <property name="action-name">date-time-button.pick</property>
+        <property name="action-name">date-time-range-button.pick</property>
         <property name="child">
           <object class="GtkLabel" id="label">
             <property name="valign">center</property>
@@ -15,7 +15,7 @@
             <property name="justify">center</property>
             <style>
               <class name="caption"/>
-              <class name="date-time-button-label"/>
+              <class name="date-time-range-button-label"/>
             </style>
           </object>
         </property>

@@ -4,6 +4,8 @@ use chrono::{
 };
 use gtk::glib;
 
+use crate::date_time;
+
 const MIN_TIME: NaiveTime = NaiveTime::MIN;
 
 #[allow(deprecated)]
@@ -128,31 +130,25 @@ impl DateTimeRange {
     }
 
     pub fn label_markup(&self) -> String {
-        fn dt_fmt(dt: DateTime<Utc>) -> String {
-            let dt = dt.with_timezone(&Local).naive_local();
-            if dt.time() == NaiveTime::MIN {
-                dt.format("%b %-d %Y").to_string()
-            } else {
-                dt.format("%b %-d %Y %r").to_string()
-            }
-        }
-
         match (self.start, self.end) {
             (Some(start), Some(end)) => {
                 format!(
                     "<b>{}</b> to <b>{}</b>",
-                    glib::markup_escape_text(&dt_fmt(start)),
-                    glib::markup_escape_text(&dt_fmt(end)),
+                    glib::markup_escape_text(&date_time::format::human_readable(start)),
+                    glib::markup_escape_text(&date_time::format::human_readable(end)),
                 )
             }
             (Some(start), None) => {
                 format!(
                     "<b>{}</b> Onwards",
-                    glib::markup_escape_text(&dt_fmt(start)),
+                    glib::markup_escape_text(&date_time::format::human_readable(start)),
                 )
             }
             (None, Some(end)) => {
-                format!("Until <b>{}</b>", glib::markup_escape_text(&dt_fmt(end)),)
+                format!(
+                    "Until <b>{}</b>",
+                    glib::markup_escape_text(&date_time::format::human_readable(end)),
+                )
             }
             (None, None) => "<b>All Time</b>".to_string(),
         }
