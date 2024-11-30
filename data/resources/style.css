@@ -18,15 +18,6 @@ label.n-inside  {
     font-size: 0.6em;
 }
 
-/* EntityRow */
-
-image.entity-icon {
-    background-color: alpha(@accent_color, 0.25);
-    color: @accent_color;
-    border-radius: 9999px;
-    padding: 9px;
-}
-
 /* SendDialog */
 
 .code-label {
@@ -37,15 +28,6 @@ image.entity-icon {
 
 image.close-icon {
     padding: 3px;
-}
-
-/* StockRow */
-
-image.stock-icon {
-    background-color: alpha(@accent_color, 0.25);
-    color: @accent_color;
-    border-radius: 9999px;
-    padding: 9px;
 }
 
 /* TimelineRow */

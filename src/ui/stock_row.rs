@@ -21,7 +21,7 @@ mod imp {
         #[template_child]
         pub(super) hbox: TemplateChild<gtk::Box>, // Unused
         #[template_child]
-        pub(super) image: TemplateChild<gtk::Image>,
+        pub(super) avatar: TemplateChild<adw::Avatar>,
         #[template_child]
         pub(super) title_label: TemplateChild<gtk::Label>,
         #[template_child]
@@ -87,8 +87,12 @@ mod imp {
 
             if let Some(stock) = &stock {
                 self.title_label.set_label(&stock.id().to_string());
+
+                self.avatar.set_text(Some(&stock.id().to_string()));
             } else {
                 self.title_label.set_label("");
+
+                self.avatar.set_text(None);
             }
 
             self.stock_signals.get().unwrap().set_target(stock.as_ref());

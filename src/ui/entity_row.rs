@@ -21,7 +21,7 @@ mod imp {
         #[template_child]
         pub(super) hbox: TemplateChild<gtk::Box>, // Unused
         #[template_child]
-        pub(super) image: TemplateChild<gtk::Image>,
+        pub(super) avatar: TemplateChild<adw::Avatar>,
         #[template_child]
         pub(super) title_label: TemplateChild<gtk::Label>,
         #[template_child]
@@ -91,9 +91,13 @@ mod imp {
                 } else {
                     entity.id().to_string()
                 };
-                self.title_label.set_label(&text)
+                self.title_label.set_label(&text);
+
+                self.avatar.set_text(Some(&entity.id().to_string()));
             } else {
                 self.title_label.set_label("");
+
+                self.avatar.set_text(None);
             }
 
             self.entity_signals

@@ -10,12 +10,9 @@
         <property name="margin-bottom">6</property>
         <property name="spacing">12</property>
         <child>
-          <object class="GtkImage" id="image">
-            <property name="valign">center</property>
-            <property name="icon-name">egg-symbolic</property>
-            <style>
-              <class name="stock-icon"/>
-            </style>
+          <object class="AdwAvatar" id="avatar">
+            <property name="size">32</property>
+            <property name="show-initials">True</property>
           </object>
         </child>
         <child>
