@@ -73,6 +73,18 @@
                 </child>
               </object>
             </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title">Register Data</property>
+                <property name="activatable">True</property>
+                <property name="action-name">dashboard-view.register-data</property>
+                <child type="suffix">
+                  <object class="GtkImage">
+                    <property name="icon-name">go-next-symbolic</property>
+                  </object>
+                </child>
+              </object>
+            </child>
           </object>
         </child>
         <child>

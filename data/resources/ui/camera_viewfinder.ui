@@ -22,7 +22,7 @@
           <object class="GtkPicture" id="picture"/>
         </child>
         <child>
-          <object class="GtkLabel" id="error_label">
+          <object class="GtkLabel" id="message_label">
             <property name="wrap">True</property>
             <property name="justify">center</property>
           </object>

@@ -5,7 +5,9 @@ use crate::{
     date_time,
     date_time_range::DateTimeRange,
     ui::{
-        camera_live_feed_dialog::CameraLiveFeedDialog, information_row::InformationRow,
+        camera_live_feed_dialog::CameraLiveFeedDialog,
+        information_row::InformationRow,
+        receive_dialog::{InvalidFileExtension, ReceiveDialog},
         time_graph::TimeGraph,
     },
     Application,
@@ -60,6 +62,38 @@ mod imp {
                     dialog.set_camera(Some(camera));
 
                     dialog.present(Some(obj));
+                },
+            );
+            klass.install_action_async(
+                "dashboard-view.register-data",
+                None,
+                |obj, _, _| async move {
+                    let app = Application::get();
+
+                    let valid_file_extensions =
+                        &[".xls", ".xlsx", ".xlsm", ".xlsb", ".xla", ".xlam", ".ods"];
+                    match ReceiveDialog::receive(valid_file_extensions, Some(&obj)).await {
+                        Ok((_, bytes)) => {
+                            if let Err(err) =
+                                app.timeline().populate_lists_from_workbook_bytes(&bytes)
+                            {
+                                tracing::error!("Failed to register data: {:?}", err);
+
+                                app.add_message_toast("Failed to register data");
+                            } else {
+                                app.add_message_toast("Data registered");
+                            }
+                        }
+                        Err(err) => {
+                            if err.is::<InvalidFileExtension>() {
+                                app.add_message_toast("Unknown file type");
+                            } else {
+                                app.add_message_toast("Failed to receive file");
+                            }
+
+                            tracing::error!("Failed to receive file: {:?}", err)
+                        }
+                    }
                 },
             );
         }

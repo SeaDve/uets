@@ -456,6 +456,21 @@ impl Timeline {
         Ok(())
     }
 
+    pub fn insert_stocks(&self, stocks: Vec<Stock>) -> Result<()> {
+        let (env, _, _, sdb) = self.db();
+        env.with_write_txn(|wtxn| {
+            for stock in &stocks {
+                sdb.put(wtxn, stock.id(), stock.data())?;
+            }
+            Ok(())
+        })?;
+
+        let n_appended_stocks = self.stock_list().insert_many(stocks);
+        tracing::debug!("Appended `{}` new stocks", n_appended_stocks);
+
+        Ok(())
+    }
+
     pub fn reset(&self) -> Result<()> {
         let imp = self.imp();
 

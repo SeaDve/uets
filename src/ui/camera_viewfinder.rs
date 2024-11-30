@@ -20,7 +20,7 @@ mod imp {
         #[template_child]
         pub(super) picture: TemplateChild<gtk::Picture>,
         #[template_child]
-        pub(super) error_label: TemplateChild<gtk::Label>,
+        pub(super) message_label: TemplateChild<gtk::Label>,
 
         pub(super) camera: RefCell<Option<Camera>>,
         pub(super) camera_bindings: glib::BindingGroup,
@@ -105,13 +105,19 @@ impl CameraViewfinder {
         let imp = self.imp();
 
         match imp.camera.borrow().as_ref().map(|c| c.state()) {
-            None | Some(CameraState::Idle) | Some(CameraState::Loading) => {
-                imp.stack.set_visible_child(&*imp.spinner)
+            None => {
+                imp.message_label.set_label("No camera");
+                imp.stack.set_visible_child(&*imp.message_label)
             }
+            Some(CameraState::Idle) => {
+                imp.message_label.set_label("Camera is idle");
+                imp.stack.set_visible_child(&*imp.message_label)
+            }
+            Some(CameraState::Loading) => imp.stack.set_visible_child(&*imp.spinner),
             Some(CameraState::Loaded) => imp.stack.set_visible_child(&*imp.picture),
             Some(CameraState::Error { message }) => {
-                imp.error_label.set_label(&message);
-                imp.stack.set_visible_child(&*imp.error_label)
+                imp.message_label.set_label(&message);
+                imp.stack.set_visible_child(&*imp.message_label)
             }
         }
     }

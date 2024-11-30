@@ -8,24 +8,6 @@
       <object class="AdwPreferencesPage" id="page">
         <child>
           <object class="AdwPreferencesGroup">
-            <property name="title">Entity Entry</property>
-            <property name="description">Modify entity entry parameters</property>
-            <child>
-              <object class="AdwActionRow">
-                <property name="title">Register Entity Data</property>
-                <property name="activatable">True</property>
-                <property name="action-name">settings-view.register-entity-data</property>
-                <child type="suffix">
-                  <object class="GtkImage">
-                    <property name="icon-name">go-next-symbolic</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-          </object>
-        </child>
-        <child>
-          <object class="AdwPreferencesGroup">
             <property name="title">Operation Mode</property>
             <property name="description">Set up the operating mode of the device</property>
             <child>

@@ -1,10 +1,7 @@
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
 use std::process::Command;
 
-use crate::{
-    ui::receive_dialog::{InvalidFileExtension, ReceiveDialog},
-    Application,
-};
+use crate::Application;
 
 mod imp {
     use super::*;
@@ -32,39 +29,6 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
-
-            klass.install_action_async(
-                "settings-view.register-entity-data",
-                None,
-                |obj, _, _| async move {
-                    let app = Application::get();
-
-                    let valid_file_extensions =
-                        &[".xls", ".xlsx", ".xlsm", ".xlsb", ".xla", ".xlam", ".ods"];
-                    match ReceiveDialog::receive(valid_file_extensions, Some(&obj)).await {
-                        Ok((_, bytes)) => {
-                            if let Err(err) =
-                                app.timeline().insert_entities_from_workbook_bytes(&bytes)
-                            {
-                                tracing::error!("Failed to register entity data: {:?}", err);
-
-                                app.add_message_toast("Failed to register entity data");
-                            } else {
-                                app.add_message_toast("Entity data registered");
-                            }
-                        }
-                        Err(err) => {
-                            if err.is::<InvalidFileExtension>() {
-                                app.add_message_toast("Unknown file type");
-                            } else {
-                                app.add_message_toast("Failed to receive file");
-                            }
-
-                            tracing::error!("Failed to receive file: {:?}", err)
-                        }
-                    }
-                },
-            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
