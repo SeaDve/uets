@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use calamine::{Data, DataType, Reader};
 
 use crate::{
+    date_time,
     entity::Entity,
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_id::EntityId,
@@ -75,9 +76,16 @@ impl Timeline {
                     EntityDataFieldTy::Location => {
                         row[idx].as_string().map(EntityDataField::Location)
                     }
-                    EntityDataFieldTy::ExpirationDt => {
-                        row[idx].as_string().map(EntityDataField::ExpirationDt)
-                    }
+                    EntityDataFieldTy::ExpirationDt => row[idx]
+                        .as_string()
+                        .and_then(|s| {
+                            date_time::parse(&s)
+                                .inspect_err(|err| {
+                                    tracing::warn!("Failed to parse date time: {}", err)
+                                })
+                                .ok()
+                        })
+                        .map(EntityDataField::ExpirationDt),
                     EntityDataFieldTy::Name => row[idx].as_string().map(EntityDataField::Name),
                     EntityDataFieldTy::Sex => row[idx].as_string().map(EntityDataField::Sex),
                     EntityDataFieldTy::Email => row[idx].as_string().map(EntityDataField::Email),

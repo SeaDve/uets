@@ -1,11 +1,11 @@
 use adw::{prelude::*, subclass::prelude::*};
-use chrono::{DateTime, Datelike, Local, NaiveDate, NaiveDateTime, Utc};
+use chrono::{DateTime, Datelike, Local, Utc};
 use futures_channel::oneshot;
 use gtk::glib::{self, clone, closure};
 
-use crate::{date_time_range::DateTimeRange, list_model_enum, ui::time_picker::TimePicker};
-
-use super::time_picker::NaiveTimeBoxed;
+use crate::{
+    date_time_range::DateTimeRange, list_model_enum, ui::date_time_picker::DateTimePicker,
+};
 
 mod imp {
     use std::cell::{Cell, OnceCell, RefCell};
@@ -22,19 +22,11 @@ mod imp {
         #[template_child]
         pub(super) start_switch: TemplateChild<gtk::Switch>,
         #[template_child]
-        pub(super) start_box: TemplateChild<gtk::Box>,
-        #[template_child]
-        pub(super) start_calendar: TemplateChild<gtk::Calendar>,
-        #[template_child]
-        pub(super) start_time_picker: TemplateChild<TimePicker>,
+        pub(super) start_dt_picker: TemplateChild<DateTimePicker>,
         #[template_child]
         pub(super) end_switch: TemplateChild<gtk::Switch>,
         #[template_child]
-        pub(super) end_box: TemplateChild<gtk::Box>,
-        #[template_child]
-        pub(super) end_calendar: TemplateChild<gtk::Calendar>,
-        #[template_child]
-        pub(super) end_time_picker: TemplateChild<TimePicker>,
+        pub(super) end_dt_picker: TemplateChild<DateTimePicker>,
 
         pub(super) range: Cell<DateTimeRange>,
 
@@ -99,11 +91,11 @@ mod imp {
                 .unwrap();
 
             self.start_switch
-                .bind_property("active", &*self.start_box, "sensitive")
+                .bind_property("active", &*self.start_dt_picker, "sensitive")
                 .sync_create()
                 .build();
             self.end_switch
-                .bind_property("active", &*self.end_box, "sensitive")
+                .bind_property("active", &*self.end_dt_picker, "sensitive")
                 .sync_create()
                 .build();
 
@@ -122,57 +114,14 @@ mod imp {
                 }
             ));
 
-            self.start_calendar.connect_year_notify(clone!(
+            self.start_dt_picker.connect_dt_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
                     obj.handle_ui_changed();
                 }
             ));
-            self.start_calendar.connect_month_notify(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.handle_ui_changed();
-                }
-            ));
-            self.start_calendar.connect_day_notify(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.handle_ui_changed();
-                }
-            ));
-            self.start_time_picker.connect_time_notify(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.handle_ui_changed();
-                }
-            ));
-
-            self.end_calendar.connect_year_notify(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.handle_ui_changed();
-                }
-            ));
-            self.end_calendar.connect_month_notify(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.handle_ui_changed();
-                }
-            ));
-            self.end_calendar.connect_day_notify(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.handle_ui_changed();
-                }
-            ));
-            self.end_time_picker.connect_time_notify(clone!(
+            self.end_dt_picker.connect_dt_notify(clone!(
                 #[weak]
                 obj,
                 move |_| {
@@ -181,8 +130,8 @@ mod imp {
             ));
 
             let today = Local::now().day();
-            self.start_calendar.mark_day(today);
-            self.end_calendar.mark_day(today);
+            self.start_dt_picker.mark_day(today);
+            self.end_dt_picker.mark_day(today);
 
             obj.update_ui_from_selected_range_kind();
             obj.update_range_label();
@@ -261,12 +210,8 @@ impl DateTimeDialog {
         let imp = self.imp();
 
         let new_range = DateTimeRange {
-            start: get_dt_from_ui(
-                &imp.start_switch,
-                &imp.start_calendar,
-                &imp.start_time_picker,
-            ),
-            end: get_dt_from_ui(&imp.end_switch, &imp.end_calendar, &imp.end_time_picker),
+            start: get_dt_from_ui(&imp.start_switch, &imp.start_dt_picker),
+            end: get_dt_from_ui(&imp.end_switch, &imp.end_dt_picker),
         };
         let prev_range = imp.range.replace(new_range);
 
@@ -287,25 +232,11 @@ impl DateTimeDialog {
         let _guard = imp.start_switch.freeze_notify();
         let _guard = imp.end_switch.freeze_notify();
 
-        let _guard = imp.start_calendar.freeze_notify();
-        let _guard = imp.end_calendar.freeze_notify();
+        let _guard = imp.start_dt_picker.freeze_notify();
+        let _guard = imp.end_dt_picker.freeze_notify();
 
-        let _guard = imp.start_time_picker.freeze_notify();
-        let _guard = imp.end_time_picker.freeze_notify();
-
-        update_ui_from_dt(
-            &imp.start_switch,
-            &imp.start_calendar,
-            &imp.start_time_picker,
-            range.start,
-        );
-
-        update_ui_from_dt(
-            &imp.end_switch,
-            &imp.end_calendar,
-            &imp.end_time_picker,
-            range.end,
-        );
+        update_ui_from_dt(&imp.start_switch, &imp.start_dt_picker, range.start);
+        update_ui_from_dt(&imp.end_switch, &imp.end_dt_picker, range.end);
     }
 
     fn update_ui_from_selected_range_kind(&self) {
@@ -335,51 +266,20 @@ impl DateTimeDialog {
     }
 }
 
-fn update_ui_from_dt(
-    switch: &gtk::Switch,
-    calendar: &gtk::Calendar,
-    time_picker: &TimePicker,
-    dt: Option<DateTime<Utc>>,
-) {
+fn update_ui_from_dt(switch: &gtk::Switch, dt_picker: &DateTimePicker, dt: Option<DateTime<Utc>>) {
     switch.set_active(dt.is_some());
 
     if let Some(dt) = dt {
-        let dt = dt.with_timezone(&Local).naive_local();
-
-        calendar.select_day(
-            &glib::DateTime::new(
-                &glib::TimeZone::local(),
-                dt.year(),
-                dt.month() as i32,
-                dt.day() as i32,
-                0,
-                0,
-                0.0,
-            )
-            .unwrap(),
-        );
-        time_picker.set_time(NaiveTimeBoxed(dt.time()));
+        dt_picker.set_dt_utc(dt);
     }
 }
 
-fn get_dt_from_ui(
-    switch: &gtk::Switch,
-    calendar: &gtk::Calendar,
-    time_picker: &TimePicker,
-) -> Option<DateTime<Utc>> {
+fn get_dt_from_ui(switch: &gtk::Switch, dt_picker: &DateTimePicker) -> Option<DateTime<Utc>> {
     if !switch.is_active() {
         return None;
     }
 
-    let (year, month, day) = calendar.date().ymd();
-    let date = NaiveDate::from_ymd_opt(year, month as u32, day as u32).unwrap();
-    Some(
-        NaiveDateTime::new(date, time_picker.time().0)
-            .and_local_timezone(Local)
-            .single()
-            .unwrap()
-            .to_utc(),
-    )
+    Some(dt_picker.dt_utc())
 }
 
 #[derive(Debug, Default, Clone, Copy, glib::Enum)]

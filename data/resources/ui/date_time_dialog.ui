@@ -42,20 +42,7 @@
                   </object>
                 </child>
                 <child>
-                  <object class="GtkBox" id="start_box">
-                    <property name="spacing">12</property>
-                    <child>
-                      <object class="GtkCalendar" id="start_calendar">
-                        <property name="hexpand">True</property>
-                        <style>
-                          <class name="card"/>
-                        </style>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="UetsTimePicker" id="start_time_picker"/>
-                    </child>
-                  </object>
+                  <object class="UetsDateTimePicker" id="start_dt_picker"/>
                 </child>
               </object>
             </child>
@@ -68,20 +55,7 @@
                   </object>
                 </child>
                 <child>
-                  <object class="GtkBox" id="end_box">
-                    <property name="spacing">12</property>
-                    <child>
-                      <object class="GtkCalendar" id="end_calendar">
-                        <property name="hexpand">True</property>
-                        <style>
-                          <class name="card"/>
-                        </style>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="UetsTimePicker" id="end_time_picker"/>
-                    </child>
-                  </object>
+                  <object class="UetsDateTimePicker" id="end_dt_picker"/>
                 </child>
               </object>
             </child>

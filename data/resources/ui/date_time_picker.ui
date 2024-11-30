@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="UetsDateTimePicker">
+    <property name="layout-manager">
+      <object class="GtkBinLayout"/>
+    </property>
+    <child>
+      <object class="GtkBox" id="hbox">
+        <property name="spacing">12</property>
+        <child>
+          <object class="GtkCalendar" id="calendar">
+            <style>
+              <class name="card"/>
+            </style>
+          </object>
+        </child>
+        <child>
+          <object class="UetsTimePicker" id="time_picker"/>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

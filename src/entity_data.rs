@@ -1,5 +1,6 @@
 use std::fmt;
 
+use chrono::{DateTime, Utc};
 use gtk::glib;
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -53,7 +54,7 @@ macro_rules! entity_data_field {
 entity_data_field! {
     StockId(StockId) => "Stock Name",
     Location(String) => "Location",
-    ExpirationDt(String) => "Expiration Date",
+    ExpirationDt(DateTime<Utc>) => "Expiration Date",
 
     Name(String) => "Name",
     Sex(String) => "Sex",

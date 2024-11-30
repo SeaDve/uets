@@ -149,10 +149,10 @@ impl TimePicker {
         glib::Propagation::Stop
     }
 
-    fn update_ui_from_time(&self, time_unboxed: NaiveTimeBoxed) {
+    fn update_ui_from_time(&self, time: NaiveTimeBoxed) {
         let imp = self.imp();
 
-        let time_unboxed = time_unboxed.0;
+        let time_unboxed = time.0;
         let (is_pm, hour12) = time_unboxed.hour12();
         let am_pm = if is_pm { AmPm::Pm } else { AmPm::Am };
         imp.hour_button.set_value(hour12 as f64);

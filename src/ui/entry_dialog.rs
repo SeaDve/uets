@@ -149,6 +149,7 @@ impl EntryDialog {
                     .map(EntityDataField::Location),
                 Some(imp.expiration_dt_row.text().to_string())
                     .filter(|t| !t.is_empty())
+                    .map(|_| chrono::Utc::now()) // FIXME
                     .map(EntityDataField::ExpirationDt),
                 Some(imp.name_row.text().to_string())
                     .filter(|t| !t.is_empty())

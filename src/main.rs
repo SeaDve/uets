@@ -12,6 +12,7 @@ mod application;
 mod camera;
 mod colors;
 mod config;
+mod date_time;
 mod date_time_boxed;
 mod date_time_range;
 mod db;
