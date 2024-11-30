@@ -2,6 +2,7 @@
 <interface>
   <template class="UetsEntryDialog" parent="AdwDialog">
     <property name="follows-content-size">True</property>
+    <property name="presentation-mode">bottom-sheet</property>
     <property name="child">
       <object class="AdwToolbarView">
         <child type="top">
@@ -17,7 +18,6 @@
         </child>
         <property name="content">
           <object class="AdwPreferencesPage">
-            <property name="vexpand">True</property>
             <child>
               <object class="AdwPreferencesGroup">
                 <child>
@@ -75,10 +75,8 @@
         </property>
         <child type="bottom">
           <object class="GtkBox">
-            <property name="margin-start">24</property>
-            <property name="margin-end">24</property>
-            <property name="margin-top">24</property>
-            <property name="margin-bottom">24</property>
+            <property name="margin-top">12</property>
+            <property name="margin-bottom">12</property>
             <property name="halign">center</property>
             <property name="spacing">12</property>
             <child>

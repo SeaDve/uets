@@ -2,6 +2,7 @@
 <interface>
   <template class="UetsDateTimeDialog" parent="AdwDialog">
     <property name="follows-content-size">True</property>
+    <property name="presentation-mode">bottom-sheet</property>
     <property name="child">
       <object class="AdwToolbarView">
         <child type="top">
@@ -18,10 +19,9 @@
         <property name="content">
           <object class="GtkBox">
             <property name="orientation">vertical</property>
-            <property name="margin-start">24</property>
-            <property name="margin-end">24</property>
-            <property name="margin-bottom">24</property>
-            <property name="spacing">24</property>
+            <property name="margin-start">12</property>
+            <property name="margin-end">12</property>
+            <property name="spacing">12</property>
             <child>
               <object class="GtkDropDown" id="range_kind_dropdown">
                 <property name="valign">end</property>
@@ -29,121 +29,91 @@
               </object>
             </child>
             <child>
-              <object class="GtkBox">
-                <property name="orientation">vertical</property>
-                <property name="spacing">24</property>
-                <child>
-                  <object class="GtkLabel" id="range_label">
-                    <property name="use-markup">True</property>
+              <object class="GtkLabel" id="range_label">
+                <property name="use-markup">True</property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup">
+                <property name="title">From</property>
+                <child type="header-suffix">
+                  <object class="GtkSwitch" id="start_switch">
+                    <property name="valign">center</property>
                   </object>
                 </child>
                 <child>
-                  <object class="GtkBox">
-                    <property name="vexpand">True</property>
-                    <property name="orientation">vertical</property>
+                  <object class="GtkBox" id="start_box">
                     <property name="spacing">12</property>
                     <child>
-                      <object class="GtkCenterBox">
-                        <child type="start">
-                          <object class="GtkLabel">
-                            <property name="label">From</property>
-                            <property name="xalign">0</property>
-                            <style>
-                              <class name="heading"/>
-                            </style>
-                          </object>
-                        </child>
-                        <child type="end">
-                          <object class="GtkSwitch" id="start_switch"/>
-                        </child>
+                      <object class="GtkCalendar" id="start_calendar">
+                        <property name="hexpand">True</property>
+                        <style>
+                          <class name="card"/>
+                        </style>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkBox" id="start_box">
-                        <property name="spacing">12</property>
-                        <child>
-                          <object class="GtkCalendar" id="start_calendar">
-                            <property name="hexpand">True</property>
-                            <style>
-                              <class name="card"/>
-                            </style>
-                          </object>
-                        </child>
-                        <child>
-                          <object class="UetsTimePicker" id="start_time_picker"/>
-                        </child>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkBox">
-                    <property name="vexpand">True</property>
-                    <property name="orientation">vertical</property>
-                    <property name="spacing">12</property>
-                    <child>
-                      <object class="GtkCenterBox">
-                        <child type="start">
-                          <object class="GtkLabel">
-                            <property name="label">To</property>
-                            <property name="xalign">0</property>
-                            <style>
-                              <class name="heading"/>
-                            </style>
-                          </object>
-                        </child>
-                        <child type="end">
-                          <object class="GtkSwitch" id="end_switch"/>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkBox" id="end_box">
-                        <property name="spacing">12</property>
-                        <child>
-                          <object class="GtkCalendar" id="end_calendar">
-                            <property name="hexpand">True</property>
-                            <style>
-                              <class name="card"/>
-                            </style>
-                          </object>
-                        </child>
-                        <child>
-                          <object class="UetsTimePicker" id="end_time_picker"/>
-                        </child>
-                      </object>
+                      <object class="UetsTimePicker" id="start_time_picker"/>
                     </child>
                   </object>
                 </child>
               </object>
             </child>
             <child>
-              <object class="GtkBox">
-                <property name="halign">center</property>
-                <property name="spacing">12</property>
-                <child>
-                  <object class="GtkButton">
-                    <property name="action-name">date-time-window.cancel</property>
-                    <property name="label">Cancel</property>
-                    <style>
-                      <class name="pill"/>
-                    </style>
+              <object class="AdwPreferencesGroup">
+                <property name="title">To</property>
+                <child type="header-suffix">
+                  <object class="GtkSwitch" id="end_switch">
+                    <property name="valign">center</property>
                   </object>
                 </child>
                 <child>
-                  <object class="GtkButton">
-                    <property name="action-name">date-time-window.done</property>
-                    <property name="label">Done</property>
-                    <style>
-                      <class name="suggested-action"/>
-                      <class name="pill"/>
-                    </style>
+                  <object class="GtkBox" id="end_box">
+                    <property name="spacing">12</property>
+                    <child>
+                      <object class="GtkCalendar" id="end_calendar">
+                        <property name="hexpand">True</property>
+                        <style>
+                          <class name="card"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="UetsTimePicker" id="end_time_picker"/>
+                    </child>
                   </object>
                 </child>
               </object>
             </child>
           </object>
         </property>
+        <child type="bottom">
+          <object class="GtkBox">
+            <property name="halign">center</property>
+            <property name="spacing">12</property>
+            <property name="margin-top">12</property>
+            <property name="margin-bottom">12</property>
+            <child>
+              <object class="GtkButton">
+                <property name="action-name">date-time-window.cancel</property>
+                <property name="label">Cancel</property>
+                <style>
+                  <class name="pill"/>
+                </style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton">
+                <property name="action-name">date-time-window.done</property>
+                <property name="label">Done</property>
+                <style>
+                  <class name="suggested-action"/>
+                  <class name="pill"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
       </object>
     </property>
   </template>

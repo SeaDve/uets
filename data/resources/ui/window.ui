@@ -63,13 +63,9 @@
               </object>
             </property>
             <child type="bottom">
-              <object class="GtkWindowHandle">
-                <property name="child">
-                  <object class="AdwViewSwitcherBar">
-                    <property name="reveal">True</property>
-                    <property name="stack">view_stack</property>
-                  </object>
-                </property>
+              <object class="AdwViewSwitcherBar">
+                <property name="reveal">True</property>
+                <property name="stack">view_stack</property>
               </object>
             </child>
           </object>
