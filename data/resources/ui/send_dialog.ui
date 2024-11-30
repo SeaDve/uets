@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template class="UetsSendDialog" parent="AdwDialog">
-    <property name="content-width">378</property>
-    <property name="content-height">540</property>
+    <property name="follows-content-size">True</property>
     <property name="child">
       <object class="GtkBox">
         <property name="margin-start">24</property>
