@@ -5,7 +5,6 @@ use gtk::glib::{self, prelude::*};
 #[macro_export]
 macro_rules! list_model_enum {
     ($name:ident) => {
-        #[allow(unused)]
         impl $name {
             fn new_model() -> adw::EnumListModel {
                 adw::EnumListModel::new($name::static_type())
