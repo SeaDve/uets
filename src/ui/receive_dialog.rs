@@ -9,7 +9,7 @@ use gtk::{
 };
 use wormhole::{transfer, uri::WormholeTransferUri, Code, MailboxConnection, Wormhole};
 
-use crate::{camera::Camera, format, ui::camera_viewfinder::CameraViewfinder, wormhole_ext};
+use crate::{format, ui::camera_viewfinder::CameraViewfinder, wormhole_ext, Application};
 
 #[derive(Debug)]
 pub struct InvalidFileExtension;
@@ -46,7 +46,7 @@ mod imp {
         pub(super) close_button: TemplateChild<gtk::Button>,
 
         pub(super) cancellable: gio::Cancellable,
-        pub(super) code_camera: Camera,
+        pub(super) camera_code_detected_id: RefCell<Option<glib::SignalHandlerId>>,
     }
 
     #[glib::object_subclass]
@@ -69,7 +69,7 @@ mod imp {
             self.parent_constructed();
 
             self.code_camera_viewfinder
-                .set_camera(Some(self.code_camera.clone()));
+                .set_camera(Some(Application::get().camera().clone()));
         }
     }
 
@@ -77,11 +77,11 @@ mod imp {
 
     impl AdwDialogImpl for ReceiveDialog {
         fn closed(&self) {
-            tracing::trace!("Close request");
+            let obj = self.obj();
 
             self.cancellable.cancel();
 
-            self.code_camera.stop();
+            obj.camera_disconnect_code_detected();
 
             self.parent_closed();
         }
@@ -126,28 +126,23 @@ impl ReceiveDialog {
         let (tx, rx) = oneshot::channel();
         let tx = Rc::new(RefCell::new(Some(tx)));
 
-        if let Err(err) = imp.code_camera.start() {
-            tracing::warn!("Failed to start camera: {:?}", err);
+        imp.title_label.set_label("Show or Enter Code");
 
-            imp.title_label.set_label("Enter Code");
-        } else {
-            imp.title_label.set_label("Show or Enter Code");
-
-            imp.code_camera.connect_code_detected(clone!(
-                #[strong]
-                tx,
-                move |_, qrcode| {
-                    match qrcode.parse::<WormholeTransferUri>() {
-                        Ok(uri) => {
-                            let _ = tx.take().unwrap().send(uri.code);
-                        }
-                        Err(err) => {
-                            tracing::warn!("Failed to parse QR code to uri: {:?}", err);
-                        }
+        let code_detected_id = Application::get().camera().connect_code_detected(clone!(
+            #[strong]
+            tx,
+            move |_, qrcode| {
+                match qrcode.parse::<WormholeTransferUri>() {
+                    Ok(uri) => {
+                        let _ = tx.take().unwrap().send(uri.code);
+                    }
+                    Err(err) => {
+                        tracing::warn!("Failed to parse QR code to uri: {:?}", err);
                     }
                 }
-            ));
-        }
+            }
+        ));
+        imp.camera_code_detected_id.replace(Some(code_detected_id));
 
         imp.code_entry.connect_entry_activated(move |entry| {
             let code = Code(entry.text().trim().to_string());
@@ -155,7 +150,7 @@ impl ReceiveDialog {
         });
         let code = rx.await.unwrap();
 
-        imp.code_camera.stop();
+        self.camera_disconnect_code_detected();
 
         imp.stack.set_visible_child(&*imp.receiving_page);
         imp.title_label.set_label("Receiving");
@@ -245,5 +240,13 @@ impl ReceiveDialog {
             let _ = tx.send(());
         });
         rx.await.unwrap()
+    }
+
+    fn camera_disconnect_code_detected(&self) {
+        let imp = self.imp();
+
+        if let Some(handler_id) = imp.camera_code_detected_id.take() {
+            Application::get().camera().disconnect(handler_id);
+        }
     }
 }

@@ -7,10 +7,12 @@ use gtk::{
 };
 
 use crate::{
+    camera::Camera,
     db,
     detector::Detector,
     entity_data::EntityData,
     entity_id::EntityId,
+    rfid_reader::RfidReader,
     settings::{OperationMode, Settings},
     timeline::Timeline,
     timeline_item_kind::TimelineItemKind,
@@ -26,7 +28,11 @@ mod imp {
     #[derive(Default)]
     pub struct Application {
         pub(super) settings: Settings,
+
+        pub(super) camera: Camera,
+        pub(super) rfid_reader: RfidReader,
         pub(super) detector: Detector,
+
         pub(super) env: OnceCell<heed::Env>,
         pub(super) timeline: OnceCell<Timeline>,
     }
@@ -72,6 +78,13 @@ mod imp {
             obj.setup_actions();
             obj.setup_accels();
 
+            self.detector.bind_camera(&self.camera);
+            self.detector.bind_rfid_reader(&self.rfid_reader);
+
+            if let Err(err) = self.camera.start() {
+                tracing::error!("Failed to start camera: {:?}", err);
+            }
+
             self.detector.connect_detected(clone!(
                 #[weak]
                 obj,
@@ -95,6 +108,8 @@ mod imp {
                     tracing::error!("Failed to sync db env on shutdown: {:?}", err);
                 }
             }
+
+            self.camera.stop();
 
             tracing::info!("Shutting down");
 
@@ -131,6 +146,14 @@ impl Application {
 
     pub fn settings(&self) -> &Settings {
         &self.imp().settings
+    }
+
+    pub fn camera(&self) -> &Camera {
+        &self.imp().camera
+    }
+
+    pub fn rfid_reader(&self) -> &RfidReader {
+        &self.imp().rfid_reader
     }
 
     pub fn detector(&self) -> &Detector {

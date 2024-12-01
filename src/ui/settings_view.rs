@@ -57,14 +57,14 @@ mod imp {
                 Application::get().present_test_window();
             });
             self.restart_camera_button.connect_clicked(|_| {
-                if let Err(err) = Application::get().detector().camera().restart() {
+                if let Err(err) = Application::get().camera().restart() {
                     tracing::error!("Failed to restart camera: {:?}", err);
 
                     Application::get().add_message_toast("Failed to restart camera");
                 }
             });
             self.reconnect_rfid_reader_button.connect_clicked(|_| {
-                Application::get().detector().rfid_reader().reconnect();
+                Application::get().rfid_reader().reconnect();
             });
             self.quit_button.connect_clicked(|_| {
                 Application::get().quit();

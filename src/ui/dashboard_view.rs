@@ -58,7 +58,7 @@ mod imp {
                 move |obj, _, _| {
                     let dialog = CameraLiveFeedDialog::new();
 
-                    let camera = Application::get().detector().camera().clone();
+                    let camera = Application::get().camera().clone();
                     dialog.set_camera(Some(camera));
 
                     dialog.present(Some(obj));

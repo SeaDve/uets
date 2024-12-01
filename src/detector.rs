@@ -28,9 +28,6 @@ mod imp {
 
     #[derive(Default)]
     pub struct Detector {
-        pub(super) camera: Camera,
-        pub(super) rfid_reader: RfidReader,
-
         pub(super) camera_last_detected: RefCell<Option<String>>,
         pub(super) camera_last_detected_timeout: RefCell<Option<glib::SourceId>>,
     }
@@ -42,63 +39,6 @@ mod imp {
     }
 
     impl ObjectImpl for Detector {
-        fn constructed(&self) {
-            self.parent_constructed();
-
-            let obj = self.obj();
-
-            if let Err(err) = self.camera.start() {
-                tracing::error!("Failed to start camera: {:?}", err);
-            }
-
-            self.camera.connect_code_detected(clone!(
-                #[weak]
-                obj,
-                move |_, code| {
-                    let imp = obj.imp();
-
-                    if imp
-                        .camera_last_detected
-                        .borrow()
-                        .as_ref()
-                        .is_some_and(|last_detected| last_detected == code)
-                    {
-                        return;
-                    }
-
-                    if let Some((id, data)) = entity_from_qrcode(code) {
-                        obj.emit_detected(&id, Some(&data));
-
-                        Sound::DetectedSuccess.play();
-                    } else {
-                        tracing::warn!("Invalid entity code: {}", code);
-
-                        Application::get().add_message_toast("Unknown QR code format");
-
-                        Sound::DetectedError.play();
-                    }
-
-                    imp.camera_last_detected.replace(Some(code.to_string()));
-                    obj.restart_camera_last_detected_timeout();
-                }
-            ));
-
-            self.rfid_reader.connect_detected(clone!(
-                #[weak]
-                obj,
-                move |_, id| {
-                    let entity_id = EntityId::new(id);
-                    obj.emit_detected(&entity_id, None);
-
-                    Sound::DetectedSuccess.play();
-                }
-            ));
-        }
-
-        fn dispose(&self) {
-            self.camera.stop();
-        }
-
         fn signals() -> &'static [Signal] {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
 
@@ -131,12 +71,51 @@ impl Detector {
         )
     }
 
-    pub fn camera(&self) -> &Camera {
-        &self.imp().camera
+    pub fn bind_camera(&self, camera: &Camera) {
+        camera.connect_code_detected(clone!(
+            #[weak(rename_to = obj)]
+            self,
+            move |_, code| {
+                let imp = obj.imp();
+
+                if imp
+                    .camera_last_detected
+                    .borrow()
+                    .as_ref()
+                    .is_some_and(|last_detected| last_detected == code)
+                {
+                    return;
+                }
+
+                if let Some((id, data)) = entity_from_qrcode(code) {
+                    obj.emit_detected(&id, Some(&data));
+
+                    Sound::DetectedSuccess.play();
+                } else {
+                    tracing::warn!("Invalid entity code: {}", code);
+
+                    Application::get().add_message_toast("Unknown QR code format");
+
+                    Sound::DetectedError.play();
+                }
+
+                imp.camera_last_detected.replace(Some(code.to_string()));
+                obj.restart_camera_last_detected_timeout();
+            }
+        ));
     }
 
-    pub fn rfid_reader(&self) -> &RfidReader {
-        &self.imp().rfid_reader
+    pub fn bind_rfid_reader(&self, rfid_reader: &RfidReader) {
+        rfid_reader.connect_detected(clone!(
+            #[weak(rename_to = obj)]
+            self,
+            move |_, id| {
+                let entity_id = EntityId::new(id);
+                obj.emit_detected(&entity_id, None);
+
+                Sound::DetectedSuccess.play();
+            }
+        ));
     }
 
     pub fn simulate_detected(&self, id: &EntityId, data: Option<&EntityData>) {
