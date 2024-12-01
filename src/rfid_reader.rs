@@ -9,6 +9,9 @@ use gtk::{
     subclass::prelude::*,
 };
 
+const TCP_STREAM_IP: &str = "uets-rfid-reader.local";
+const TCP_STREAM_PORT: u16 = 8888;
+
 mod imp {
     use std::{cell::RefCell, sync::OnceLock};
 
@@ -98,12 +101,21 @@ impl RfidReader {
     async fn connect_inner(&self) -> Result<()> {
         let imp = self.imp();
 
-        // FIXME Find IP Address via mdns or tcp
-        let addr = "192.168.100.203:8888";
-        let stream = TcpStream::connect(addr).await?;
+        let addr = format!("{TCP_STREAM_IP}:{TCP_STREAM_PORT}");
+        let stream = match TcpStream::connect(addr).await {
+            Ok(stream) => stream,
+            Err(err) => {
+                tracing::error!("Failed to connect to {}: {:?}", TCP_STREAM_IP, err);
+
+                let fallback_addr = format!("192.168.100.203:{TCP_STREAM_PORT}");
+                tracing::debug!("Trying to connect to {}", fallback_addr);
+
+                TcpStream::connect(fallback_addr).await?
+            }
+        };
         imp.stream.replace(Some(stream.clone()));
 
-        tracing::debug!("Connected to {}", addr);
+        tracing::debug!("Connected to {:?}", stream.peer_addr());
 
         let reader = BufReader::new(stream);
 

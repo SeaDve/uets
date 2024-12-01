@@ -14,13 +14,15 @@
  */
 
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
 
 #include <SPI.h>
 #include <MFRC522.h>
 
 const char *WIFI_SSID = "HUAWEI-2.4G-E75z";
 const char *WIFI_PASSWORD = "JgY5wBGt";
-const char *HOST_NAME = "esp-uets";
+const char *HOST_NAME = "uets-rfid-reader";
+
 const int SERVER_PORT = 8888;
 
 const uint8_t RST_PIN = 5;
@@ -45,6 +47,12 @@ void server_setup()
   Serial.println("Connected to Wifi");
   Serial.print(WiFi.localIP());
 
+  if (!(MDNS.begin(HOST_NAME)))
+  {
+    Serial.println("Error setting up mDNS");
+  }
+  Serial.println("mDNS Started");
+
   server.begin();
 }
 
@@ -66,6 +74,11 @@ int prev_range_mm;
 
 void loop()
 {
+  if (!MDNS.update())
+  {
+    Serial.println("Failed to update mDNS");
+  }
+
   WiFiClient client = server.available();
 
   if (client)
