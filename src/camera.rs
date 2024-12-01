@@ -1,6 +1,4 @@
-use std::net::{Ipv4Addr, SocketAddrV4};
-
-use anyhow::{Context, Result};
+use anyhow::Result;
 use gst::{prelude::*, subclass::prelude::*};
 use gtk::{
     gdk,
@@ -9,6 +7,8 @@ use gtk::{
 
 const GTK_SINK_NAME: &str = "gtksink";
 const RTSP_SRC_NAME: &str = "rtspsrc";
+
+const PORT: u16 = 8080;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, glib::Boxed)]
 #[boxed_type(name = "UetsCameraState")]
@@ -29,11 +29,7 @@ impl CameraState {
 }
 
 mod imp {
-    use std::{
-        cell::{Cell, RefCell},
-        marker::PhantomData,
-        sync::OnceLock,
-    };
+    use std::{cell::RefCell, marker::PhantomData, sync::OnceLock};
 
     use glib::subclass::Signal;
     use gst::bus::BusWatchGuard;
@@ -49,7 +45,7 @@ mod imp {
         pub(super) state: RefCell<CameraState>,
 
         pub(super) pipeline: RefCell<Option<(gst::Pipeline, BusWatchGuard)>>,
-        pub(super) socket: Cell<Option<SocketAddrV4>>,
+        pub(super) ip_addr: RefCell<String>,
     }
 
     #[glib::object_subclass]
@@ -60,14 +56,6 @@ mod imp {
 
     #[glib::derived_properties]
     impl ObjectImpl for Camera {
-        fn constructed(&self) {
-            self.parent_constructed();
-
-            // FIXME properly get
-            let socket_addr = SocketAddrV4::new(Ipv4Addr::new(192, 168, 100, 159), 8080);
-            self.socket.set(Some(socket_addr));
-        }
-
         fn dispose(&self) {
             let obj = self.obj();
 
@@ -100,8 +88,13 @@ glib::wrapper! {
 }
 
 impl Camera {
-    pub fn new() -> Self {
-        glib::Object::new()
+    pub fn new(ip_addr: String) -> Self {
+        let this = glib::Object::new::<Self>();
+
+        let imp = this.imp();
+        imp.ip_addr.replace(ip_addr);
+
+        this
     }
 
     pub fn connect_code_detected<F>(&self, f: F) -> glib::SignalHandlerId
@@ -113,6 +106,14 @@ impl Camera {
             false,
             closure_local!(|obj: &Self, code: &str| f(obj, code)),
         )
+    }
+
+    pub fn set_ip_addr(&self, ip_addr: String) -> Result<()> {
+        let imp = self.imp();
+
+        imp.ip_addr.replace(ip_addr);
+
+        self.restart()
     }
 
     pub fn start(&self) -> Result<()> {
@@ -141,8 +142,7 @@ impl Camera {
             ))
             .unwrap();
 
-        let socket_addr = imp.socket.get().context("No socket address set")?;
-        let uri = format!("rtsp://{}/h264_ulaw.sdp", socket_addr);
+        let uri = format!("rtsp://{}:{PORT}/h264_ulaw.sdp", imp.ip_addr.borrow());
         let rtspsrc = pipeline.by_name(RTSP_SRC_NAME).unwrap();
         rtspsrc.set_property("location", uri);
 
@@ -182,8 +182,7 @@ impl Camera {
     pub async fn snapshot_jpg(&self) -> Result<Vec<u8>> {
         let imp = self.imp();
 
-        let socket_addr = imp.socket.get().context("No socket address set")?;
-        let bytes = surf::get(format!("http://{}/shot.jpg", socket_addr))
+        let bytes = surf::get(format!("http://{}:{PORT}/shot.jpg", imp.ip_addr.borrow()))
             .recv_bytes()
             .await
             .map_err(|err| err.into_inner())?;
@@ -200,8 +199,7 @@ impl Camera {
             "disabletorch"
         };
 
-        let socket_addr = imp.socket.get().context("No socket address set")?;
-        surf::get(format!("http://{}/{}", socket_addr, path))
+        surf::get(format!("http://{}:{PORT}/{path}", imp.ip_addr.borrow()))
             .recv_string()
             .await
             .map_err(|err| err.into_inner())?;
@@ -313,11 +311,5 @@ impl Camera {
                 glib::ControlFlow::Continue
             }
         }
-    }
-}
-
-impl Default for Camera {
-    fn default() -> Self {
-        Self::new()
     }
 }

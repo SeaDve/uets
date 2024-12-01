@@ -1,4 +1,5 @@
-use gtk::{gio, glib, prelude::*, subclass::prelude::*};
+use adw::{prelude::*, subclass::prelude::*};
+use gtk::{gio, glib};
 use std::process::Command;
 
 use crate::Application;
@@ -16,9 +17,9 @@ mod imp {
         #[template_child]
         pub(super) show_test_window_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub(super) restart_camera_button: TemplateChild<gtk::Button>,
+        pub(super) camera_ip_addr_row: TemplateChild<adw::EntryRow>,
         #[template_child]
-        pub(super) reconnect_rfid_reader_button: TemplateChild<gtk::Button>,
+        pub(super) rfid_reader_ip_addr_row: TemplateChild<adw::EntryRow>,
         #[template_child]
         pub(super) quit_button: TemplateChild<gtk::Button>,
         #[template_child]
@@ -46,29 +47,40 @@ mod imp {
 
             let obj = self.obj();
 
+            let app = Application::get();
+            let settings = app.settings();
+
             let action_group = gio::SimpleActionGroup::new();
-            action_group.add_action(&Application::get().settings().create_operation_mode_action());
+            action_group.add_action(&settings.create_operation_mode_action());
             obj.insert_action_group("settings-view", Some(&action_group));
 
             self.fullscreen_window_button.connect_clicked(|_| {
                 Application::get().window().fullscreen();
             });
+
             self.show_test_window_button.connect_clicked(|_| {
                 Application::get().present_test_window();
             });
-            self.restart_camera_button.connect_clicked(|_| {
-                if let Err(err) = Application::get().camera().restart() {
-                    tracing::error!("Failed to restart camera: {:?}", err);
 
-                    Application::get().add_message_toast("Failed to restart camera");
-                }
+            self.camera_ip_addr_row.set_text(&settings.camera_ip_addr());
+            self.camera_ip_addr_row.connect_apply(|entry| {
+                Application::get()
+                    .settings()
+                    .set_camera_ip_addr(&entry.text());
             });
-            self.reconnect_rfid_reader_button.connect_clicked(|_| {
-                Application::get().rfid_reader().reconnect();
+
+            self.rfid_reader_ip_addr_row
+                .set_text(&settings.rfid_reader_ip_addr());
+            self.rfid_reader_ip_addr_row.connect_apply(|entry| {
+                Application::get()
+                    .settings()
+                    .set_rfid_reader_ip_addr(&entry.text());
             });
+
             self.quit_button.connect_clicked(|_| {
                 Application::get().quit();
             });
+
             self.shutdown_button.connect_clicked(|_| {
                 if let Err(err) = Command::new("shutdown").arg("now").spawn() {
                     tracing::error!("Failed to run shutdown command: {:?}", err);

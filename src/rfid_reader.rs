@@ -9,7 +9,6 @@ use gtk::{
     subclass::prelude::*,
 };
 
-const TCP_STREAM_IP: &str = "uets-rfid-reader.local";
 const TCP_STREAM_PORT: u16 = 8888;
 
 mod imp {
@@ -23,6 +22,7 @@ mod imp {
     pub struct RfidReader {
         pub(super) stream: RefCell<Option<TcpStream>>,
         pub(super) handle: RefCell<Option<JoinHandle<()>>>,
+        pub(super) ip_addr: RefCell<String>,
     }
 
     #[glib::object_subclass]
@@ -63,8 +63,13 @@ glib::wrapper! {
 }
 
 impl RfidReader {
-    pub fn new() -> Self {
-        glib::Object::new()
+    pub fn new(ip_addr: String) -> Self {
+        let this = glib::Object::new::<Self>();
+
+        let imp = this.imp();
+        imp.ip_addr.replace(ip_addr);
+
+        this
     }
 
     pub fn connect_detected<F>(&self, f: F) -> glib::SignalHandlerId
@@ -76,6 +81,14 @@ impl RfidReader {
             false,
             closure_local!(|obj: &Self, id: &str| f(obj, id)),
         )
+    }
+
+    pub fn set_ip_addr(&self, ip_addr: String) {
+        let imp = self.imp();
+
+        imp.ip_addr.replace(ip_addr);
+
+        self.reconnect();
     }
 
     pub fn reconnect(&self) {
@@ -101,18 +114,10 @@ impl RfidReader {
     async fn connect_inner(&self) -> Result<()> {
         let imp = self.imp();
 
-        let addr = format!("{TCP_STREAM_IP}:{TCP_STREAM_PORT}");
-        let stream = match TcpStream::connect(addr).await {
-            Ok(stream) => stream,
-            Err(err) => {
-                tracing::error!("Failed to connect to {}: {:?}", TCP_STREAM_IP, err);
+        let ip_addr = imp.ip_addr.borrow().clone();
+        tracing::debug!("Trying to connect to {}", ip_addr);
 
-                let fallback_addr = format!("192.168.100.203:{TCP_STREAM_PORT}");
-                tracing::debug!("Trying to connect to {}", fallback_addr);
-
-                TcpStream::connect(fallback_addr).await?
-            }
-        };
+        let stream = TcpStream::connect((ip_addr, TCP_STREAM_PORT)).await?;
         imp.stream.replace(Some(stream.clone()));
 
         tracing::debug!("Connected to {:?}", stream.peer_addr());
@@ -140,11 +145,5 @@ impl RfidReader {
         if let Some(prev_handle) = imp.handle.take() {
             prev_handle.abort();
         }
-    }
-}
-
-impl Default for RfidReader {
-    fn default() -> Self {
-        Self::new()
     }
 }

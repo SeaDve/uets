@@ -113,27 +113,15 @@
                   </object>
                 </child>
                 <child>
-                  <object class="AdwActionRow">
-                    <property name="title">Restart Camera</property>
-                    <property name="subtitle">Stops and restarts the remote camera</property>
-                    <child>
-                      <object class="GtkButton" id="restart_camera_button">
-                        <property name="valign">center</property>
-                        <property name="label">Restart</property>
-                      </object>
-                    </child>
+                  <object class="AdwEntryRow" id="camera_ip_addr_row">
+                    <property name="title">Camera IP Address</property>
+                    <property name="show-apply-button">True</property>
                   </object>
                 </child>
                 <child>
-                  <object class="AdwActionRow">
-                    <property name="title">Reconnect RFID Reader</property>
-                    <property name="subtitle">Disconnects and reconnects to the remote RFID reader</property>
-                    <child>
-                      <object class="GtkButton" id="reconnect_rfid_reader_button">
-                        <property name="valign">center</property>
-                        <property name="label">Reconnect</property>
-                      </object>
-                    </child>
+                  <object class="AdwEntryRow" id="rfid_reader_ip_addr_row">
+                    <property name="title">RFID Reader IP Address</property>
+                    <property name="show-apply-button">True</property>
                   </object>
                 </child>
                 <child>

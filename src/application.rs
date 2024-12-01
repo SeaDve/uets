@@ -29,8 +29,8 @@ mod imp {
     pub struct Application {
         pub(super) settings: Settings,
 
-        pub(super) camera: Camera,
-        pub(super) rfid_reader: RfidReader,
+        pub(super) camera: OnceCell<Camera>,
+        pub(super) rfid_reader: OnceCell<RfidReader>,
         pub(super) detector: Detector,
 
         pub(super) env: OnceCell<heed::Env>,
@@ -62,28 +62,39 @@ mod imp {
 
             let obj = self.obj();
 
-            match init_env() {
-                Ok((env, timeline)) => {
-                    self.env.set(env).unwrap();
-                    self.timeline.set(timeline).unwrap();
-                }
-                Err(err) => {
-                    tracing::debug!("Failed to init env: {:?}", err);
-                    obj.quit();
-                }
-            }
-
             SendDialog::init_premade_connection();
 
-            obj.setup_actions();
-            obj.setup_accels();
+            self.settings.connect_camera_ip_addr_changed(clone!(
+                #[weak]
+                obj,
+                move |settings| {
+                    let ip_addr = settings.camera_ip_addr();
+                    if let Err(err) = obj.camera().set_ip_addr(ip_addr) {
+                        tracing::error!("Failed to set camera IP address: {:?}", err);
+                    }
+                }
+            ));
+            self.settings.connect_rfid_reader_ip_addr_changed(clone!(
+                #[weak]
+                obj,
+                move |settings| {
+                    let ip_addr = settings.rfid_reader_ip_addr();
+                    obj.rfid_reader().set_ip_addr(ip_addr);
+                }
+            ));
 
-            self.detector.bind_camera(&self.camera);
-            self.detector.bind_rfid_reader(&self.rfid_reader);
+            let camera = Camera::new(self.settings.camera_ip_addr());
+            self.camera.set(camera).unwrap();
 
-            if let Err(err) = self.camera.start() {
+            if let Err(err) = obj.camera().start() {
                 tracing::error!("Failed to start camera: {:?}", err);
             }
+
+            let rfid_reader = RfidReader::new(self.settings.rfid_reader_ip_addr());
+            self.rfid_reader.set(rfid_reader).unwrap();
+
+            self.detector.bind_camera(obj.camera());
+            self.detector.bind_rfid_reader(obj.rfid_reader());
 
             self.detector.connect_detected(clone!(
                 #[weak]
@@ -100,16 +111,32 @@ mod imp {
                     ));
                 }
             ));
+
+            match init_env() {
+                Ok((env, timeline)) => {
+                    self.env.set(env).unwrap();
+                    self.timeline.set(timeline).unwrap();
+                }
+                Err(err) => {
+                    tracing::debug!("Failed to init env: {:?}", err);
+                    obj.quit();
+                }
+            }
+
+            obj.setup_actions();
+            obj.setup_accels();
         }
 
         fn shutdown(&self) {
+            let obj = self.obj();
+
             if let Some(env) = self.env.get() {
                 if let Err(err) = env.force_sync() {
                     tracing::error!("Failed to sync db env on shutdown: {:?}", err);
                 }
             }
 
-            self.camera.stop();
+            obj.camera().stop();
 
             tracing::info!("Shutting down");
 
@@ -149,11 +176,11 @@ impl Application {
     }
 
     pub fn camera(&self) -> &Camera {
-        &self.imp().camera
+        self.imp().camera.get().unwrap()
     }
 
     pub fn rfid_reader(&self) -> &RfidReader {
-        &self.imp().rfid_reader
+        self.imp().rfid_reader.get().unwrap()
     }
 
     pub fn detector(&self) -> &Detector {
