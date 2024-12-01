@@ -127,7 +127,7 @@ impl Camera {
             .unwrap();
 
         // FIXME properly get
-        let uri = "rtsp://192.168.100.204:554/mjpeg/1";
+        let uri = "rtsp://192.168.100.159:8080/h264_ulaw.sdp";
         let rtspsrc = pipeline.by_name(RTSP_SRC_NAME).unwrap();
         rtspsrc.set_property("location", uri);
 
