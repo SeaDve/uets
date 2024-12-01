@@ -9,8 +9,7 @@ use heck::ToTitleCase;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    camera::{Camera, CameraState},
-    config,
+    camera::Camera,
     entity_data::{EntityData, EntityDataField},
     entity_id::EntityId,
     rfid_reader::RfidReader,
@@ -32,7 +31,7 @@ mod imp {
         pub(super) camera: Camera,
         pub(super) rfid_reader: RfidReader,
 
-        pub(super) camera_last_detected: RefCell<Option<EntityId>>,
+        pub(super) camera_last_detected: RefCell<Option<String>>,
         pub(super) camera_last_detected_timeout: RefCell<Option<glib::SourceId>>,
     }
 
@@ -48,60 +47,41 @@ mod imp {
 
             let obj = self.obj();
 
-            if !config::disable_camera_detection() {
-                glib::spawn_future_local(clone!(
-                    #[weak]
-                    obj,
-                    async move {
-                        let imp = obj.imp();
-
-                        loop {
-                            if matches!(
-                                imp.camera.state(),
-                                CameraState::Idle | CameraState::Error { .. }
-                            ) {
-                                if let Err(err) = imp.camera.start().await {
-                                    tracing::error!("Failed to start camera: {:?}", err);
-                                }
-                            }
-
-                            glib::timeout_future(Duration::from_secs(3)).await;
-                        }
-                    }
-                ));
-
-                self.camera.connect_code_detected(clone!(
-                    #[weak]
-                    obj,
-                    move |_, qrcode| {
-                        let imp = obj.imp();
-
-                        if let Some((id, data)) = entity_from_qrcode(qrcode) {
-                            if imp
-                                .camera_last_detected
-                                .borrow()
-                                .as_ref()
-                                .is_some_and(|last_detected| last_detected == &id)
-                            {
-                                return;
-                            }
-
-                            obj.emit_detected(&id, Some(&data));
-
-                            imp.camera_last_detected.replace(Some(id));
-                            obj.restart_camera_last_detected_timeout();
-
-                            Sound::DetectedSuccess.play();
-                        } else {
-                            tracing::warn!("Invalid entity code: {}", qrcode);
-
-                            Application::get().add_message_toast("Unknown QR code format");
-
-                            Sound::DetectedError.play();
-                        }
-                    }
-                ));
+            if let Err(err) = self.camera.start() {
+                tracing::error!("Failed to start camera: {:?}", err);
             }
+
+            self.camera.connect_code_detected(clone!(
+                #[weak]
+                obj,
+                move |_, code| {
+                    let imp = obj.imp();
+
+                    if imp
+                        .camera_last_detected
+                        .borrow()
+                        .as_ref()
+                        .is_some_and(|last_detected| last_detected == code)
+                    {
+                        return;
+                    }
+
+                    if let Some((id, data)) = entity_from_qrcode(code) {
+                        obj.emit_detected(&id, Some(&data));
+
+                        Sound::DetectedSuccess.play();
+                    } else {
+                        tracing::warn!("Invalid entity code: {}", code);
+
+                        Application::get().add_message_toast("Unknown QR code format");
+
+                        Sound::DetectedError.play();
+                    }
+
+                    imp.camera_last_detected.replace(Some(code.to_string()));
+                    obj.restart_camera_last_detected_timeout();
+                }
+            ));
 
             self.rfid_reader.connect_detected(clone!(
                 #[weak]

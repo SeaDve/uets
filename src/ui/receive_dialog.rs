@@ -126,7 +126,7 @@ impl ReceiveDialog {
         let (tx, rx) = oneshot::channel();
         let tx = Rc::new(RefCell::new(Some(tx)));
 
-        if let Err(err) = imp.code_camera.start().await {
+        if let Err(err) = imp.code_camera.start() {
             tracing::warn!("Failed to start camera: {:?}", err);
 
             imp.title_label.set_label("Enter Code");

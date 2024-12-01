@@ -16,7 +16,9 @@ mod imp {
         #[template_child]
         pub(super) show_test_window_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub(super) reconnect_rfid_scanner_button: TemplateChild<gtk::Button>,
+        pub(super) restart_camera_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub(super) reconnect_rfid_reader_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub(super) quit_button: TemplateChild<gtk::Button>,
         #[template_child]
@@ -54,7 +56,14 @@ mod imp {
             self.show_test_window_button.connect_clicked(|_| {
                 Application::get().present_test_window();
             });
-            self.reconnect_rfid_scanner_button.connect_clicked(|_| {
+            self.restart_camera_button.connect_clicked(|_| {
+                if let Err(err) = Application::get().detector().camera().restart() {
+                    tracing::error!("Failed to restart camera: {:?}", err);
+
+                    Application::get().add_message_toast("Failed to restart camera");
+                }
+            });
+            self.reconnect_rfid_reader_button.connect_clicked(|_| {
                 Application::get().detector().rfid_reader().reconnect();
             });
             self.quit_button.connect_clicked(|_| {

@@ -1,12 +1,12 @@
-use anyhow::{anyhow, ensure, Result};
+use anyhow::{ensure, Result};
 use gst::{prelude::*, subclass::prelude::*};
 use gtk::{
-    gdk, gio,
+    gdk,
     glib::{self, clone, closure_local},
 };
 
 const GTK_SINK_NAME: &str = "gtksink";
-const V4L2_SRC_NAME: &str = "v4l2src";
+const RTSP_SRC_NAME: &str = "rtspsrc";
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, glib::Boxed)]
 #[boxed_type(name = "UetsCameraState")]
@@ -94,7 +94,7 @@ impl Camera {
         )
     }
 
-    pub async fn start(&self) -> Result<()> {
+    pub fn start(&self) -> Result<()> {
         let imp = self.imp();
 
         ensure!(
@@ -104,17 +104,7 @@ impl Camera {
 
         self.set_state(CameraState::Loading);
 
-        let v4l2_device_path = match gio::spawn_blocking(v4l2_device_path).await.unwrap() {
-            Ok(device_path) => device_path,
-            Err(err) => {
-                self.set_state(CameraState::Error {
-                    message: err.to_string(),
-                });
-                return Err(err);
-            }
-        };
-
-        let pipeline = match gst::parse::launch(&format!("v4l2src name={V4L2_SRC_NAME} ! tee name=t ! queue ! videoconvert ! zbar ! fakesink t. ! queue ! videoconvert ! gtk4paintablesink name={GTK_SINK_NAME}")) {
+        let pipeline = match gst::parse::launch(&format!("rtspsrc latency=300 name={RTSP_SRC_NAME} ! decodebin ! tee name=t ! queue ! videoconvert ! zbar ! fakesink t. ! queue ! videoconvert ! gtk4paintablesink name={GTK_SINK_NAME}")) {
             Ok(pipeline) => pipeline.downcast::<gst::Pipeline>().unwrap(),
             Err(err) => {
                 self.set_state(CameraState::Error {
@@ -134,8 +124,9 @@ impl Camera {
             ))
             .unwrap();
 
-        let v4l2src = pipeline.by_name(V4L2_SRC_NAME).unwrap();
-        v4l2src.set_property("device", &v4l2_device_path);
+        let uri = "rtsp://192.168.100.204:554/mjpeg/1";
+        let rtspsrc = pipeline.by_name(RTSP_SRC_NAME).unwrap();
+        rtspsrc.set_property("location", uri);
 
         imp.pipeline
             .replace(Some((pipeline.clone(), bus_watch_guard)));
@@ -172,6 +163,14 @@ impl Camera {
         self.set_state(CameraState::Idle);
 
         tracing::debug!("Camera stopped");
+    }
+
+    pub fn restart(&self) -> Result<()> {
+        self.stop();
+
+        self.start()?;
+
+        Ok(())
     }
 
     fn set_state(&self, state: CameraState) {
@@ -274,35 +273,4 @@ impl Default for Camera {
     fn default() -> Self {
         Self::new()
     }
-}
-
-fn v4l2_device_path() -> Result<String> {
-    let m = gst::DeviceMonitor::new();
-
-    m.start()?;
-    let devices = m.devices();
-    m.stop();
-
-    for device in devices {
-        if !device.has_classes("Video/Source") {
-            continue;
-        }
-
-        let Some(properties) = device.properties() else {
-            continue;
-        };
-
-        if !properties
-            .get::<String>("device.api")
-            .is_ok_and(|api| api == "v4l2")
-        {
-            continue;
-        }
-
-        if let Ok(path) = properties.get::<String>("device.path") {
-            return Ok(path);
-        };
-    }
-
-    Err(anyhow!("Failed to find a v4l2 device"))
 }
