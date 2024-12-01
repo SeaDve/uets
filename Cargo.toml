@@ -24,11 +24,11 @@ gvdb = { version = "0.7", features = ["gresource"] }
 heck = "0.5.0"
 heed = "0.20.5"
 image = "0.23"
-indexmap = { version = "2.6", features = ["serde"] }
+indexmap = { version = "2.7", features = ["serde"] }
 plotters = "0.3.7"
 plotters-cairo = "0.7.0"
 regex = "1.11.1"
-rppal = "0.19.0"
+rppal = "0.20.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 surf = "2.3.2"
