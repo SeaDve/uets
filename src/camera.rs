@@ -142,7 +142,7 @@ impl Camera {
             ))
             .unwrap();
 
-        let uri = format!("rtsp://{}:{PORT}/h264_ulaw.sdp", imp.ip_addr.borrow());
+        let uri = format!("rtsp://{}:{PORT}/h264.sdp", imp.ip_addr.borrow());
         let rtspsrc = pipeline.by_name(RTSP_SRC_NAME).unwrap();
         rtspsrc.set_property("location", uri);
 
