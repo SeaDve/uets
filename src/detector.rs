@@ -13,6 +13,7 @@ use crate::{
     config,
     entity_data::{EntityData, EntityDataField},
     entity_id::EntityId,
+    rfid_reader::RfidReader,
     sound::Sound,
     Application,
 };
@@ -29,6 +30,7 @@ mod imp {
     #[derive(Default)]
     pub struct Detector {
         pub(super) camera: Camera,
+        pub(super) rfid_reader: RfidReader,
 
         pub(super) camera_last_detected: RefCell<Option<EntityId>>,
         pub(super) camera_last_detected_timeout: RefCell<Option<glib::SourceId>>,
@@ -100,6 +102,17 @@ mod imp {
                     }
                 ));
             }
+
+            self.rfid_reader.connect_detected(clone!(
+                #[weak]
+                obj,
+                move |_, id| {
+                    let entity_id = EntityId::new(id);
+                    obj.emit_detected(&entity_id, None);
+
+                    Sound::DetectedSuccess.play();
+                }
+            ));
         }
 
         fn dispose(&self) {
@@ -140,6 +153,10 @@ impl Detector {
 
     pub fn camera(&self) -> &Camera {
         &self.imp().camera
+    }
+
+    pub fn rfid_reader(&self) -> &RfidReader {
+        &self.imp().rfid_reader
     }
 
     pub fn simulate_detected(&self, id: &EntityId, data: Option<&EntityData>) {

@@ -16,6 +16,8 @@ mod imp {
         #[template_child]
         pub(super) show_test_window_button: TemplateChild<gtk::Button>,
         #[template_child]
+        pub(super) reconnect_rfid_scanner_button: TemplateChild<gtk::Button>,
+        #[template_child]
         pub(super) quit_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub(super) shutdown_button: TemplateChild<gtk::Button>,
@@ -51,6 +53,9 @@ mod imp {
             });
             self.show_test_window_button.connect_clicked(|_| {
                 Application::get().present_test_window();
+            });
+            self.reconnect_rfid_scanner_button.connect_clicked(|_| {
+                Application::get().detector().rfid_reader().reconnect();
             });
             self.quit_button.connect_clicked(|_| {
                 Application::get().quit();

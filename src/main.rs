@@ -28,6 +28,7 @@ mod log;
 mod operation_mode_ext;
 mod report;
 mod report_table;
+mod rfid_reader;
 mod search_query;
 mod search_query_ext;
 mod settings;

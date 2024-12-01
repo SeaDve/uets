@@ -4,6 +4,7 @@ use gtk::glib::{self, closure};
 
 use crate::{
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
+    entity_id::EntityId,
     stock::Stock,
     ui::date_time_button::DateTimeButton,
     utils, Application,
@@ -17,6 +18,8 @@ mod imp {
     #[derive(Default, gtk::CompositeTemplate)]
     #[template(resource = "/io/github/seadve/Uets/ui/entry_dialog.ui")]
     pub struct EntryDialog {
+        #[template_child]
+        pub(super) window_title: TemplateChild<adw::WindowTitle>,
         #[template_child]
         pub(super) stock_id_row: TemplateChild<adw::ActionRow>,
         #[template_child]
@@ -115,11 +118,13 @@ glib::wrapper! {
 
 impl EntryDialog {
     pub async fn gather_data(
+        entity_id: &EntityId,
         parent: Option<&impl IsA<gtk::Widget>>,
     ) -> Result<EntityData, oneshot::Canceled> {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
+        imp.window_title.set_subtitle(&entity_id.to_string());
 
         let (result_tx, result_rx) = oneshot::channel();
         imp.result_tx.replace(Some(result_tx));

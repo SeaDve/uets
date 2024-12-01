@@ -10,7 +10,7 @@
             <property name="show-start-title-buttons">False</property>
             <property name="show-end-title-buttons">False</property>
             <property name="title-widget">
-              <object class="AdwWindowTitle">
+              <object class="AdwWindowTitle" id="window_title">
                 <property name="title">Enter Data</property>
               </object>
             </property>
