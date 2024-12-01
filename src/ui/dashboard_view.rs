@@ -75,7 +75,7 @@ mod imp {
                     match ReceiveDialog::receive(valid_file_extensions, Some(&obj)).await {
                         Ok((_, bytes)) => {
                             if let Err(err) =
-                                app.timeline().populate_lists_from_workbook_bytes(&bytes)
+                                app.timeline().register_data_from_workbook_bytes(&bytes)
                             {
                                 tracing::error!("Failed to register data: {:?}", err);
 

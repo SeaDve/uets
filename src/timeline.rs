@@ -428,7 +428,18 @@ impl Timeline {
         Ok(item_kind)
     }
 
-    pub fn insert_entities(&self, entities: Vec<Entity>) -> Result<()> {
+    pub fn register_entity_data(&self, entity_data: HashMap<EntityId, EntityData>) -> Result<()> {
+        let entities = entity_data
+            .into_iter()
+            .map(|(id, data)| {
+                if let Some(entity) = self.entity_list().get(&id) {
+                    entity.with_data(data)
+                } else {
+                    Entity::new(id, data)
+                }
+            })
+            .collect::<Vec<_>>();
+
         let stocks = entities
             .iter()
             .filter_map(|entity| entity.stock_id())
@@ -456,7 +467,18 @@ impl Timeline {
         Ok(())
     }
 
-    pub fn insert_stocks(&self, stocks: Vec<Stock>) -> Result<()> {
+    pub fn register_stock_data(&self, stock_data: HashMap<StockId, StockData>) -> Result<()> {
+        let stocks = stock_data
+            .into_iter()
+            .map(|(id, data)| {
+                if let Some(stock) = self.stock_list().get(&id) {
+                    stock.with_data(data)
+                } else {
+                    Stock::new(id, data)
+                }
+            })
+            .collect::<Vec<_>>();
+
         let (env, _, _, sdb) = self.db();
         env.with_write_txn(|wtxn| {
             for stock in &stocks {

@@ -8,7 +8,7 @@ use crate::{
     stock_data::StockData, stock_id::StockId,
 };
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct StockLogs {
     pub n_inside: Log<u32>,
     pub max_n_inside: Log<u32>,
@@ -112,6 +112,17 @@ impl Stock {
         imp.data.set(data).unwrap();
 
         this
+    }
+
+    pub fn with_data(&self, data: StockData) -> Self {
+        let imp = self.imp();
+
+        let new = Stock::new(self.id().clone(), data);
+
+        let new_imp = new.imp();
+        new_imp.logs.replace(imp.logs.borrow().clone());
+
+        new
     }
 
     pub fn id(&self) -> &StockId {

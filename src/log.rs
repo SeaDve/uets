@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 
+#[derive(Clone)]
 pub struct Log<T> {
     map: BTreeMap<DateTime<Utc>, T>,
 }

@@ -1,10 +1,11 @@
-use std::fmt;
-
 use chrono::{DateTime, Utc};
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
 use crate::{
-    date_time_range::DateTimeRange, entity_data::EntityData, entity_id::EntityId, log::Log,
+    date_time_range::DateTimeRange,
+    entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
+    entity_id::EntityId,
+    log::Log,
     stock_id::StockId,
 };
 
@@ -63,6 +64,25 @@ impl Entity {
         this
     }
 
+    pub fn with_data(&self, data: EntityData) -> Self {
+        let imp = self.imp();
+
+        // FIXME add ability to change stock id
+        let fields = data
+            .into_fields()
+            .filter(|f| f.ty() != EntityDataFieldTy::StockId)
+            .chain(self.stock_id().cloned().map(EntityDataField::StockId));
+
+        let new = Self::new(self.id().clone(), EntityData::from_fields(fields));
+
+        let new_imp = new.imp();
+        new_imp
+            .is_inside_log
+            .replace(imp.is_inside_log.borrow().clone());
+
+        new
+    }
+
     pub fn id(&self) -> &EntityId {
         self.imp().id.get().unwrap()
     }
@@ -104,15 +124,5 @@ impl Entity {
         if prev_is_inside != self.is_inside() {
             self.notify_is_inside();
         }
-    }
-}
-
-impl fmt::Display for Entity {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Entity")
-            .field("id", self.id())
-            .field("stock-id", &self.stock_id())
-            .field("is-inside", &self.is_inside())
-            .finish()
     }
 }

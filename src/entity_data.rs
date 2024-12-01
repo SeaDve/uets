@@ -94,6 +94,10 @@ impl EntityData {
         self.0.values()
     }
 
+    pub fn into_fields(self) -> impl Iterator<Item = EntityDataField> {
+        self.0.into_values()
+    }
+
     entity_data_getter!(stock_id, StockId, &StockId);
     entity_data_getter!(name, Name, &String);
 }
