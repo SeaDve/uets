@@ -98,6 +98,14 @@ impl CameraViewfinder {
             .unwrap()
             .set_target(camera.as_ref());
 
+        if let Some(camera) = camera {
+            if !camera.state().is_running() {
+                if let Err(err) = camera.start() {
+                    tracing::error!("Failed to start camera: {:?}", err);
+                }
+            }
+        }
+
         self.update_stack();
     }
 

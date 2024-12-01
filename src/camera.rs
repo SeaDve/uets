@@ -1,4 +1,4 @@
-use anyhow::{ensure, Result};
+use anyhow::Result;
 use gst::{prelude::*, subclass::prelude::*};
 use gtk::{
     gdk,
@@ -18,6 +18,12 @@ pub enum CameraState {
     Error {
         message: String,
     },
+}
+
+impl CameraState {
+    pub fn is_running(&self) -> bool {
+        matches!(self, CameraState::Loading | CameraState::Loaded)
+    }
 }
 
 mod imp {
@@ -97,11 +103,7 @@ impl Camera {
     pub fn start(&self) -> Result<()> {
         let imp = self.imp();
 
-        ensure!(
-            matches!(self.state(), CameraState::Idle | CameraState::Error { .. }),
-            "Camera is already loading or loaded"
-        );
-
+        self.dispose_pipeline();
         self.set_state(CameraState::Loading);
 
         let pipeline = match gst::parse::launch(&format!("rtspsrc latency=300 name={RTSP_SRC_NAME} ! decodebin ! tee name=t ! queue ! videoconvert ! zbar ! fakesink t. ! queue ! videoconvert ! gtk4paintablesink name={GTK_SINK_NAME}")) {
@@ -124,6 +126,7 @@ impl Camera {
             ))
             .unwrap();
 
+        // FIXME properly get
         let uri = "rtsp://192.168.100.204:554/mjpeg/1";
         let rtspsrc = pipeline.by_name(RTSP_SRC_NAME).unwrap();
         rtspsrc.set_property("location", uri);
@@ -145,24 +148,12 @@ impl Camera {
             self.set_state(CameraState::Loaded);
         }
 
-        tracing::debug!("Camera started");
-
         Ok(())
     }
 
     pub fn stop(&self) {
-        let imp = self.imp();
-
-        if let Some((pipeline, _bus_watch_guard)) = imp.pipeline.take() {
-            if let Err(err) = pipeline.set_state(gst::State::Null) {
-                tracing::warn!("Failed to set pipeline to Null: {}", err);
-            }
-            self.notify_paintable();
-        }
-
+        self.dispose_pipeline();
         self.set_state(CameraState::Idle);
-
-        tracing::debug!("Camera stopped");
     }
 
     pub fn restart(&self) -> Result<()> {
@@ -182,6 +173,17 @@ impl Camera {
 
         imp.state.replace(state);
         self.notify_state();
+    }
+
+    fn dispose_pipeline(&self) {
+        let imp = self.imp();
+
+        if let Some((pipeline, _bus_watch_guard)) = imp.pipeline.take() {
+            if let Err(err) = pipeline.set_state(gst::State::Null) {
+                tracing::warn!("Failed to set pipeline to Null: {}", err);
+            }
+            self.notify_paintable();
+        }
     }
 
     fn handle_bus_message(&self, message: &gst::Message) -> glib::ControlFlow {
