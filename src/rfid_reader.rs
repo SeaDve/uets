@@ -98,6 +98,7 @@ impl RfidReader {
     async fn connect_inner(&self) -> Result<()> {
         let imp = self.imp();
 
+        // FIXME Find IP Address via mdns or tcp
         let addr = "192.168.100.203:8888";
         let stream = TcpStream::connect(addr).await?;
         imp.stream.replace(Some(stream.clone()));
