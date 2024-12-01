@@ -1,5 +1,6 @@
 use gtk::{
     glib::{self, clone},
+    prelude::*,
     subclass::prelude::*,
 };
 
@@ -18,7 +19,11 @@ mod imp {
         #[template_child]
         pub(super) spinner: TemplateChild<gtk::Spinner>,
         #[template_child]
+        pub(super) loaded: TemplateChild<gtk::Overlay>,
+        #[template_child]
         pub(super) picture: TemplateChild<gtk::Picture>,
+        #[template_child]
+        pub(super) flash_toggle_button: TemplateChild<gtk::ToggleButton>,
         #[template_child]
         pub(super) message_label: TemplateChild<gtk::Label>,
 
@@ -47,6 +52,24 @@ mod imp {
             self.parent_constructed();
 
             let obj = self.obj();
+
+            self.flash_toggle_button.connect_active_notify(clone!(
+                #[weak]
+                obj,
+                move |button| {
+                    let imp = obj.imp();
+
+                    let camera = imp.camera.borrow().clone();
+                    if let Some(camera) = camera {
+                        let is_enabled = button.is_active();
+                        glib::spawn_future_local(async move {
+                            if let Err(err) = camera.set_flash(is_enabled).await {
+                                tracing::error!("Failed to set flash: {:?}", err);
+                            }
+                        });
+                    }
+                }
+            ));
 
             self.camera_bindings
                 .bind("paintable", &*self.picture, "paintable")
@@ -122,7 +145,7 @@ impl CameraViewfinder {
                 imp.stack.set_visible_child(&*imp.message_label)
             }
             Some(CameraState::Loading) => imp.stack.set_visible_child(&*imp.spinner),
-            Some(CameraState::Loaded) => imp.stack.set_visible_child(&*imp.picture),
+            Some(CameraState::Loaded) => imp.stack.set_visible_child(&*imp.loaded),
             Some(CameraState::Error { message }) => {
                 imp.message_label.set_label(&message);
                 imp.stack.set_visible_child(&*imp.message_label)

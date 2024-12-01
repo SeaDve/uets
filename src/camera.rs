@@ -1,4 +1,6 @@
-use anyhow::Result;
+use std::net::{Ipv4Addr, SocketAddrV4};
+
+use anyhow::{Context, Result};
 use gst::{prelude::*, subclass::prelude::*};
 use gtk::{
     gdk,
@@ -27,7 +29,11 @@ impl CameraState {
 }
 
 mod imp {
-    use std::{cell::RefCell, marker::PhantomData, sync::OnceLock};
+    use std::{
+        cell::{Cell, RefCell},
+        marker::PhantomData,
+        sync::OnceLock,
+    };
 
     use glib::subclass::Signal;
     use gst::bus::BusWatchGuard;
@@ -43,6 +49,7 @@ mod imp {
         pub(super) state: RefCell<CameraState>,
 
         pub(super) pipeline: RefCell<Option<(gst::Pipeline, BusWatchGuard)>>,
+        pub(super) socket: Cell<Option<SocketAddrV4>>,
     }
 
     #[glib::object_subclass]
@@ -53,6 +60,14 @@ mod imp {
 
     #[glib::derived_properties]
     impl ObjectImpl for Camera {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            // FIXME properly get
+            let socket_addr = SocketAddrV4::new(Ipv4Addr::new(192, 168, 100, 159), 8080);
+            self.socket.set(Some(socket_addr));
+        }
+
         fn dispose(&self) {
             let obj = self.obj();
 
@@ -126,8 +141,8 @@ impl Camera {
             ))
             .unwrap();
 
-        // FIXME properly get
-        let uri = "rtsp://192.168.100.159:8080/h264_ulaw.sdp";
+        let socket_addr = imp.socket.get().context("No socket address set")?;
+        let uri = format!("rtsp://{}/h264_ulaw.sdp", socket_addr);
         let rtspsrc = pipeline.by_name(RTSP_SRC_NAME).unwrap();
         rtspsrc.set_property("location", uri);
 
@@ -160,6 +175,36 @@ impl Camera {
         self.stop();
 
         self.start()?;
+
+        Ok(())
+    }
+
+    pub async fn snapshot_jpg(&self) -> Result<Vec<u8>> {
+        let imp = self.imp();
+
+        let socket_addr = imp.socket.get().context("No socket address set")?;
+        let bytes = surf::get(format!("http://{}/shot.jpg", socket_addr))
+            .recv_bytes()
+            .await
+            .map_err(|err| err.into_inner())?;
+
+        Ok(bytes)
+    }
+
+    pub async fn set_flash(&self, is_enabled: bool) -> Result<()> {
+        let imp = self.imp();
+
+        let path = if is_enabled {
+            "enabletorch"
+        } else {
+            "disabletorch"
+        };
+
+        let socket_addr = imp.socket.get().context("No socket address set")?;
+        surf::get(format!("http://{}/{}", socket_addr, path))
+            .recv_string()
+            .await
+            .map_err(|err| err.into_inner())?;
 
         Ok(())
     }

@@ -8,4 +8,5 @@ sudo apt install \
    libzbar-dev \
    gstreamer1.0-plugins-good \
    gstreamer1.0-plugins-bad \
-   libfontconfig1-dev
+   libfontconfig1-dev \
+   libssl-dev
