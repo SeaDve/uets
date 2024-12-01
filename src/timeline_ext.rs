@@ -109,6 +109,7 @@ impl Timeline {
             }
         }
 
+        // FIXME Update data instead
         self.insert_entities(entities)?;
         self.insert_stocks(stocks)?;
 
