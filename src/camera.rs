@@ -116,6 +116,10 @@ impl Camera {
         self.restart()
     }
 
+    pub fn ip_addr(&self) -> String {
+        self.imp().ip_addr.borrow().clone()
+    }
+
     pub fn start(&self) -> Result<()> {
         let imp = self.imp();
 

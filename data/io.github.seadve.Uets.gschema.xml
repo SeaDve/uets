@@ -11,11 +11,14 @@
       </choices>
       <default>"counter"</default>
     </key>
-    <key name="rfid-reader-ip-addr" type="s">
-      <default>"uets-rfid-reader.local"</default>
-    </key>
     <key name="camera-ip-addr" type="s">
       <default>"192.168.100.159"</default>
+    </key>
+    <key name="aux-camera-ip-addrs" type="as">
+      <default>[]</default>
+    </key>
+    <key name="rfid-reader-ip-addr" type="s">
+      <default>"uets-rfid-reader.local"</default>
     </key>
   </schema>
 </schemalist>

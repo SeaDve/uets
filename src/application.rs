@@ -74,6 +74,22 @@ mod imp {
                     }
                 }
             ));
+            self.settings.connect_aux_camera_ip_addrs_changed(clone!(
+                #[weak]
+                obj,
+                move |settings| {
+                    let imp = obj.imp();
+
+                    imp.detector.unbind_aux_cameras();
+
+                    let cameras = settings
+                        .aux_camera_ip_addrs()
+                        .into_iter()
+                        .map(Camera::new)
+                        .collect::<Vec<_>>();
+                    imp.detector.bind_aux_cameras(&cameras);
+                }
+            ));
             self.settings.connect_rfid_reader_ip_addr_changed(clone!(
                 #[weak]
                 obj,
@@ -86,14 +102,18 @@ mod imp {
             let camera = Camera::new(self.settings.camera_ip_addr());
             self.camera.set(camera).unwrap();
 
-            if let Err(err) = obj.camera().start() {
-                tracing::error!("Failed to start camera: {:?}", err);
-            }
+            let aux_cameras = self
+                .settings
+                .aux_camera_ip_addrs()
+                .into_iter()
+                .map(Camera::new)
+                .collect::<Vec<_>>();
 
             let rfid_reader = RfidReader::new(self.settings.rfid_reader_ip_addr());
             self.rfid_reader.set(rfid_reader).unwrap();
 
             self.detector.bind_camera(obj.camera());
+            self.detector.bind_aux_cameras(&aux_cameras);
             self.detector.bind_rfid_reader(obj.rfid_reader());
 
             self.detector.connect_detected(clone!(

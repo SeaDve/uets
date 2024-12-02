@@ -28,6 +28,7 @@ mod imp {
 
     #[derive(Default)]
     pub struct Detector {
+        pub(super) aux_cameras: RefCell<Vec<(Camera, glib::SignalHandlerId)>>,
         pub(super) camera_last_detected: RefCell<Option<String>>,
         pub(super) camera_last_detected_timeout: RefCell<Option<glib::SourceId>>,
     }
@@ -72,7 +73,58 @@ impl Detector {
     }
 
     pub fn bind_camera(&self, camera: &Camera) {
-        camera.connect_code_detected(clone!(
+        self.bind_camera_inner(camera);
+    }
+
+    pub fn bind_aux_cameras(&self, cameras: &[Camera]) {
+        let imp = self.imp();
+
+        for camera in cameras {
+            let handler_id = self.bind_camera_inner(camera);
+            imp.aux_cameras
+                .borrow_mut()
+                .push((camera.clone(), handler_id));
+        }
+
+        tracing::debug!(
+            cameras = ?cameras.iter().map(|c| c.ip_addr()).collect::<Vec<_>>(),
+            "Bound aux cameras"
+        );
+    }
+
+    pub fn unbind_aux_cameras(&self) {
+        let imp = self.imp();
+
+        for (camera, handler_id) in imp.aux_cameras.take() {
+            camera.disconnect(handler_id);
+        }
+    }
+
+    pub fn bind_rfid_reader(&self, rfid_reader: &RfidReader) {
+        rfid_reader.connect_detected(clone!(
+            #[weak(rename_to = obj)]
+            self,
+            move |_, id| {
+                let entity_id = EntityId::new(id);
+                obj.emit_detected(&entity_id, None);
+
+                Sound::DetectedSuccess.play();
+            }
+        ));
+    }
+
+    pub fn simulate_detected(&self, id: &EntityId, data: Option<&EntityData>) {
+        self.emit_detected(id, data);
+
+        Sound::DetectedSuccess.play();
+    }
+
+    fn emit_detected(&self, id: &EntityId, data: Option<&EntityData>) {
+        self.emit_by_name("detected", &[id, &data])
+    }
+
+    fn bind_camera_inner(&self, camera: &Camera) -> glib::SignalHandlerId {
+        let handler_id = camera.connect_code_detected(clone!(
             #[weak(rename_to = obj)]
             self,
             move |_, code| {
@@ -103,29 +155,12 @@ impl Detector {
                 obj.restart_camera_last_detected_timeout();
             }
         ));
-    }
 
-    pub fn bind_rfid_reader(&self, rfid_reader: &RfidReader) {
-        rfid_reader.connect_detected(clone!(
-            #[weak(rename_to = obj)]
-            self,
-            move |_, id| {
-                let entity_id = EntityId::new(id);
-                obj.emit_detected(&entity_id, None);
+        if let Err(err) = camera.start() {
+            tracing::error!("Failed to start camera: {:?}", err);
+        }
 
-                Sound::DetectedSuccess.play();
-            }
-        ));
-    }
-
-    pub fn simulate_detected(&self, id: &EntityId, data: Option<&EntityData>) {
-        self.emit_detected(id, data);
-
-        Sound::DetectedSuccess.play();
-    }
-
-    fn emit_detected(&self, id: &EntityId, data: Option<&EntityData>) {
-        self.emit_by_name("detected", &[id, &data])
+        handler_id
     }
 
     fn restart_camera_last_detected_timeout(&self) {

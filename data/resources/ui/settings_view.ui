@@ -119,6 +119,12 @@
                   </object>
                 </child>
                 <child>
+                  <object class="AdwEntryRow" id="aux_camera_ip_addrs_row">
+                    <property name="title">Auxilliary Cameras IP Addresses</property>
+                    <property name="show-apply-button">True</property>
+                  </object>
+                </child>
+                <child>
                   <object class="AdwEntryRow" id="rfid_reader_ip_addr_row">
                     <property name="title">RFID Reader IP Address</property>
                     <property name="show-apply-button">True</property>

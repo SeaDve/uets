@@ -19,6 +19,8 @@ mod imp {
         #[template_child]
         pub(super) camera_ip_addr_row: TemplateChild<adw::EntryRow>,
         #[template_child]
+        pub(super) aux_camera_ip_addrs_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
         pub(super) rfid_reader_ip_addr_row: TemplateChild<adw::EntryRow>,
         #[template_child]
         pub(super) quit_button: TemplateChild<gtk::Button>,
@@ -66,7 +68,19 @@ mod imp {
             self.camera_ip_addr_row.connect_apply(|entry| {
                 Application::get()
                     .settings()
-                    .set_camera_ip_addr(&entry.text());
+                    .set_camera_ip_addr(entry.text().trim());
+            });
+
+            self.aux_camera_ip_addrs_row
+                .set_text(&settings.aux_camera_ip_addrs().join(", "));
+            self.aux_camera_ip_addrs_row.connect_apply(|entry| {
+                Application::get().settings().set_aux_camera_ip_addrs(
+                    &entry
+                        .text()
+                        .split(",")
+                        .map(|s| s.trim())
+                        .collect::<Vec<_>>(),
+                );
             });
 
             self.rfid_reader_ip_addr_row
@@ -74,7 +88,7 @@ mod imp {
             self.rfid_reader_ip_addr_row.connect_apply(|entry| {
                 Application::get()
                     .settings()
-                    .set_rfid_reader_ip_addr(&entry.text());
+                    .set_rfid_reader_ip_addr(entry.text().trim());
             });
 
             self.quit_button.connect_clicked(|_| {
