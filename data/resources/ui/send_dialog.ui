@@ -22,6 +22,7 @@
             <property name="margin-end">12</property>
             <property name="spacing">12</property>
             <property name="orientation">vertical</property>
+            <property name="valign">center</property>
             <child>
               <object class="GtkStack" id="stack">
                 <child>
