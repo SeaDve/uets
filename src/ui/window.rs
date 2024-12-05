@@ -10,7 +10,13 @@ use crate::{
     Application,
 };
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ToastId {
+    Detected,
+}
+
 mod imp {
+    use std::{cell::RefCell, collections::HashMap};
 
     use super::*;
 
@@ -35,6 +41,8 @@ mod imp {
         pub(super) timeline_view: TemplateChild<TimelineView>,
         #[template_child]
         pub(super) settings_view: TemplateChild<SettingsView>,
+
+        pub(super) toasts: RefCell<HashMap<ToastId, adw::Toast>>,
     }
 
     #[glib::object_subclass]
@@ -163,8 +171,35 @@ impl Window {
             .build()
     }
 
-    pub fn add_toast(&self, toast: adw::Toast) {
-        self.imp().toast_overlay.add_toast(toast);
+    pub fn add_message_toast(&self, message: &str) {
+        let imp = self.imp();
+
+        imp.toast_overlay.add_toast(adw::Toast::new(message));
+    }
+
+    pub fn add_message_toast_with_id(&self, id: ToastId, message: &str) {
+        let imp = self.imp();
+
+        if let Some(toast) = imp.toasts.borrow().get(&id) {
+            toast.set_title(message);
+            imp.toast_overlay.add_toast(toast.clone());
+            return;
+        }
+
+        let toast = adw::Toast::new(message);
+
+        toast.connect_dismissed(clone!(
+            #[weak(rename_to = obj)]
+            self,
+            move |_| {
+                let imp = obj.imp();
+                imp.toasts.borrow_mut().remove(&id);
+            }
+        ));
+
+        imp.toast_overlay.add_toast(toast.clone());
+
+        imp.toasts.borrow_mut().insert(id, toast);
     }
 
     fn update_stocks_entities_stack_pages_display(&self) {

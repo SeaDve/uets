@@ -20,7 +20,7 @@ use crate::{
     settings::{OperationMode, Settings},
     timeline::Timeline,
     timeline_item_kind::TimelineItemKind,
-    ui::{EntryDialog, SendDialog, TestWindow, Window},
+    ui::{EntryDialog, SendDialog, TestWindow, ToastId, Window},
     APP_ID, GRESOURCE_PREFIX,
 };
 
@@ -248,7 +248,11 @@ impl Application {
     }
 
     pub fn add_message_toast(&self, message: &str) {
-        self.window().add_toast(adw::Toast::new(message));
+        self.window().add_message_toast(message);
+    }
+
+    pub fn add_message_toast_with_id(&self, id: ToastId, message: &str) {
+        self.window().add_message_toast_with_id(id, message);
     }
 
     pub fn window(&self) -> Window {
@@ -295,10 +299,16 @@ impl Application {
                 if let Some(name) = entity_name {
                     match item_kind {
                         TimelineItemKind::Entry => {
-                            self.add_message_toast(&format!("Welcome, {}!", name));
+                            self.add_message_toast_with_id(
+                                ToastId::Detected,
+                                &format!("Welcome, {}!", name),
+                            );
                         }
                         TimelineItemKind::Exit => {
-                            self.add_message_toast(&format!("Goodbye, {}!", name));
+                            self.add_message_toast_with_id(
+                                ToastId::Detected,
+                                &format!("Goodbye, {}!", name),
+                            );
                         }
                     }
                 }

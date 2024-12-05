@@ -27,5 +27,8 @@ mod timeline_view;
 mod window;
 
 pub use self::{
-    entry_dialog::EntryDialog, send_dialog::SendDialog, test_window::TestWindow, window::Window,
+    entry_dialog::EntryDialog,
+    send_dialog::SendDialog,
+    test_window::TestWindow,
+    window::{ToastId, Window},
 };
