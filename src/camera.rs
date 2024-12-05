@@ -5,6 +5,8 @@ use gtk::{
     glib::{self, clone, closure_local},
 };
 
+use crate::jpeg_image::JpegImage;
+
 const GTK_SINK_NAME: &str = "gtksink";
 const RTSP_SRC_NAME: &str = "rtspsrc";
 
@@ -183,7 +185,7 @@ impl Camera {
         Ok(())
     }
 
-    pub async fn snapshot_jpg(&self) -> Result<Vec<u8>> {
+    pub async fn capture_jpeg(&self) -> Result<JpegImage> {
         let imp = self.imp();
 
         let bytes = surf::get(format!("http://{}:{PORT}/shot.jpg", imp.ip_addr.borrow()))
@@ -191,7 +193,7 @@ impl Camera {
             .await
             .map_err(|err| err.into_inner())?;
 
-        Ok(bytes)
+        Ok(JpegImage::from_bytes(bytes))
     }
 
     pub async fn set_flash(&self, is_enabled: bool) -> Result<()> {

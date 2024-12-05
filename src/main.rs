@@ -24,6 +24,7 @@ mod entity_list;
 mod format;
 mod fuzzy_filter;
 mod fuzzy_sorter;
+mod jpeg_image;
 mod log;
 mod operation_mode_ext;
 mod report;
