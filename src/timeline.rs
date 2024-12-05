@@ -199,7 +199,7 @@ impl Timeline {
     pub fn iter<'a>(
         &'a self,
         dt_range: &'a DateTimeRange,
-    ) -> impl DoubleEndedIterator<Item = TimelineItem> + '_ {
+    ) -> impl DoubleEndedIterator<Item = TimelineItem> + 'a {
         ListModelExtManual::iter::<TimelineItem>(self)
             .map(|item| item.unwrap())
             .filter(|item| dt_range.contains(item.dt()))
@@ -209,7 +209,7 @@ impl Timeline {
         &'a self,
         dt_range: &'a DateTimeRange,
         stock_id: &'a StockId,
-    ) -> impl DoubleEndedIterator<Item = TimelineItem> + '_ {
+    ) -> impl DoubleEndedIterator<Item = TimelineItem> + 'a {
         self.iter(dt_range).filter(|item| {
             let entity = self
                 .entity_list()
