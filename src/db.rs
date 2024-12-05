@@ -48,6 +48,7 @@ pub fn new_env() -> Result<heed::Env> {
     let env = unsafe {
         heed::EnvOpenOptions::new()
             .max_dbs(N_NAMED_DBS)
+            .map_size(2 * 1024 * 1024 * 1024) // 2 GB
             .open(&path)
             .with_context(|| format!("Failed to open heed env at {}", path.display()))?
     };
