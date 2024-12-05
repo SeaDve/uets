@@ -1,5 +1,8 @@
 use adw::{prelude::*, subclass::prelude::*};
-use gtk::glib::{self, clone, closure_local};
+use gtk::{
+    gdk,
+    glib::{self, clone, closure_local},
+};
 
 use crate::{
     date_time_range::DateTimeRange, entity::Entity, entity_data::EntityDataFieldTy,
@@ -35,6 +38,10 @@ mod imp {
         pub(super) is_inside_row: TemplateChild<InformationRow>,
         #[template_child]
         pub(super) data_group: TemplateChild<adw::PreferencesGroup>,
+        #[template_child]
+        pub(super) photo_picture_group: TemplateChild<adw::PreferencesGroup>,
+        #[template_child]
+        pub(super) photo_picture: TemplateChild<gtk::Picture>,
 
         pub(super) dt_range: RefCell<DateTimeRange>,
         pub(super) data_rows: RefCell<Vec<InformationRow>>,
@@ -160,7 +167,10 @@ mod imp {
 
             if let Some(entity) = &entity {
                 for field in entity.data().fields() {
-                    if field.ty() == EntityDataFieldTy::StockId {
+                    if matches!(
+                        field.ty(),
+                        EntityDataFieldTy::StockId | EntityDataFieldTy::Photo
+                    ) {
                         continue;
                     }
 
@@ -171,6 +181,21 @@ mod imp {
                     self.data_group.add(&row);
                     self.data_rows.borrow_mut().push(row);
                 }
+            }
+
+            if let Some(photo) = entity.as_ref().and_then(|e| e.data().photo()) {
+                self.photo_picture.set_paintable(
+                    photo
+                        .texture()
+                        .inspect_err(|err| {
+                            tracing::debug!("Failed to load photo texture: {:?}", err);
+                        })
+                        .ok(),
+                );
+                self.photo_picture_group.set_visible(true);
+            } else {
+                self.photo_picture.set_paintable(gdk::Paintable::NONE);
+                self.photo_picture_group.set_visible(false);
             }
 
             self.entity_signals

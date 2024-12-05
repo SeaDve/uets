@@ -5,7 +5,7 @@ use gtk::glib;
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{settings::OperationMode, stock_id::StockId};
+use crate::{jpeg_image::JpegImage, settings::OperationMode, stock_id::StockId};
 
 macro_rules! entity_data_field {
     ($($field:ident($ty:ty) => $display:expr),*) => {
@@ -56,6 +56,8 @@ entity_data_field! {
     Location(String) => "Location",
     ExpirationDt(DateTime<Utc>) => "Expiration Date",
 
+    Photo(JpegImage) => "Photo",
+
     Name(String) => "Name",
     Sex(String) => "Sex",
     Email(String) => "Email",
@@ -99,6 +101,7 @@ impl EntityData {
     }
 
     entity_data_getter!(stock_id, StockId, &StockId);
+    entity_data_getter!(photo, Photo, &JpegImage);
     entity_data_getter!(name, Name, &String);
 }
 
@@ -129,22 +132,27 @@ impl ValidEntityFields {
         }
 
         let person_valid_entity_fields = &[
+            f!(EntityDataFieldTy::Photo),
             f!(EntityDataFieldTy::Name),
             f!(EntityDataFieldTy::Sex),
             f!(EntityDataFieldTy::Email),
             f!(EntityDataFieldTy::Program),
         ];
-
         Self(match operation_mode {
             OperationMode::Counter => person_valid_entity_fields,
             OperationMode::Attendance => person_valid_entity_fields,
-            OperationMode::Parking => &[f!(EntityDataFieldTy::Location)],
+            OperationMode::Parking => &[
+                f!(EntityDataFieldTy::Photo),
+                f!(EntityDataFieldTy::Location),
+            ],
             OperationMode::Inventory => &[
+                f!(EntityDataFieldTy::Photo),
                 f!(req EntityDataFieldTy::StockId),
                 f!(EntityDataFieldTy::Location),
                 f!(EntityDataFieldTy::ExpirationDt),
             ],
             OperationMode::Refrigerator => &[
+                f!(EntityDataFieldTy::Photo),
                 f!(req EntityDataFieldTy::StockId),
                 f!(EntityDataFieldTy::ExpirationDt),
             ],

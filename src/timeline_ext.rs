@@ -7,6 +7,7 @@ use crate::{
     date_time,
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_id::EntityId,
+    jpeg_image::JpegImage,
     stock_data::StockData,
     stock_id::StockId,
     timeline::Timeline,
@@ -39,6 +40,9 @@ impl Timeline {
                     }),
                     EntityDataFieldTy::ExpirationDt => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("expiration")
+                    }),
+                    EntityDataFieldTy::Photo => find_position(col_title_row, |s| {
+                        s.to_lowercase().as_str().contains("photo")
                     }),
                     EntityDataFieldTy::Name => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("name")
@@ -87,6 +91,10 @@ impl Timeline {
                                     .ok()
                             })
                             .map(EntityDataField::ExpirationDt),
+                        EntityDataFieldTy::Photo => row[idx]
+                            .as_string()
+                            .map(|s| JpegImage::from_base64(&s))
+                            .map(EntityDataField::Photo),
                         EntityDataFieldTy::Name => row[idx].as_string().map(EntityDataField::Name),
                         EntityDataFieldTy::Sex => row[idx].as_string().map(EntityDataField::Sex),
                         EntityDataFieldTy::Email => {

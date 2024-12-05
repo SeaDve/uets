@@ -1,7 +1,7 @@
+use adw::{prelude::*, subclass::prelude::*};
 use gtk::{
+    gdk,
     glib::{self, clone},
-    prelude::*,
-    subclass::prelude::*,
 };
 
 use crate::{date_time_range::DateTimeRange, entity::Entity, Application};
@@ -109,9 +109,16 @@ mod imp {
                     self.title_label.set_label(&text);
                     self.avatar.set_text(Some(&entity.id().to_string()));
                 }
+                self.avatar
+                    .set_custom_image(entity.data().photo().and_then(|p| {
+                        p.texture()
+                            .inspect_err(|err| tracing::error!("Failed to load texture: {:?}", err))
+                            .ok()
+                    }));
             } else {
                 self.title_label.set_label("");
                 self.avatar.set_text(None);
+                self.avatar.set_custom_image(gdk::Paintable::NONE);
             }
 
             self.entity_signals

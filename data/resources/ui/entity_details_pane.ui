@@ -58,6 +58,20 @@
                 <property name="title">Data</property>
               </object>
             </child>
+            <child>
+              <object class="AdwPreferencesGroup" id="photo_picture_group">
+                <property name="title">Photo</property>
+                <child>
+                  <object class="GtkPicture" id="photo_picture">
+                    <property name="height-request">240</property>
+                    <property name="halign">center</property>
+                    <style>
+                      <class name="card"/>
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
           </object>
         </child>
       </object>

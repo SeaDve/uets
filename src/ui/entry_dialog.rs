@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use adw::{prelude::*, subclass::prelude::*};
 use futures_channel::oneshot;
 use gtk::glib::{self, closure};
@@ -6,7 +8,7 @@ use crate::{
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_id::EntityId,
     stock::Stock,
-    ui::date_time_button::DateTimeButton,
+    ui::{camera_viewfinder::CameraViewfinder, date_time_button::DateTimeButton},
     utils, Application,
 };
 
@@ -38,6 +40,10 @@ mod imp {
         pub(super) email_row: TemplateChild<adw::EntryRow>,
         #[template_child]
         pub(super) program_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub(super) photo_viewfinder_group: TemplateChild<adw::PreferencesGroup>,
+        #[template_child]
+        pub(super) photo_viewfinder: TemplateChild<CameraViewfinder>,
 
         pub(super) result_tx: RefCell<Option<oneshot::Sender<()>>>,
     }
@@ -79,6 +85,8 @@ mod imp {
                 .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Location));
             self.expiration_dt_row
                 .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt));
+            self.photo_viewfinder_group
+                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Photo));
             self.name_row
                 .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Name));
             self.sex_row
@@ -100,6 +108,9 @@ mod imp {
                     closure!(|stock: &Stock| stock.id().to_string()),
                 )));
             self.stock_id_dropdown.set_model(Some(&sorted_stock_model));
+
+            self.photo_viewfinder
+                .set_camera(Some(Application::get().camera().clone()));
         }
 
         fn dispose(&self) {
@@ -163,6 +174,10 @@ impl EntryDialog {
                             .map(|dt| EntityDataField::ExpirationDt(dt.0))
                     })
                     .flatten(),
+                imp.photo_viewfinder
+                    .borrow()
+                    .capture_image()
+                    .map(EntityDataField::Photo),
                 Some(imp.name_row.text().to_string())
                     .filter(|t| !t.is_empty())
                     .map(EntityDataField::Name),
