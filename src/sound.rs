@@ -7,6 +7,7 @@ use crate::GRESOURCE_PREFIX;
 pub enum Sound {
     DetectedSuccess,
     DetectedError,
+    CriticalAlert,
 }
 
 impl Sound {
@@ -30,6 +31,7 @@ impl Sound {
         match self {
             Sound::DetectedSuccess => "detected-success.mp3",
             Sound::DetectedError => "detected-error.mp3",
+            Sound::CriticalAlert => "critical-alert.mp3",
         }
     }
 }

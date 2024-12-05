@@ -5,6 +5,8 @@ mod date_time_button;
 mod date_time_picker;
 mod date_time_range_button;
 mod date_time_range_dialog;
+mod detected_wo_id_dialog;
+mod detected_wo_id_row;
 mod entities_view;
 mod entity_details_pane;
 mod entity_row;

@@ -84,6 +84,17 @@
         </child>
         <child>
           <object class="AdwPreferencesGroup">
+            <property name="title">Alerts</property>
+            <child>
+              <object class="AdwSwitchRow">
+                <property name="title">Enable Detection Without ID</property>
+                <property name="action-name">settings-view.enable-detection-wo-id</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
             <property name="title">Others</property>
             <child>
               <object class="AdwExpanderRow">

@@ -93,8 +93,8 @@
                           </object>
                         </property>
                         <style>
-                          <class name="timeline-list-view"/>
                           <class name="background"/>
+                          <class name="timeline-list-view"/>
                         </style>
                       </object>
                     </property>

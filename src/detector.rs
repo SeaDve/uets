@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use chrono::Utc;
 use gtk::{
     glib::{self, clone, closure_local},
     prelude::*,
@@ -10,14 +11,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     camera::Camera,
+    date_time_boxed::DateTimeBoxed,
     entity_data::{EntityData, EntityDataField},
     entity_id::EntityId,
+    jpeg_image::JpegImage,
     rfid_reader::RfidReader,
     sound::Sound,
     Application,
 };
 
 const CAMERA_LAST_DETECTED_RESET_DELAY: Duration = Duration::from_secs(2);
+const DETECTED_WO_ID_ALERT_DELAY: Duration = Duration::from_secs(5);
 
 mod imp {
     use std::{cell::RefCell, sync::OnceLock};
@@ -28,9 +32,13 @@ mod imp {
 
     #[derive(Default)]
     pub struct Detector {
+        pub(super) camera: RefCell<Option<Camera>>,
         pub(super) aux_cameras: RefCell<Vec<(Camera, Vec<glib::SignalHandlerId>)>>,
         pub(super) camera_last_detected: RefCell<Option<String>>,
         pub(super) camera_last_detected_timeout: RefCell<Option<glib::SourceId>>,
+
+        pub(super) detected_wo_id_capture: RefCell<Option<(DateTimeBoxed, Option<JpegImage>)>>,
+        pub(super) detected_wo_id_alert_timeout: RefCell<Option<glib::SourceId>>,
     }
 
     #[glib::object_subclass]
@@ -44,9 +52,17 @@ mod imp {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
 
             SIGNALS.get_or_init(|| {
-                vec![Signal::builder("detected")
-                    .param_types([EntityId::static_type(), Option::<EntityData>::static_type()])
-                    .build()]
+                vec![
+                    Signal::builder("detected")
+                        .param_types([EntityId::static_type(), Option::<EntityData>::static_type()])
+                        .build(),
+                    Signal::builder("detected-wo-id")
+                        .param_types([
+                            DateTimeBoxed::static_type(),
+                            Option::<JpegImage>::static_type(),
+                        ])
+                        .build(),
+                ]
             })
         }
     }
@@ -72,8 +88,25 @@ impl Detector {
         )
     }
 
+    pub fn connect_detected_wo_id<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &DateTimeBoxed, Option<&JpegImage>) + 'static,
+    {
+        self.connect_closure(
+            "detected-wo-id",
+            false,
+            closure_local!(
+                |obj: &Self, dt: &DateTimeBoxed, image: Option<&JpegImage>| f(obj, dt, image)
+            ),
+        )
+    }
+
     pub fn bind_camera(&self, camera: &Camera) {
+        let imp = self.imp();
+
         self.bind_camera_inner(camera);
+
+        imp.camera.replace(Some(camera.clone()));
     }
 
     pub fn bind_aux_cameras(&self, cameras: &[Camera]) {
@@ -121,8 +154,22 @@ impl Detector {
         Sound::DetectedSuccess.play();
     }
 
+    pub fn set_enable_detection_wo_id(&self, is_enabled: bool) {
+        let imp = self.imp();
+
+        if let Some(camera) = imp.camera.borrow().as_ref() {
+            camera.set_enable_motion_detection(is_enabled);
+        }
+
+        for (camera, _) in imp.aux_cameras.borrow().iter() {
+            camera.set_enable_motion_detection(is_enabled);
+        }
+    }
+
     fn emit_detected(&self, id: &EntityId, data: Option<&EntityData>) {
-        self.emit_by_name("detected", &[id, &data])
+        self.emit_by_name::<()>("detected", &[id, &data]);
+
+        self.stop_detected_wo_id_alert_timeout();
     }
 
     fn bind_camera_inner(&self, camera: &Camera) -> Vec<glib::SignalHandlerId> {
@@ -161,8 +208,35 @@ impl Detector {
             camera.connect_motion_detected(clone!(
                 #[weak(rename_to = obj)]
                 self,
-                move |_| {
-                    tracing::debug!("Motion detected!");
+                move |camera| {
+                    glib::spawn_future_local(clone!(
+                        #[strong]
+                        obj,
+                        #[strong]
+                        camera,
+                        async move {
+                            let imp = obj.imp();
+
+                            let now = Utc::now();
+
+                            let image = camera
+                                .capture_jpeg()
+                                .await
+                                .inspect_err(|err| {
+                                    tracing::warn!("Failed to capture image: {:?}", err)
+                                })
+                                .ok();
+
+                            imp.detected_wo_id_capture
+                                .replace(Some((DateTimeBoxed(now), image)));
+
+                            if imp.detected_wo_id_alert_timeout.borrow().is_some() {
+                                obj.detected_wo_id_alert();
+                            } else {
+                                obj.start_detected_wo_id_alert_timeout();
+                            }
+                        }
+                    ));
                 }
             )),
         ];
@@ -172,6 +246,47 @@ impl Detector {
         }
 
         handler_ids
+    }
+
+    fn start_detected_wo_id_alert_timeout(&self) {
+        let imp = self.imp();
+
+        let source_id = glib::timeout_add_local_once(
+            DETECTED_WO_ID_ALERT_DELAY,
+            clone!(
+                #[weak(rename_to = obj)]
+                self,
+                move || {
+                    let imp = obj.imp();
+                    imp.detected_wo_id_alert_timeout.replace(None);
+
+                    obj.detected_wo_id_alert();
+                },
+            ),
+        );
+        imp.detected_wo_id_alert_timeout.replace(Some(source_id));
+    }
+
+    fn stop_detected_wo_id_alert_timeout(&self) {
+        let imp = self.imp();
+
+        if let Some(source_id) = imp.detected_wo_id_alert_timeout.take() {
+            source_id.remove();
+        }
+
+        imp.detected_wo_id_capture.replace(None);
+    }
+
+    fn detected_wo_id_alert(&self) {
+        let imp = self.imp();
+
+        if let Some((dt, image)) = imp.detected_wo_id_capture.take() {
+            self.emit_by_name::<()>("detected-wo-id", &[&dt, &image]);
+        } else {
+            tracing::warn!("No detected without ID capture data");
+        }
+
+        Sound::CriticalAlert.play();
     }
 
     fn restart_camera_last_detected_timeout(&self) {

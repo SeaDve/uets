@@ -20,5 +20,8 @@
     <key name="rfid-reader-ip-addr" type="s">
       <default>"uets-rfid-reader.local"</default>
     </key>
+    <key name="enable-detection-wo-id" type="b">
+      <default>true</default>
+    </key>
   </schema>
 </schemalist>
