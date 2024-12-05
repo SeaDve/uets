@@ -88,6 +88,7 @@
             <child>
               <object class="AdwSwitchRow">
                 <property name="title">Enable Detection Without ID</property>
+                <property name="subtitle">Alert when an entity enters without proper registration</property>
                 <property name="action-name">settings-view.enable-detection-wo-id</property>
               </object>
             </child>
