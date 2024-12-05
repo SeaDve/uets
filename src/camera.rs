@@ -70,27 +70,6 @@ mod imp {
 
     #[glib::derived_properties]
     impl ObjectImpl for Camera {
-        fn constructed(&self) {
-            self.parent_constructed();
-
-            let obj = self.obj();
-
-            let handle = glib::spawn_future_local(clone!(
-                #[weak]
-                obj,
-                async move {
-                    loop {
-                        if let Err(err) = obj.handle_sensor_request().await {
-                            tracing::warn!("Failed to handle sensor request: {:?}", err);
-                        }
-
-                        glib::timeout_future(SENSOR_REQUEST_INTERVAL).await;
-                    }
-                }
-            ));
-            self.sensor_request_handle.replace(Some(handle));
-        }
-
         fn dispose(&self) {
             let obj = self.obj();
 
@@ -175,6 +154,35 @@ impl Camera {
 
     pub fn ip_addr(&self) -> String {
         self.imp().ip_addr.borrow().clone()
+    }
+
+    pub fn set_enable_motion_detection(&self, is_enabled: bool) {
+        let imp = self.imp();
+
+        if is_enabled {
+            if imp.sensor_request_handle.borrow().is_none() {
+                let handle = glib::spawn_future_local(clone!(
+                    #[weak(rename_to = obj)]
+                    self,
+                    async move {
+                        tracing::trace!("Started sensor request loop");
+
+                        loop {
+                            if let Err(err) = obj.handle_sensor_request().await {
+                                tracing::warn!("Failed to handle sensor request: {:?}", err);
+                            }
+
+                            glib::timeout_future(SENSOR_REQUEST_INTERVAL).await;
+                        }
+                    }
+                ));
+                imp.sensor_request_handle.replace(Some(handle));
+            }
+        } else if let Some(handle) = imp.sensor_request_handle.take() {
+            handle.abort();
+
+            tracing::trace!("Aborted sensor request loop");
+        }
     }
 
     pub fn start(&self) -> Result<()> {

@@ -18,6 +18,21 @@ label.n-inside  {
     font-size: 0.6em;
 }
 
+/* DetectedWoIdDialog */
+
+.detected-wo-id-list-view {
+    padding: 6px;
+}
+
+/* DetectedWoIdRow */
+
+.detected-wo-id-row-image {
+    background-color: alpha(@destructive_color, 0.25);
+    color: @destructive_color;
+    border-radius: 9999px;
+    padding: 6px;
+}
+
 /* SendDialog */
 
 .code-label {

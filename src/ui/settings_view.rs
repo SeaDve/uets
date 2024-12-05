@@ -54,6 +54,7 @@ mod imp {
 
             let action_group = gio::SimpleActionGroup::new();
             action_group.add_action(&settings.create_operation_mode_action());
+            action_group.add_action(&settings.create_enable_detection_wo_id_action());
             obj.insert_action_group("settings-view", Some(&action_group));
 
             self.fullscreen_window_button.connect_clicked(|_| {

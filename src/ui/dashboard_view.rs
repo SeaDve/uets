@@ -6,6 +6,7 @@ use crate::{
     date_time_range::DateTimeRange,
     ui::{
         camera_live_feed_dialog::CameraLiveFeedDialog,
+        detected_wo_id_dialog::DetectedWoIdDialog,
         information_row::InformationRow,
         receive_dialog::{InvalidFileExtension, ReceiveDialog},
         time_graph::TimeGraph,
@@ -53,13 +54,26 @@ mod imp {
             klass.bind_template();
 
             klass.install_action(
-                "dashboard-view.show-camera-live-feed",
+                "dashboard-view.show-camera-live-feed-dialog",
                 None,
                 move |obj, _, _| {
                     let dialog = CameraLiveFeedDialog::new();
 
                     let camera = Application::get().camera().clone();
                     dialog.set_camera(Some(camera));
+
+                    dialog.present(Some(obj));
+                },
+            );
+            klass.install_action(
+                "dashboard-view.show-detected-wo-id-dialog",
+                None,
+                move |obj, _, _| {
+                    let dialog = DetectedWoIdDialog::new();
+
+                    let app = Application::get();
+                    let list = app.detected_wo_id_list();
+                    dialog.set_model(Some(list));
 
                     dialog.present(Some(obj));
                 },

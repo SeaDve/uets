@@ -8,10 +8,14 @@ use gtk::{
 
 use crate::{
     camera::Camera,
+    date_time_boxed::DateTimeBoxed,
     db,
+    detected_wo_id_item::DetectedWoIdItem,
+    detected_wo_id_list::DetectedWoIdList,
     detector::Detector,
     entity_data::EntityData,
     entity_id::EntityId,
+    jpeg_image::JpegImage,
     rfid_reader::RfidReader,
     settings::{OperationMode, Settings},
     timeline::Timeline,
@@ -35,6 +39,7 @@ mod imp {
 
         pub(super) env: OnceCell<heed::Env>,
         pub(super) timeline: OnceCell<Timeline>,
+        pub(super) detected_wo_id_list: OnceCell<DetectedWoIdList>,
     }
 
     #[glib::object_subclass]
@@ -78,16 +83,14 @@ mod imp {
                 #[weak]
                 obj,
                 move |settings| {
-                    let imp = obj.imp();
-
-                    imp.detector.unbind_aux_cameras();
+                    obj.detector().unbind_aux_cameras();
 
                     let cameras = settings
                         .aux_camera_ip_addrs()
                         .into_iter()
                         .map(Camera::new)
                         .collect::<Vec<_>>();
-                    imp.detector.bind_aux_cameras(&cameras);
+                    obj.detector().bind_aux_cameras(&cameras);
                 }
             ));
             self.settings.connect_rfid_reader_ip_addr_changed(clone!(
@@ -96,6 +99,14 @@ mod imp {
                 move |settings| {
                     let ip_addr = settings.rfid_reader_ip_addr();
                     obj.rfid_reader().set_ip_addr(ip_addr);
+                }
+            ));
+            self.settings.connect_enable_detection_wo_id_changed(clone!(
+                #[weak]
+                obj,
+                move |settings| {
+                    obj.detector()
+                        .set_enable_detection_wo_id(settings.enable_detection_wo_id());
                 }
             ));
 
@@ -117,6 +128,8 @@ mod imp {
             self.detector.bind_aux_cameras(&aux_cameras);
             self.detector.bind_rfid_reader(obj.rfid_reader());
 
+            self.detector
+                .set_enable_detection_wo_id(self.settings.enable_detection_wo_id());
             self.detector.connect_detected(clone!(
                 #[weak]
                 obj,
@@ -132,11 +145,21 @@ mod imp {
                     ));
                 }
             ));
+            self.detector.connect_detected_wo_id(clone!(
+                #[weak]
+                obj,
+                move |_, dt, image| {
+                    if let Err(err) = obj.handle_detected_wo_id(dt, image) {
+                        tracing::error!("Failed to handle detected wo id: {:?}", err);
+                    }
+                }
+            ));
 
             match init_env() {
-                Ok((env, timeline)) => {
+                Ok((env, timeline, detected_wo_id_list)) => {
                     self.env.set(env).unwrap();
                     self.timeline.set(timeline).unwrap();
+                    self.detected_wo_id_list.set(detected_wo_id_list).unwrap();
                 }
                 Err(err) => {
                     tracing::debug!("Failed to init env: {:?}", err);
@@ -216,6 +239,10 @@ impl Application {
         self.imp().timeline.get().unwrap()
     }
 
+    pub fn detected_wo_id_list(&self) -> &DetectedWoIdList {
+        self.imp().detected_wo_id_list.get().unwrap()
+    }
+
     pub fn present_test_window(&self) {
         TestWindow::new(self).present();
     }
@@ -284,6 +311,15 @@ impl Application {
         }
     }
 
+    fn handle_detected_wo_id(&self, dt: &DateTimeBoxed, image: Option<&JpegImage>) -> Result<()> {
+        self.add_message_toast("Detected unregistered entity!");
+
+        let item = DetectedWoIdItem::new(dt.0, image.cloned());
+        self.detected_wo_id_list().insert(item)?;
+
+        Ok(())
+    }
+
     fn setup_actions(&self) {
         let show_test_window_action = gio::ActionEntry::builder("show-test-window")
             .activate(|obj: &Self, _, _| {
@@ -305,10 +341,11 @@ impl Application {
     }
 }
 
-fn init_env() -> Result<(heed::Env, Timeline)> {
+fn init_env() -> Result<(heed::Env, Timeline, DetectedWoIdList)> {
     let env = db::new_env()?;
 
     let timeline = Timeline::load_from_env(env.clone())?;
+    let detected_wo_id_list = DetectedWoIdList::load_from_env(env.clone())?;
 
-    Ok((env, timeline))
+    Ok((env, timeline, detected_wo_id_list))
 }

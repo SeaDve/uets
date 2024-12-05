@@ -10,10 +10,11 @@ use heed::types::SerdeJson;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    entity_data::EntityData, entity_id::EntityId, stock_data::StockData, stock_id::StockId, APP_ID,
+    entity_data::EntityData, entity_id::EntityId, jpeg_image::JpegImage, stock_data::StockData,
+    stock_id::StockId, APP_ID,
 };
 
-const N_NAMED_DBS: u32 = 3;
+const N_NAMED_DBS: u32 = 4;
 
 pub type TimelineDbType = heed::Database<SerdeJson<DateTime<Utc>>, SerdeJson<RawTimelineItem>>;
 pub const TIMELINE_DB_NAME: &str = "timeline";
@@ -24,10 +25,19 @@ pub const ENTITIES_DB_NAME: &str = "entities";
 pub type StocksDbType = heed::Database<SerdeJson<StockId>, SerdeJson<StockData>>;
 pub const STOCKS_DB_NAME: &str = "stocks";
 
+pub type DetectedWoIdDbType =
+    heed::Database<SerdeJson<DateTime<Utc>>, SerdeJson<RawDetectedWoIdItem>>;
+pub const DETECTED_WO_ID_DB_NAME: &str = "detected_wo_id";
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RawTimelineItem {
     pub is_entry: bool,
     pub entity_id: EntityId,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RawDetectedWoIdItem {
+    pub image: Option<JpegImage>,
 }
 
 pub fn new_env() -> Result<heed::Env> {

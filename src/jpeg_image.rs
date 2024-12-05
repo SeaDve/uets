@@ -3,7 +3,8 @@ use std::{cell::OnceCell, fmt, rc::Rc};
 use gtk::{gdk, glib};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Clone)]
+#[derive(Clone, glib::Boxed)]
+#[boxed_type(name = "UetsJpegImage", nullable)]
 pub struct JpegImage {
     bytes: glib::Bytes,
     texture: Rc<OnceCell<Result<gdk::Texture, glib::Error>>>,
@@ -33,6 +34,10 @@ impl JpegImage {
             bytes: glib::Bytes::from_owned(bytes),
             texture: Rc::new(OnceCell::new()),
         }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.bytes.as_ref()
     }
 
     pub fn from_base64(string: &str) -> Self {
