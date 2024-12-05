@@ -120,7 +120,7 @@
                 </child>
                 <child>
                   <object class="AdwEntryRow" id="aux_camera_ip_addrs_row">
-                    <property name="title">Auxilliary Cameras IP Addresses</property>
+                    <property name="title">Auxiliary Cameras IP Addresses</property>
                     <property name="show-apply-button">True</property>
                   </object>
                 </child>
