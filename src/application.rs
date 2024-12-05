@@ -106,6 +106,7 @@ mod imp {
                 .settings
                 .aux_camera_ip_addrs()
                 .into_iter()
+                .filter(|ip_addr| !ip_addr.is_empty())
                 .map(Camera::new)
                 .collect::<Vec<_>>();
 

@@ -28,7 +28,7 @@ mod imp {
 
     #[derive(Default)]
     pub struct Detector {
-        pub(super) aux_cameras: RefCell<Vec<(Camera, glib::SignalHandlerId)>>,
+        pub(super) aux_cameras: RefCell<Vec<(Camera, Vec<glib::SignalHandlerId>)>>,
         pub(super) camera_last_detected: RefCell<Option<String>>,
         pub(super) camera_last_detected_timeout: RefCell<Option<glib::SourceId>>,
     }
@@ -80,10 +80,10 @@ impl Detector {
         let imp = self.imp();
 
         for camera in cameras {
-            let handler_id = self.bind_camera_inner(camera);
+            let handler_ids = self.bind_camera_inner(camera);
             imp.aux_cameras
                 .borrow_mut()
-                .push((camera.clone(), handler_id));
+                .push((camera.clone(), handler_ids));
         }
 
         tracing::debug!(
@@ -95,8 +95,10 @@ impl Detector {
     pub fn unbind_aux_cameras(&self) {
         let imp = self.imp();
 
-        for (camera, handler_id) in imp.aux_cameras.take() {
-            camera.disconnect(handler_id);
+        for (camera, handler_ids) in imp.aux_cameras.take() {
+            for handler_id in handler_ids {
+                camera.disconnect(handler_id);
+            }
         }
     }
 
@@ -123,44 +125,53 @@ impl Detector {
         self.emit_by_name("detected", &[id, &data])
     }
 
-    fn bind_camera_inner(&self, camera: &Camera) -> glib::SignalHandlerId {
-        let handler_id = camera.connect_code_detected(clone!(
-            #[weak(rename_to = obj)]
-            self,
-            move |_, code| {
-                let imp = obj.imp();
+    fn bind_camera_inner(&self, camera: &Camera) -> Vec<glib::SignalHandlerId> {
+        let handler_ids = vec![
+            camera.connect_code_detected(clone!(
+                #[weak(rename_to = obj)]
+                self,
+                move |_, code| {
+                    let imp = obj.imp();
 
-                if imp
-                    .camera_last_detected
-                    .borrow()
-                    .as_ref()
-                    .is_some_and(|last_detected| last_detected == code)
-                {
-                    return;
+                    if imp
+                        .camera_last_detected
+                        .borrow()
+                        .as_ref()
+                        .is_some_and(|last_detected| last_detected == code)
+                    {
+                        return;
+                    }
+
+                    if let Some((id, data)) = entity_from_qrcode(code) {
+                        obj.emit_detected(&id, Some(&data));
+
+                        Sound::DetectedSuccess.play();
+                    } else {
+                        tracing::warn!("Invalid entity code: {}", code);
+
+                        Application::get().add_message_toast("Unknown QR code format");
+
+                        Sound::DetectedError.play();
+                    }
+
+                    imp.camera_last_detected.replace(Some(code.to_string()));
+                    obj.restart_camera_last_detected_timeout();
                 }
-
-                if let Some((id, data)) = entity_from_qrcode(code) {
-                    obj.emit_detected(&id, Some(&data));
-
-                    Sound::DetectedSuccess.play();
-                } else {
-                    tracing::warn!("Invalid entity code: {}", code);
-
-                    Application::get().add_message_toast("Unknown QR code format");
-
-                    Sound::DetectedError.play();
+            )),
+            camera.connect_motion_detected(clone!(
+                #[weak(rename_to = obj)]
+                self,
+                move |_| {
+                    tracing::debug!("Motion detected!");
                 }
-
-                imp.camera_last_detected.replace(Some(code.to_string()));
-                obj.restart_camera_last_detected_timeout();
-            }
-        ));
+            )),
+        ];
 
         if let Err(err) = camera.start() {
             tracing::error!("Failed to start camera: {:?}", err);
         }
 
-        handler_id
+        handler_ids
     }
 
     fn restart_camera_last_detected_timeout(&self) {

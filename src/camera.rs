@@ -1,9 +1,12 @@
-use anyhow::Result;
+use std::time::Duration;
+
+use anyhow::{bail, ensure, Context, Result};
 use gst::{prelude::*, subclass::prelude::*};
 use gtk::{
     gdk,
     glib::{self, clone, closure_local},
 };
+use serde::{Deserialize, Serialize};
 
 use crate::jpeg_image::JpegImage;
 
@@ -11,6 +14,8 @@ const GTK_SINK_NAME: &str = "gtksink";
 const RTSP_SRC_NAME: &str = "rtspsrc";
 
 const PORT: u16 = 8080;
+
+const SENSOR_REQUEST_INTERVAL: Duration = Duration::from_millis(200);
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, glib::Boxed)]
 #[boxed_type(name = "UetsCameraState")]
@@ -31,7 +36,11 @@ impl CameraState {
 }
 
 mod imp {
-    use std::{cell::RefCell, marker::PhantomData, sync::OnceLock};
+    use std::{
+        cell::{Cell, RefCell},
+        marker::PhantomData,
+        sync::OnceLock,
+    };
 
     use glib::subclass::Signal;
     use gst::bus::BusWatchGuard;
@@ -48,6 +57,9 @@ mod imp {
 
         pub(super) pipeline: RefCell<Option<(gst::Pipeline, BusWatchGuard)>>,
         pub(super) ip_addr: RefCell<String>,
+
+        pub(super) motion_active: Cell<(u64, bool)>,
+        pub(super) sensor_request_handle: RefCell<Option<glib::JoinHandle<()>>>,
     }
 
     #[glib::object_subclass]
@@ -58,19 +70,47 @@ mod imp {
 
     #[glib::derived_properties]
     impl ObjectImpl for Camera {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            let obj = self.obj();
+
+            let handle = glib::spawn_future_local(clone!(
+                #[weak]
+                obj,
+                async move {
+                    loop {
+                        if let Err(err) = obj.handle_sensor_request().await {
+                            tracing::warn!("Failed to handle sensor request: {:?}", err);
+                        }
+
+                        glib::timeout_future(SENSOR_REQUEST_INTERVAL).await;
+                    }
+                }
+            ));
+            self.sensor_request_handle.replace(Some(handle));
+        }
+
         fn dispose(&self) {
             let obj = self.obj();
 
             obj.stop();
+
+            if let Some(handle) = self.sensor_request_handle.take() {
+                handle.abort();
+            }
         }
 
         fn signals() -> &'static [Signal] {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
 
             SIGNALS.get_or_init(|| {
-                vec![Signal::builder("code-detected")
-                    .param_types([String::static_type()])
-                    .build()]
+                vec![
+                    Signal::builder("code-detected")
+                        .param_types([String::static_type()])
+                        .build(),
+                    Signal::builder("motion-detected").build(),
+                ]
             })
         }
     }
@@ -93,6 +133,8 @@ impl Camera {
     pub fn new(ip_addr: String) -> Self {
         let this = glib::Object::new::<Self>();
 
+        debug_assert!(!ip_addr.is_empty());
+
         let imp = this.imp();
         imp.ip_addr.replace(ip_addr);
 
@@ -110,8 +152,21 @@ impl Camera {
         )
     }
 
+    pub fn connect_motion_detected<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self) + 'static,
+    {
+        self.connect_closure(
+            "motion-detected",
+            false,
+            closure_local!(|obj: &Self| f(obj)),
+        )
+    }
+
     pub fn set_ip_addr(&self, ip_addr: String) -> Result<()> {
         let imp = self.imp();
+
+        debug_assert!(!ip_addr.is_empty());
 
         imp.ip_addr.replace(ip_addr);
 
@@ -186,10 +241,10 @@ impl Camera {
     }
 
     pub async fn capture_jpeg(&self) -> Result<JpegImage> {
-        let imp = self.imp();
-
-        let bytes = surf::get(format!("http://{}:{PORT}/shot.jpg", imp.ip_addr.borrow()))
-            .recv_bytes()
+        let bytes = self
+            .http_get("shot.jpg")
+            .await?
+            .body_bytes()
             .await
             .map_err(|err| err.into_inner())?;
 
@@ -197,18 +252,13 @@ impl Camera {
     }
 
     pub async fn set_flash(&self, is_enabled: bool) -> Result<()> {
-        let imp = self.imp();
-
         let path = if is_enabled {
             "enabletorch"
         } else {
             "disabletorch"
         };
 
-        surf::get(format!("http://{}:{PORT}/{path}", imp.ip_addr.borrow()))
-            .recv_string()
-            .await
-            .map_err(|err| err.into_inner())?;
+        self.http_get(path).await?;
 
         Ok(())
     }
@@ -224,6 +274,28 @@ impl Camera {
         self.notify_state();
     }
 
+    async fn http_get(&self, path: &str) -> Result<surf::Response> {
+        let imp = self.imp();
+
+        let uri = format!("http://{}:{PORT}/{path}", imp.ip_addr.borrow());
+        let response = surf::RequestBuilder::new(
+            surf::http::Method::Get,
+            uri.parse()
+                .with_context(|| format!("Failed to parse URI: {}", uri))?,
+        )
+        .send()
+        .await
+        .map_err(|err| err.into_inner())?;
+
+        ensure!(
+            response.status().is_success(),
+            "Failed to send GET request at {}",
+            uri
+        );
+
+        Ok(response)
+    }
+
     fn dispose_pipeline(&self) {
         let imp = self.imp();
 
@@ -233,6 +305,32 @@ impl Camera {
             }
             self.notify_paintable();
         }
+    }
+
+    async fn handle_sensor_request(&self) -> Result<()> {
+        let imp = self.imp();
+
+        let data = self
+            .http_get("sensors.json?sense=motion_active")
+            .await?
+            .body_json::<SensorData>()
+            .await
+            .map_err(|err| err.into_inner())?;
+
+        let (prev_ts, prev_motion_active) = imp.motion_active.get();
+        let (ts, motion_active) = data.motion_active.motion_active_latest()?;
+
+        if ts > prev_ts && motion_active != prev_motion_active {
+            imp.motion_active.set((ts, motion_active));
+
+            tracing::debug!(motion_active);
+
+            if motion_active && !prev_motion_active {
+                self.emit_by_name::<()>("motion-detected", &[]);
+            }
+        }
+
+        Ok(())
     }
 
     fn handle_bus_message(&self, message: &gst::Message) -> glib::ControlFlow {
@@ -318,4 +416,67 @@ impl Camera {
             }
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SensorDataField {
+    unit: String,
+    data: Vec<serde_json::Value>,
+}
+
+impl SensorDataField {
+    fn motion_active_latest(&self) -> Result<(u64, bool)> {
+        let (ts, data) = self.data_latest()?;
+
+        let ret = match data.as_slice() {
+            [0.0] => (ts, false),
+            [1.0] => (ts, true),
+            data => bail!("invalid data `{:?}`", data),
+        };
+
+        Ok(ret)
+    }
+
+    fn data_latest(&self) -> Result<(u64, Vec<f64>)> {
+        let mut data = None;
+
+        for v in &self.data {
+            match v.as_array().context("value is not an array")?.as_slice() {
+                [raw_ts, raw_data_arr] => {
+                    let ts = raw_ts.as_u64().context("ts is not a u64")?;
+                    let data_arr = raw_data_arr
+                        .as_array()
+                        .context("data arr is not an array")?
+                        .iter()
+                        .map(|v| v.as_f64().context("data is not a u64"))
+                        .collect::<Result<Vec<_>>>()?;
+
+                    match data {
+                        Some((prev_ts, _)) if ts <= prev_ts => continue,
+                        _ => {}
+                    }
+
+                    data = Some((ts, data_arr));
+                }
+                [..] => bail!("invalid array length"),
+            }
+        }
+
+        let ret = data.context("empty data")?;
+        debug_assert_eq!(
+            self.data
+                .iter()
+                .map(|v| v.as_array().unwrap().first().unwrap().as_u64().unwrap())
+                .max()
+                .unwrap(),
+            ret.0
+        );
+
+        Ok(ret)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SensorData {
+    motion_active: SensorDataField,
 }
