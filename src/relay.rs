@@ -1,6 +1,8 @@
 use anyhow::{bail, ensure, Context, Result};
 use gtk::{glib, subclass::prelude::*};
 
+use crate::remote::Remote;
+
 const PORT: u16 = 8888;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,5 +98,15 @@ impl Relay {
         );
 
         Ok(response)
+    }
+}
+
+impl Remote for Relay {
+    fn ip_addr(&self) -> String {
+        self.imp().ip_addr.borrow().clone()
+    }
+
+    fn port(&self) -> u16 {
+        PORT
     }
 }

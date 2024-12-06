@@ -1,8 +1,13 @@
 use adw::{prelude::*, subclass::prelude::*};
-use gtk::{gio, glib};
+use anyhow::Result;
+use gtk::{
+    gio,
+    glib::{self, clone},
+    pango,
+};
 use std::process::Command;
 
-use crate::Application;
+use crate::{remote::Remote, Application};
 
 mod imp {
     use super::*;
@@ -32,6 +37,8 @@ mod imp {
         pub(super) quit_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub(super) shutdown_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub(super) remote_status_box: TemplateChild<gtk::ListBox>,
     }
 
     #[glib::object_subclass]
@@ -42,6 +49,12 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+
+            klass.install_action(
+                "settings-view.reload-remote-status",
+                None,
+                move |obj, _, _| obj.update_remote_status_box(),
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -123,6 +136,8 @@ mod imp {
                     Application::get().add_message_toast("Failed to start shutdown process");
                 }
             });
+
+            obj.update_remote_status_box();
         }
 
         fn dispose(&self) {
@@ -141,5 +156,104 @@ glib::wrapper! {
 impl SettingsView {
     pub fn new() -> Self {
         glib::Object::new()
+    }
+
+    pub fn update_remote_status_box(&self) {
+        glib::spawn_future_local(clone!(
+            #[strong(rename_to = obj)]
+            self,
+            async move {
+                obj.action_set_enabled("settings-view.reload-remote-status", false);
+                obj.update_remote_status_inner().await;
+                obj.action_set_enabled("settings-view.reload-remote-status", true);
+            }
+        ));
+    }
+
+    async fn update_remote_status_inner(&self) {
+        struct RemoteStatus {
+            name: &'static str,
+            ip_addr: String,
+            port: u16,
+            port_reachability: Result<()>,
+        }
+
+        let imp = self.imp();
+
+        imp.remote_status_box.remove_all();
+        imp.remote_status_box.append(
+            &gtk::Spinner::builder()
+                .width_request(24)
+                .height_request(24)
+                .margin_top(6)
+                .margin_bottom(6)
+                .spinning(true)
+                .build(),
+        );
+
+        let app = Application::get();
+        let mut statuses = vec![
+            RemoteStatus {
+                name: "Camera",
+                ip_addr: app.camera().ip_addr(),
+                port: app.camera().port(),
+                port_reachability: app.camera().check_port_reachability().await,
+            },
+            RemoteStatus {
+                name: "RFID Reader",
+                ip_addr: app.rfid_reader().ip_addr(),
+                port: app.rfid_reader().port(),
+                port_reachability: app.rfid_reader().check_port_reachability().await,
+            },
+            RemoteStatus {
+                name: "Relay",
+                ip_addr: app.relay().ip_addr(),
+                port: app.relay().port(),
+                port_reachability: app.relay().check_port_reachability().await,
+            },
+        ];
+        for camera in app.detector().aux_cameras() {
+            statuses.push(RemoteStatus {
+                name: "Aux Camera",
+                ip_addr: camera.ip_addr(),
+                port: camera.port(),
+                port_reachability: camera.check_port_reachability().await,
+            });
+        }
+
+        if statuses.is_empty() {
+            imp.remote_status_box.append(
+                &gtk::Label::builder()
+                    .label("No remote status to show")
+                    .build(),
+            );
+        }
+
+        imp.remote_status_box.remove_all();
+
+        for status in statuses {
+            let row = adw::ActionRow::builder()
+                .activatable(false)
+                .selectable(false)
+                .title(status.name)
+                .subtitle(format!("{}:{}", status.ip_addr, status.port))
+                .build();
+
+            let label = gtk::Label::builder()
+                .xalign(1.0)
+                .ellipsize(pango::EllipsizeMode::End)
+                .selectable(true)
+                .build();
+            if let Err(err) = &status.port_reachability {
+                label.set_text(&err.to_string());
+                label.add_css_class("error");
+            } else {
+                label.set_text("OK");
+                label.add_css_class("success");
+            }
+            row.add_suffix(&label);
+
+            imp.remote_status_box.append(&row);
+        }
     }
 }

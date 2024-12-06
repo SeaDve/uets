@@ -9,7 +9,9 @@ use gtk::{
     subclass::prelude::*,
 };
 
-const TCP_STREAM_PORT: u16 = 8888;
+use crate::remote::Remote;
+
+const PORT: u16 = 8888;
 
 mod imp {
     use std::{cell::RefCell, sync::OnceLock};
@@ -117,7 +119,7 @@ impl RfidReader {
         let ip_addr = imp.ip_addr.borrow().clone();
         tracing::debug!("Trying to connect to {}", ip_addr);
 
-        let stream = TcpStream::connect((ip_addr, TCP_STREAM_PORT)).await?;
+        let stream = TcpStream::connect((ip_addr, PORT)).await?;
         imp.stream.replace(Some(stream.clone()));
 
         tracing::debug!("Connected to {:?}", stream.peer_addr());
@@ -145,5 +147,15 @@ impl RfidReader {
         if let Some(prev_handle) = imp.handle.take() {
             prev_handle.abort();
         }
+    }
+}
+
+impl Remote for RfidReader {
+    fn ip_addr(&self) -> String {
+        self.imp().ip_addr.borrow().clone()
+    }
+
+    fn port(&self) -> u16 {
+        PORT
     }
 }

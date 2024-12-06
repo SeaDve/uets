@@ -30,6 +30,7 @@ mod jpeg_image;
 mod log;
 mod operation_mode_ext;
 mod relay;
+mod remote;
 mod report;
 mod report_table;
 mod rfid_reader;

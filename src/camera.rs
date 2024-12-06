@@ -8,7 +8,7 @@ use gtk::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::jpeg_image::JpegImage;
+use crate::{jpeg_image::JpegImage, remote::Remote};
 
 const GTK_SINK_NAME: &str = "gtksink";
 const RTSP_SRC_NAME: &str = "rtspsrc";
@@ -150,10 +150,6 @@ impl Camera {
         imp.ip_addr.replace(ip_addr);
 
         self.restart()
-    }
-
-    pub fn ip_addr(&self) -> String {
-        self.imp().ip_addr.borrow().clone()
     }
 
     pub fn set_enable_motion_detection(&self, is_enabled: bool) {
@@ -423,6 +419,16 @@ impl Camera {
                 glib::ControlFlow::Continue
             }
         }
+    }
+}
+
+impl Remote for Camera {
+    fn ip_addr(&self) -> String {
+        self.imp().ip_addr.borrow().clone()
+    }
+
+    fn port(&self) -> u16 {
+        PORT
     }
 }
 

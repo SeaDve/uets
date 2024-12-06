@@ -15,6 +15,7 @@ use crate::{
     entity_data::{EntityData, EntityDataField},
     entity_id::EntityId,
     jpeg_image::JpegImage,
+    remote::Remote,
     rfid_reader::RfidReader,
     sound::Sound,
     Application,
@@ -133,6 +134,15 @@ impl Detector {
                 camera.disconnect(handler_id);
             }
         }
+    }
+
+    pub fn aux_cameras(&self) -> Vec<Camera> {
+        self.imp()
+            .aux_cameras
+            .borrow()
+            .iter()
+            .map(|(camera, _)| camera.clone())
+            .collect()
     }
 
     pub fn bind_rfid_reader(&self, rfid_reader: &RfidReader) {
