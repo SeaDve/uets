@@ -153,18 +153,48 @@
                   <object class="AdwEntryRow" id="camera_ip_addr_row">
                     <property name="title">Camera IP Address</property>
                     <property name="show-apply-button">True</property>
+                    <child type="suffix">
+                      <object class="GtkButton">
+                        <property name="action-name">settings-view.reload-camera</property>
+                        <property name="icon-name">update-symbolic</property>
+                        <property name="valign">center</property>
+                        <style>
+                          <class name="flat"/>
+                        </style>
+                      </object>
+                    </child>
                   </object>
                 </child>
                 <child>
                   <object class="AdwEntryRow" id="aux_camera_ip_addrs_row">
                     <property name="title">Auxiliary Cameras IP Addresses</property>
                     <property name="show-apply-button">True</property>
+                    <child type="suffix">
+                      <object class="GtkButton">
+                        <property name="action-name">settings-view.reload-aux-cameras</property>
+                        <property name="icon-name">update-symbolic</property>
+                        <property name="valign">center</property>
+                        <style>
+                          <class name="flat"/>
+                        </style>
+                      </object>
+                    </child>
                   </object>
                 </child>
                 <child>
                   <object class="AdwEntryRow" id="rfid_reader_ip_addr_row">
                     <property name="title">RFID Reader IP Address</property>
                     <property name="show-apply-button">True</property>
+                    <child type="suffix">
+                      <object class="GtkButton">
+                        <property name="action-name">settings-view.reload-rfid-reader</property>
+                        <property name="icon-name">update-symbolic</property>
+                        <property name="valign">center</property>
+                        <style>
+                          <class name="flat"/>
+                        </style>
+                      </object>
+                    </child>
                   </object>
                 </child>
                 <child>

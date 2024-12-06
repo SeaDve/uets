@@ -50,6 +50,25 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
 
+            klass.install_action("settings-view.reload-camera", None, move |_, _, _| {
+                let app = Application::get();
+                if let Err(err) = app.camera().restart() {
+                    tracing::error!("Failed to restart camera: {:?}", err);
+                    app.add_message_toast("Failed to restart camera");
+                }
+            });
+            klass.install_action("settings-view.reload-aux-cameras", None, move |_, _, _| {
+                let app = Application::get();
+                for camera in app.detector().aux_cameras() {
+                    if let Err(err) = camera.restart() {
+                        tracing::error!("Failed to restart aux camera: {:?}", err);
+                        app.add_message_toast("Failed to restart aux camera");
+                    }
+                }
+            });
+            klass.install_action("settings-view.reload-rfid-reader", None, move |_, _, _| {
+                Application::get().rfid_reader().reconnect();
+            });
             klass.install_action(
                 "settings-view.reload-remote-status",
                 None,
