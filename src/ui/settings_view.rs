@@ -13,6 +13,10 @@ mod imp {
         #[template_child]
         pub(super) page: TemplateChild<adw::PreferencesPage>, // Unused
         #[template_child]
+        pub(super) enable_n_inside_hook_row: TemplateChild<adw::ExpanderRow>,
+        #[template_child]
+        pub(super) n_inside_hook_threshold_row: TemplateChild<adw::SpinRow>,
+        #[template_child]
         pub(super) fullscreen_window_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub(super) show_test_window_button: TemplateChild<gtk::Button>,
@@ -22,6 +26,8 @@ mod imp {
         pub(super) aux_camera_ip_addrs_row: TemplateChild<adw::EntryRow>,
         #[template_child]
         pub(super) rfid_reader_ip_addr_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub(super) relay_ip_addr_row: TemplateChild<adw::EntryRow>,
         #[template_child]
         pub(super) quit_button: TemplateChild<gtk::Button>,
         #[template_child]
@@ -57,6 +63,13 @@ mod imp {
             action_group.add_action(&settings.create_enable_detection_wo_id_action());
             obj.insert_action_group("settings-view", Some(&action_group));
 
+            settings
+                .bind_enable_n_inside_hook(&*self.enable_n_inside_hook_row, "enable-expansion")
+                .build();
+            settings
+                .bind_n_inside_hook_threshold(&*self.n_inside_hook_threshold_row, "value")
+                .build();
+
             self.fullscreen_window_button.connect_clicked(|_| {
                 Application::get().window().fullscreen();
             });
@@ -90,6 +103,13 @@ mod imp {
                 Application::get()
                     .settings()
                     .set_rfid_reader_ip_addr(entry.text().trim());
+            });
+
+            self.relay_ip_addr_row.set_text(&settings.relay_ip_addr());
+            self.relay_ip_addr_row.connect_apply(|entry| {
+                Application::get()
+                    .settings()
+                    .set_relay_ip_addr(entry.text().trim());
             });
 
             self.quit_button.connect_clicked(|_| {

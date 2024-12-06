@@ -96,6 +96,31 @@
         </child>
         <child>
           <object class="AdwPreferencesGroup">
+            <property name="title">Automation</property>
+            <child>
+              <object class="AdwExpanderRow" id="enable_n_inside_hook_row">
+                <property name="show-enable-switch">True</property>
+                <property name="title">Enable Count Hook</property>
+                <property name="subtitle">Turn off the switch if entitites inside count reached a certain amount</property>
+                <child>
+                  <object class="AdwSpinRow" id="n_inside_hook_threshold_row">
+                    <property name="title">Count Threshold</property>
+                    <property name="adjustment">
+                      <object class="GtkAdjustment">
+                        <property name="lower">0</property>
+                        <property name="upper">4294967295</property>
+                        <property name="step_increment">1</property>
+                        <property name="page_increment">10</property>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
             <property name="title">Others</property>
             <child>
               <object class="AdwExpanderRow">
@@ -139,6 +164,12 @@
                 <child>
                   <object class="AdwEntryRow" id="rfid_reader_ip_addr_row">
                     <property name="title">RFID Reader IP Address</property>
+                    <property name="show-apply-button">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwEntryRow" id="relay_ip_addr_row">
+                    <property name="title">Relay IP Address</property>
                     <property name="show-apply-button">True</property>
                   </object>
                 </child>

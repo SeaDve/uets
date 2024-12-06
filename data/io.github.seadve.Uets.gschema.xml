@@ -20,8 +20,17 @@
     <key name="rfid-reader-ip-addr" type="s">
       <default>"uets-rfid-reader.local"</default>
     </key>
+    <key name="relay-ip-addr" type="s">
+      <default>"uets-relay.local"</default>
+    </key>
     <key name="enable-detection-wo-id" type="b">
       <default>true</default>
+    </key>
+    <key name="enable-n-inside-hook" type="b">
+      <default>true</default>
+    </key>
+    <key name="n-inside-hook-threshold" type="u">
+      <default>0</default>
     </key>
   </schema>
 </schemalist>

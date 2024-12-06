@@ -45,7 +45,7 @@ void server_setup()
     delay(500);
   }
   Serial.println("Connected to Wifi");
-  Serial.print(WiFi.localIP());
+  Serial.println(WiFi.localIP());
 
   if (!(MDNS.begin(HOST_NAME)))
   {
@@ -69,8 +69,6 @@ void setup()
   server_setup();
   rfid_setup();
 }
-
-int prev_range_mm;
 
 void loop()
 {

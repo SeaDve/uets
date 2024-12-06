@@ -16,6 +16,7 @@ use crate::{
     entity_data::EntityData,
     entity_id::EntityId,
     jpeg_image::JpegImage,
+    relay::{Relay, RelayState},
     rfid_reader::RfidReader,
     settings::{OperationMode, Settings},
     timeline::Timeline,
@@ -36,6 +37,8 @@ mod imp {
         pub(super) camera: OnceCell<Camera>,
         pub(super) rfid_reader: OnceCell<RfidReader>,
         pub(super) detector: Detector,
+
+        pub(super) relay: OnceCell<Relay>,
 
         pub(super) env: OnceCell<heed::Env>,
         pub(super) timeline: OnceCell<Timeline>,
@@ -93,6 +96,14 @@ mod imp {
                     obj.detector().bind_aux_cameras(&cameras);
                 }
             ));
+            self.settings.connect_relay_ip_addr_changed(clone!(
+                #[weak]
+                obj,
+                move |settings| {
+                    let ip_addr = settings.relay_ip_addr();
+                    obj.relay().set_ip_addr(ip_addr);
+                }
+            ));
             self.settings.connect_rfid_reader_ip_addr_changed(clone!(
                 #[weak]
                 obj,
@@ -109,6 +120,21 @@ mod imp {
                         .set_enable_detection_wo_id(settings.enable_detection_wo_id());
                 }
             ));
+            self.settings.connect_enable_n_inside_hook_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_relay_state();
+                }
+            ));
+            self.settings
+                .connect_n_inside_hook_threshold_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_relay_state();
+                    }
+                ));
 
             let camera = Camera::new(self.settings.camera_ip_addr());
             self.camera.set(camera).unwrap();
@@ -155,6 +181,9 @@ mod imp {
                 }
             ));
 
+            let relay = Relay::new(self.settings.relay_ip_addr());
+            self.relay.set(relay).unwrap();
+
             match init_env() {
                 Ok((env, timeline, detected_wo_id_list)) => {
                     self.env.set(env).unwrap();
@@ -167,8 +196,18 @@ mod imp {
                 }
             }
 
+            obj.timeline().connect_n_inside_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_relay_state();
+                }
+            ));
+
             obj.setup_actions();
             obj.setup_accels();
+
+            obj.update_relay_state();
         }
 
         fn shutdown(&self) {
@@ -229,6 +268,10 @@ impl Application {
 
     pub fn detector(&self) -> &Detector {
         &self.imp().detector
+    }
+
+    pub fn relay(&self) -> &Relay {
+        self.imp().relay.get().unwrap()
     }
 
     pub fn env(&self) -> &heed::Env {
@@ -326,6 +369,34 @@ impl Application {
 
         let item = DetectedWoIdItem::new(dt.0, image.cloned());
         self.detected_wo_id_list().insert(item)?;
+
+        Ok(())
+    }
+
+    fn update_relay_state(&self) {
+        glib::spawn_future_local(clone!(
+            #[strong(rename_to = obj)]
+            self,
+            async move {
+                if let Err(err) = obj.update_relay_state_inner().await {
+                    tracing::error!("Failed to update relay state: {:?}", err);
+                }
+            }
+        ));
+    }
+
+    async fn update_relay_state_inner(&self) -> Result<()> {
+        let settings = self.settings();
+
+        let state = if settings.enable_n_inside_hook()
+            && self.timeline().n_inside() > settings.n_inside_hook_threshold()
+        {
+            RelayState::High
+        } else {
+            RelayState::Low
+        };
+
+        self.relay().set_state(state).await?;
 
         Ok(())
     }
