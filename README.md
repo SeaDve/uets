@@ -20,6 +20,10 @@ UETS is a universal system that tracks entities using RFID tags. It is designed 
 - Pre-input data via spreadsheet files.
 - Support for BPSU CEA's QRifying system and national ID QR codes.
 
+### Automation
+
+- Automatically control IoT devices, such as lights, doors, etc. based on entity count data.
+
 ## 🕹️ Operation Modes
 
 ### Counter
