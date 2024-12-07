@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::Local;
 use gtk::{
     glib::{self, clone, closure_local},
     prelude::*,
@@ -287,7 +288,7 @@ mod imp {
                 [
                     Some(item.entity_id().to_string()),
                     entity.stock_id().map(|s| s.to_string()),
-                    Some(item.dt().format("%B %Y").to_string()),
+                    Some(item.dt().with_timezone(&Local).format("%B %Y").to_string()),
                 ]
                 .into_iter()
                 .flatten()
