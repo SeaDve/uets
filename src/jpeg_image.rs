@@ -3,7 +3,7 @@ use std::{cell::OnceCell, fmt, rc::Rc};
 use gtk::{gdk, glib};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Clone, glib::Boxed)]
+#[derive(Clone, PartialEq, Eq, glib::Boxed)]
 #[boxed_type(name = "UetsJpegImage", nullable)]
 pub struct JpegImage {
     bytes: glib::Bytes,

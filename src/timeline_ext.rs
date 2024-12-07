@@ -8,6 +8,7 @@ use crate::{
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_id::EntityId,
     jpeg_image::JpegImage,
+    sex::Sex,
     stock_data::StockData,
     stock_id::StockId,
     timeline::Timeline,
@@ -86,7 +87,7 @@ impl Timeline {
                             .and_then(|s| {
                                 date_time::parse(&s)
                                     .inspect_err(|err| {
-                                        tracing::warn!("Failed to parse date time: {}", err)
+                                        tracing::warn!("Failed to parse date time: {:?}", err)
                                     })
                                     .ok()
                             })
@@ -96,7 +97,16 @@ impl Timeline {
                             .map(|s| JpegImage::from_base64(&s))
                             .map(EntityDataField::Photo),
                         EntityDataFieldTy::Name => row[idx].as_string().map(EntityDataField::Name),
-                        EntityDataFieldTy::Sex => row[idx].as_string().map(EntityDataField::Sex),
+                        EntityDataFieldTy::Sex => row[idx]
+                            .as_string()
+                            .and_then(|s| {
+                                s.parse::<Sex>()
+                                    .inspect_err(|err| {
+                                        tracing::warn!("Failed to parse sex: {:?}", err)
+                                    })
+                                    .ok()
+                            })
+                            .map(EntityDataField::Sex),
                         EntityDataFieldTy::Email => {
                             row[idx].as_string().map(EntityDataField::Email)
                         }

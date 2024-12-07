@@ -2,10 +2,7 @@ use chrono::{DateTime, Utc};
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
 use crate::{
-    date_time_range::DateTimeRange,
-    entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
-    entity_id::EntityId,
-    log::Log,
+    date_time_range::DateTimeRange, entity_data::EntityData, entity_id::EntityId, log::Log,
     stock_id::StockId,
 };
 
@@ -20,11 +17,12 @@ mod imp {
     #[derive(Default, glib::Properties)]
     #[properties(wrapper_type = super::Entity)]
     pub struct Entity {
+        #[property(get, set = Self::set_data, explicit_notify)]
+        pub(super) data: RefCell<EntityData>,
         #[property(get = Self::is_inside)]
         pub(super) is_inside: PhantomData<bool>,
 
         pub(super) id: OnceCell<EntityId>,
-        pub(super) data: OnceCell<EntityData>,
 
         pub(super) is_inside_log: RefCell<Log<bool>>,
     }
@@ -39,6 +37,17 @@ mod imp {
     impl ObjectImpl for Entity {}
 
     impl Entity {
+        fn set_data(&self, data: EntityData) {
+            let obj = self.obj();
+
+            if data == *self.data.borrow() {
+                return;
+            }
+
+            self.data.replace(data);
+            obj.notify_data();
+        }
+
         fn is_inside(&self) -> bool {
             self.is_inside_log
                 .borrow()
@@ -55,44 +64,22 @@ glib::wrapper! {
 
 impl Entity {
     pub fn new(id: EntityId, data: EntityData) -> Self {
-        let this = glib::Object::new::<Self>();
+        let this = glib::Object::builder::<Self>()
+            .property("data", data)
+            .build();
 
         let imp = this.imp();
         imp.id.set(id).unwrap();
-        imp.data.set(data).unwrap();
 
         this
-    }
-
-    pub fn with_data(&self, data: EntityData) -> Self {
-        let imp = self.imp();
-
-        // FIXME add ability to change stock id
-        let fields = data
-            .into_fields()
-            .filter(|f| f.ty() != EntityDataFieldTy::StockId)
-            .chain(self.stock_id().cloned().map(EntityDataField::StockId));
-
-        let new = Self::new(self.id().clone(), EntityData::from_fields(fields));
-
-        let new_imp = new.imp();
-        new_imp
-            .is_inside_log
-            .replace(imp.is_inside_log.borrow().clone());
-
-        new
     }
 
     pub fn id(&self) -> &EntityId {
         self.imp().id.get().unwrap()
     }
 
-    pub fn data(&self) -> &EntityData {
-        self.imp().data.get().unwrap()
-    }
-
-    pub fn stock_id(&self) -> Option<&StockId> {
-        self.data().stock_id()
+    pub fn stock_id(&self) -> Option<StockId> {
+        self.data().stock_id().cloned()
     }
 
     pub fn is_inside_for_dt(&self, dt: DateTime<Utc>) -> bool {

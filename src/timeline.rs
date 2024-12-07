@@ -1,6 +1,9 @@
-use std::{collections::HashMap, time::Instant};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Instant,
+};
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use chrono::{DateTime, Utc};
 use gtk::{gio, glib, prelude::*, subclass::prelude::*};
 use indexmap::IndexMap;
@@ -215,7 +218,7 @@ impl Timeline {
                 .entity_list()
                 .get(item.entity_id())
                 .expect("entity must be known");
-            entity.stock_id() == Some(stock_id)
+            entity.stock_id().as_ref() == Some(stock_id)
         })
     }
 
@@ -294,10 +297,13 @@ impl Timeline {
     ) -> Result<TimelineItemKind> {
         let imp = self.imp();
 
-        let entity = self
-            .entity_list()
-            .get(entity_id)
-            .unwrap_or_else(|| Entity::new(entity_id.clone(), entity_data.clone()));
+        let mut is_new_entity = false;
+        let mut is_new_stock = false;
+
+        let entity = self.entity_list().get(entity_id).unwrap_or_else(|| {
+            is_new_entity = true;
+            Entity::new(entity_id.clone(), entity_data.clone())
+        });
 
         // TODO Should this be allowed instead?
         //
@@ -305,7 +311,7 @@ impl Timeline {
         // with different stock id. But if the same entity enters with a different stock id,
         // the id may have been reused on the a different item, I think this should be allowed,
         // or can it even happen?
-        if entity_data.stock_id() != entity.stock_id() {
+        if entity_data.stock_id() != entity.stock_id().as_ref() {
             bail!(
                 "Entity `{}` already handled with different stock id",
                 entity_id
@@ -329,17 +335,18 @@ impl Timeline {
         let item = TimelineItem::new(now_dt, item_kind, entity_id.clone());
 
         let stock = entity.stock_id().map(|stock_id| {
-            self.stock_list()
-                .get(stock_id)
-                .unwrap_or_else(|| Stock::new(stock_id.clone(), StockData {}))
+            self.stock_list().get(&stock_id).unwrap_or_else(|| {
+                is_new_stock = true;
+                Stock::new(stock_id.clone(), StockData {})
+            })
         });
 
         let (env, tdb, edb, sdb) = self.db();
         env.with_write_txn(|wtxn| {
             tdb.put(wtxn, &now_dt, &item.to_db())?;
-            edb.put(wtxn, entity.id(), entity.data())?;
+            edb.put(wtxn, entity.id(), &entity.data())?;
             if let Some(stock) = &stock {
-                sdb.put(wtxn, stock.id(), stock.data())?;
+                sdb.put(wtxn, stock.id(), &stock.data())?;
             }
             Ok(())
         })?;
@@ -416,9 +423,15 @@ impl Timeline {
         let (index, prev_value) = imp.list.borrow_mut().insert_full(now_dt, item);
         debug_assert_eq!(prev_value, None);
 
-        self.entity_list().insert(entity);
+        if is_new_entity {
+            let is_unique = self.entity_list().insert(entity);
+            debug_assert!(is_unique);
+        }
         if let Some(stock) = stock {
-            self.stock_list().insert(stock);
+            if is_new_stock {
+                let is_unique = self.stock_list().insert(stock);
+                debug_assert!(is_unique);
+            }
         }
 
         self.items_changed(index as u32, 0, 1);
@@ -428,66 +441,95 @@ impl Timeline {
         Ok(item_kind)
     }
 
-    pub fn register_entity_data(&self, entity_data: HashMap<EntityId, EntityData>) -> Result<()> {
-        let entities = entity_data
-            .into_iter()
-            .map(|(id, data)| {
-                if let Some(entity) = self.entity_list().get(&id) {
-                    entity.with_data(data)
-                } else {
-                    Entity::new(id, data)
-                }
-            })
-            .collect::<Vec<_>>();
+    pub fn update_entity_data(&self, entity_id: &EntityId, entity_data: EntityData) -> Result<()> {
+        let entity = self
+            .entity_list()
+            .get(entity_id)
+            .context("Unknown entity")?;
+        entity.set_data(entity_data);
 
-        let stocks = entities
-            .iter()
-            .filter_map(|entity| entity.stock_id())
-            .filter(|stock_id| !self.stock_list().contains(stock_id))
-            .map(|stock_id| Stock::new(stock_id.clone(), StockData {}))
+        let (env, _, edb, _) = self.db();
+        env.with_write_txn(|wtxn| {
+            edb.put(wtxn, entity.id(), &entity.data())?;
+            Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    pub fn register_entity_data(&self, entity_data: HashMap<EntityId, EntityData>) -> Result<()> {
+        let mut new_entities = Vec::new();
+        let mut updated_entities = Vec::new();
+        let mut new_stock_ids = HashSet::new();
+
+        for (id, data) in entity_data {
+            if let Some(stock_id) = data.stock_id() {
+                if !self.stock_list().contains(stock_id) {
+                    new_stock_ids.insert(stock_id.clone());
+                }
+            }
+
+            if let Some(entity) = self.entity_list().get(&id) {
+                entity.set_data(data);
+                updated_entities.push(entity);
+            } else {
+                new_entities.push(Entity::new(id.clone(), data));
+            }
+        }
+
+        let new_stocks = new_stock_ids
+            .into_iter()
+            .map(|id| Stock::new(id, StockData {}))
             .collect::<Vec<_>>();
 
         let (env, _, edb, sdb) = self.db();
         env.with_write_txn(|wtxn| {
-            for entity in &entities {
-                edb.put(wtxn, entity.id(), entity.data())?;
+            for entity in new_entities.iter().chain(&updated_entities) {
+                edb.put(wtxn, entity.id(), &entity.data())?;
             }
-            for stock in &stocks {
-                sdb.put(wtxn, stock.id(), stock.data())?;
+            for stock in &new_stocks {
+                sdb.put(wtxn, stock.id(), &stock.data())?;
             }
             Ok(())
         })?;
 
-        let n_appended_entities = self.entity_list().insert_many(entities);
+        let n_new_entities = new_entities.len();
+        let n_appended_entities = self.entity_list().insert_many(new_entities);
+        debug_assert_eq!(n_new_entities, n_appended_entities as usize);
         tracing::debug!("Appended `{}` new entities", n_appended_entities);
 
-        let n_appended_stocks = self.stock_list().insert_many(stocks);
+        let n_new_stocks = new_stocks.len();
+        let n_appended_stocks = self.stock_list().insert_many(new_stocks);
+        debug_assert_eq!(n_new_stocks, n_appended_stocks as usize);
         tracing::debug!("Appended `{}` new stocks", n_appended_stocks);
 
         Ok(())
     }
 
     pub fn register_stock_data(&self, stock_data: HashMap<StockId, StockData>) -> Result<()> {
-        let stocks = stock_data
-            .into_iter()
-            .map(|(id, data)| {
-                if let Some(stock) = self.stock_list().get(&id) {
-                    stock.with_data(data)
-                } else {
-                    Stock::new(id, data)
-                }
-            })
-            .collect::<Vec<_>>();
+        let mut new_stocks = Vec::new();
+        let mut updated_stocks = Vec::new();
+
+        for (id, data) in stock_data {
+            if let Some(stock) = self.stock_list().get(&id) {
+                stock.set_data(data);
+                updated_stocks.push(stock);
+            } else {
+                new_stocks.push(Stock::new(id.clone(), data));
+            }
+        }
 
         let (env, _, _, sdb) = self.db();
         env.with_write_txn(|wtxn| {
-            for stock in &stocks {
-                sdb.put(wtxn, stock.id(), stock.data())?;
+            for stock in new_stocks.iter().chain(&updated_stocks) {
+                sdb.put(wtxn, stock.id(), &stock.data())?;
             }
             Ok(())
         })?;
 
-        let n_appended_stocks = self.stock_list().insert_many(stocks);
+        let n_new_stocks = new_stocks.len();
+        let n_appended_stocks = self.stock_list().insert_many(new_stocks);
+        debug_assert_eq!(n_new_stocks, n_appended_stocks as usize);
         tracing::debug!("Appended `{}` new stocks", n_appended_stocks);
 
         Ok(())

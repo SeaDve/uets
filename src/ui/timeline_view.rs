@@ -487,7 +487,8 @@ impl TimelineView {
 
         let selected_item_notify_id = imp.item_kind_dropdown_selected_item_id.get().unwrap();
         imp.item_kind_dropdown.block_signal(selected_item_notify_id);
-        imp.item_kind_dropdown.set_selected(item_kind.position());
+        imp.item_kind_dropdown
+            .set_selected(item_kind.model_position());
         imp.item_kind_dropdown
             .unblock_signal(selected_item_notify_id);
 
@@ -551,7 +552,7 @@ impl TimelineView {
                     .entity_list()
                     .get(item.entity_id())
                     .expect("entity must be known");
-                entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
+                entity.stock_id().is_some_and(|s_id| s_id == stock_id)
             }));
         }
 

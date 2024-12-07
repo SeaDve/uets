@@ -10,7 +10,7 @@ macro_rules! list_model_enum {
                 adw::EnumListModel::new($name::static_type())
             }
 
-            fn position(&self) -> u32 {
+            fn model_position(&self) -> u32 {
                 *self as u32
             }
         }

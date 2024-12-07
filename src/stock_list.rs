@@ -70,7 +70,7 @@ impl StockList {
         self.imp().list.borrow().get(id).cloned()
     }
 
-    pub fn insert(&self, stock: Stock) {
+    pub fn insert(&self, stock: Stock) -> bool {
         let imp = self.imp();
 
         let (index, removed, added) = match imp.list.borrow_mut().entry(stock.id().clone()) {
@@ -83,6 +83,8 @@ impl StockList {
         };
 
         self.items_changed(index as u32, removed, added);
+
+        removed == 0
     }
 
     pub fn insert_many(&self, stock: Vec<Stock>) -> u32 {

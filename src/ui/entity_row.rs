@@ -25,7 +25,7 @@ mod imp {
         #[template_child]
         pub(super) title_label: TemplateChild<gtk::Label>,
         #[template_child]
-        pub(super) zone_label: TemplateChild<gtk::Label>,
+        pub(super) subtitle_label: TemplateChild<gtk::Label>,
 
         pub(super) dt_range: RefCell<DateTimeRange>,
 
@@ -56,12 +56,22 @@ mod imp {
 
             let entity_signals = glib::SignalGroup::new::<Entity>();
             entity_signals.connect_notify_local(
+                Some("data"),
+                clone!(
+                    #[weak]
+                    obj,
+                    move |_, _| {
+                        obj.update_title_label_and_avatar();
+                    }
+                ),
+            );
+            entity_signals.connect_notify_local(
                 Some("is-inside"),
                 clone!(
                     #[weak]
                     obj,
                     move |_, _| {
-                        obj.update_zone_label();
+                        obj.update_subtitle_label();
                     }
                 ),
             );
@@ -73,12 +83,13 @@ mod imp {
                     #[weak]
                     obj,
                     move |_| {
-                        obj.update_avatar_display();
+                        obj.update_avatar_icon_name();
                     }
                 ));
 
-            obj.update_zone_label();
-            obj.update_avatar_display();
+            obj.update_title_label_and_avatar();
+            obj.update_subtitle_label();
+            obj.update_avatar_icon_name();
         }
 
         fn dispose(&self) {
@@ -127,8 +138,8 @@ mod imp {
                 .set_target(entity.as_ref());
 
             self.entity.replace(entity);
-            obj.update_zone_label();
-            obj.update_avatar_display();
+            obj.update_title_label_and_avatar();
+            obj.update_subtitle_label();
             obj.notify_entity();
         }
     }
@@ -147,10 +158,46 @@ impl EntityRow {
     pub fn set_dt_range(&self, dt_range: DateTimeRange) {
         let imp = self.imp();
         imp.dt_range.replace(dt_range);
-        self.update_zone_label();
+        self.update_subtitle_label();
     }
 
-    fn update_zone_label(&self) {
+    fn update_title_label_and_avatar(&self) {
+        let imp = self.imp();
+
+        if let Some(entity) = self.entity() {
+            if let Some(name) = entity.data().name() {
+                imp.title_label.set_label(name);
+
+                imp.avatar.set_text(Some(name));
+                imp.avatar.set_show_initials(true);
+            } else {
+                let text = if let Some(stock_id) = entity.stock_id() {
+                    format!("{} ({})", entity.id(), stock_id)
+                } else {
+                    entity.id().to_string()
+                };
+                imp.title_label.set_label(&text);
+
+                imp.avatar.set_text(Some(&entity.id().to_string()));
+                imp.avatar.set_show_initials(false);
+            }
+
+            imp.avatar
+                .set_custom_image(entity.data().photo().and_then(|p| {
+                    p.texture()
+                        .inspect_err(|err| tracing::error!("Failed to load texture: {:?}", err))
+                        .ok()
+                }));
+        } else {
+            imp.title_label.set_label("");
+
+            imp.avatar.set_text(None);
+            imp.avatar.set_custom_image(gdk::Paintable::NONE);
+            imp.avatar.set_show_initials(false);
+        }
+    }
+
+    fn update_subtitle_label(&self) {
         let imp = self.imp();
 
         if let Some(entity) = self.entity() {
@@ -159,26 +206,20 @@ impl EntityRow {
             } else {
                 "Outside"
             };
-            imp.zone_label.set_label(text);
+            imp.subtitle_label.set_label(text);
         } else {
-            imp.zone_label.set_label("");
+            imp.subtitle_label.set_label("");
         }
     }
 
-    fn update_avatar_display(&self) {
+    fn update_avatar_icon_name(&self) {
         let imp = self.imp();
 
-        let has_name = self.entity().is_some_and(|e| e.data().name().is_some());
-
-        imp.avatar.set_show_initials(has_name);
-
-        if !has_name {
-            imp.avatar.set_icon_name(Some(
-                Application::get()
-                    .settings()
-                    .operation_mode()
-                    .entities_view_icon_name(),
-            ));
-        }
+        imp.avatar.set_icon_name(Some(
+            Application::get()
+                .settings()
+                .operation_mode()
+                .entities_view_icon_name(),
+        ));
     }
 }

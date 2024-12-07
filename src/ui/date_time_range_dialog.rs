@@ -43,12 +43,12 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
 
-            klass.install_action("date-time-window.cancel", None, move |obj, _, _| {
+            klass.install_action("date-time-range-dialog.cancel", None, move |obj, _, _| {
                 let imp = obj.imp();
 
                 let _ = imp.result_tx.take().unwrap();
             });
-            klass.install_action("date-time-window.done", None, move |obj, _, _| {
+            klass.install_action("date-time-range-dialog.done", None, move |obj, _, _| {
                 let imp = obj.imp();
 
                 imp.result_tx.take().unwrap().send(()).unwrap();
@@ -201,7 +201,7 @@ impl DateTimeRangeDialog {
         let selected_item_notify_id = imp.range_kind_dropdown_selected_item_id.get().unwrap();
         imp.range_kind_dropdown
             .block_signal(selected_item_notify_id);
-        imp.range_kind_dropdown.set_selected(kind.position());
+        imp.range_kind_dropdown.set_selected(kind.model_position());
         imp.range_kind_dropdown
             .unblock_signal(selected_item_notify_id);
     }
@@ -262,7 +262,7 @@ impl DateTimeRangeDialog {
     }
 
     fn update_done_action_enabled(&self) {
-        self.action_set_enabled("date-time-window.done", !self.range().is_empty());
+        self.action_set_enabled("date-time-range-dialog.done", !self.range().is_empty());
     }
 }
 

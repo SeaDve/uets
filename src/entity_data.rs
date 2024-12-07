@@ -5,7 +5,7 @@ use gtk::glib;
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{jpeg_image::JpegImage, settings::OperationMode, stock_id::StockId};
+use crate::{jpeg_image::JpegImage, settings::OperationMode, sex::Sex, stock_id::StockId};
 
 macro_rules! entity_data_field {
     ($($field:ident($ty:ty) => $display:expr),*) => {
@@ -28,7 +28,7 @@ macro_rules! entity_data_field {
             }
         }
 
-        #[derive(Debug, Clone, Serialize, Deserialize)]
+        #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
         pub enum EntityDataField {
             $($field($ty)),*
         }
@@ -59,7 +59,7 @@ entity_data_field! {
     Photo(JpegImage) => "Photo",
 
     Name(String) => "Name",
-    Sex(String) => "Sex",
+    Sex(Sex) => "Sex",
     Email(String) => "Email",
     Program(String) => "Program"
 }
@@ -75,7 +75,7 @@ macro_rules! entity_data_getter {
     };
 }
 
-#[derive(Debug, Clone, glib::Boxed)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, glib::Boxed)]
 #[boxed_type(name = "UetsEntityData", nullable)]
 pub struct EntityData(IndexMap<EntityDataFieldTy, EntityDataField>);
 
@@ -88,16 +88,12 @@ impl EntityData {
         Self(fields.into_iter().map(|f| (f.ty(), f)).collect())
     }
 
-    pub fn has_field(&self, field_ty: &EntityDataFieldTy) -> bool {
-        self.0.contains_key(field_ty)
+    pub fn has_field(&self, field_ty: EntityDataFieldTy) -> bool {
+        self.0.contains_key(&field_ty)
     }
 
     pub fn fields(&self) -> impl Iterator<Item = &EntityDataField> + '_ {
         self.0.values()
-    }
-
-    pub fn into_fields(self) -> impl Iterator<Item = EntityDataField> {
-        self.0.into_values()
     }
 
     entity_data_getter!(stock_id, StockId, &StockId);
@@ -114,7 +110,7 @@ impl Serialize for EntityData {
 impl<'de> Deserialize<'de> for EntityData {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let fields = Vec::<EntityDataField>::deserialize(deserializer)?;
-        Ok(Self(fields.into_iter().map(|f| (f.ty(), f)).collect()))
+        Ok(Self::from_fields(fields))
     }
 }
 
@@ -166,7 +162,7 @@ impl ValidEntityFields {
     pub fn is_valid_entity_data(&self, entity_data: &EntityData) -> bool {
         self.0.iter().all(|(f, is_required)| {
             if *is_required {
-                entity_data.has_field(f)
+                entity_data.has_field(*f)
             } else {
                 true
             }

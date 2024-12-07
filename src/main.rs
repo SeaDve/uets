@@ -37,6 +37,7 @@ mod rfid_reader;
 mod search_query;
 mod search_query_ext;
 mod settings;
+mod sex;
 mod sound;
 mod stock;
 mod stock_data;

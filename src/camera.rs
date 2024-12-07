@@ -305,7 +305,7 @@ impl Camera {
 
         if let Some((pipeline, _bus_watch_guard)) = imp.pipeline.take() {
             if let Err(err) = pipeline.set_state(gst::State::Null) {
-                tracing::warn!("Failed to set pipeline to Null: {}", err);
+                tracing::warn!("Failed to set pipeline to Null: {:?}", err);
             }
             self.notify_paintable();
         }

@@ -8,9 +8,9 @@ mod date_time_range_dialog;
 mod detected_wo_id_dialog;
 mod detected_wo_id_row;
 mod entities_view;
+mod entity_data_dialog;
 mod entity_details_pane;
 mod entity_row;
-mod entry_dialog;
 mod information_row;
 mod receive_dialog;
 mod search_entry;
@@ -27,7 +27,7 @@ mod timeline_view;
 mod window;
 
 pub use self::{
-    entry_dialog::EntryDialog,
+    entity_data_dialog::EntityDataDialog,
     send_dialog::SendDialog,
     test_window::TestWindow,
     window::{ToastId, Window},

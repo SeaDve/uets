@@ -5,12 +5,15 @@ use gtk::{
 };
 
 use crate::{
-    date_time, entity_id::EntityId, format, stock_id::StockId, timeline_item::TimelineItem,
-    timeline_item_kind::TimelineItemKind, Application,
+    date_time, entity::Entity, entity_id::EntityId, format, stock_id::StockId,
+    timeline_item::TimelineItem, timeline_item_kind::TimelineItemKind, Application,
 };
 
 mod imp {
-    use std::{cell::RefCell, sync::OnceLock};
+    use std::{
+        cell::{OnceCell, RefCell},
+        sync::OnceLock,
+    };
 
     use glib::subclass::Signal;
 
@@ -31,6 +34,8 @@ mod imp {
         pub(super) dt_label: TemplateChild<gtk::Label>,
         #[template_child]
         pub(super) status_label: TemplateChild<gtk::Label>,
+
+        pub(super) entity_signals: OnceCell<glib::SignalGroup>,
     }
 
     #[glib::object_subclass]
@@ -64,6 +69,19 @@ mod imp {
                         obj.update_status_label();
                     }
                 ));
+
+            let entity_signals = glib::SignalGroup::new::<Entity>();
+            entity_signals.connect_notify_local(
+                Some("data"),
+                clone!(
+                    #[weak]
+                    obj,
+                    move |_, _| {
+                        obj.update_status_label();
+                    }
+                ),
+            );
+            self.entity_signals.set(entity_signals).unwrap();
 
             self.status_label.connect_activate_link(clone!(
                 #[weak]
@@ -139,6 +157,18 @@ mod imp {
             } else {
                 self.dt_label.set_label("");
             }
+
+            let entity = item.as_ref().map(|item| {
+                Application::get()
+                    .timeline()
+                    .entity_list()
+                    .get(item.entity_id())
+                    .expect("entity must be known")
+            });
+            self.entity_signals
+                .get()
+                .unwrap()
+                .set_target(entity.as_ref());
 
             self.item.replace(item);
             obj.update_status_label();

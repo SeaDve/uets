@@ -29,6 +29,8 @@ mod imp {
     #[derive(Default, glib::Properties)]
     #[properties(wrapper_type = super::Stock)]
     pub struct Stock {
+        #[property(get, set = Self::set_data, explicit_notify)]
+        pub(super) data: RefCell<StockData>,
         #[property(get = Self::n_inside)]
         pub(super) n_inside: PhantomData<u32>,
         #[property(get = Self::max_n_inside)]
@@ -43,7 +45,6 @@ mod imp {
         pub(super) last_exit_dt: PhantomData<Option<DateTimeBoxed>>,
 
         pub(super) id: OnceCell<StockId>,
-        pub(super) data: OnceCell<StockData>,
 
         pub(super) logs: RefCell<StockLogs>,
     }
@@ -58,6 +59,17 @@ mod imp {
     impl ObjectImpl for Stock {}
 
     impl Stock {
+        fn set_data(&self, data: StockData) {
+            let obj = self.obj();
+
+            if data == *self.data.borrow() {
+                return;
+            }
+
+            self.data.replace(data);
+            obj.notify_data();
+        }
+
         fn n_inside(&self) -> u32 {
             self.logs.borrow().n_inside.latest().copied().unwrap_or(0)
         }
@@ -105,32 +117,18 @@ glib::wrapper! {
 
 impl Stock {
     pub fn new(id: StockId, data: StockData) -> Self {
-        let this = glib::Object::new::<Self>();
+        let this = glib::Object::builder::<Self>()
+            .property("data", data)
+            .build();
 
         let imp = this.imp();
         imp.id.set(id).unwrap();
-        imp.data.set(data).unwrap();
 
         this
     }
 
-    pub fn with_data(&self, data: StockData) -> Self {
-        let imp = self.imp();
-
-        let new = Stock::new(self.id().clone(), data);
-
-        let new_imp = new.imp();
-        new_imp.logs.replace(imp.logs.borrow().clone());
-
-        new
-    }
-
     pub fn id(&self) -> &StockId {
         self.imp().id.get().unwrap()
-    }
-
-    pub fn data(&self) -> &StockData {
-        self.imp().data.get().unwrap()
     }
 
     pub fn n_inside_for_dt(&self, dt: DateTime<Utc>) -> u32 {

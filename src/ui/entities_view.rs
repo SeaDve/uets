@@ -508,7 +508,7 @@ impl EntitiesView {
         imp.entity_zone_dropdown
             .block_signal(selected_item_notify_id);
         imp.entity_zone_dropdown
-            .set_selected(entity_zone.position());
+            .set_selected(entity_zone.model_position());
         imp.entity_zone_dropdown
             .unblock_signal(selected_item_notify_id);
 
@@ -560,7 +560,7 @@ impl EntitiesView {
         for stock_id in queries.all_values(S::STOCK).into_iter().map(StockId::new) {
             any_stock_filter.append(gtk::CustomFilter::new(move |o| {
                 let entity = o.downcast_ref::<Entity>().unwrap();
-                entity.stock_id().is_some_and(|s_id| s_id == &stock_id)
+                entity.stock_id().is_some_and(|s_id| s_id == stock_id)
             }));
         }
 
@@ -664,7 +664,7 @@ impl EntitiesView {
         imp.entity_sort_dropdown
             .block_signal(selected_item_notify_id);
         imp.entity_sort_dropdown
-            .set_selected(entity_sort.position());
+            .set_selected(entity_sort.model_position());
         imp.entity_sort_dropdown
             .unblock_signal(selected_item_notify_id);
 

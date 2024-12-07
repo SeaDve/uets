@@ -69,7 +69,7 @@
             <property name="margin-bottom">12</property>
             <child>
               <object class="GtkButton">
-                <property name="action-name">date-time-window.cancel</property>
+                <property name="action-name">date-time-range-dialog.cancel</property>
                 <property name="label">Cancel</property>
                 <style>
                   <class name="pill"/>
@@ -78,7 +78,7 @@
             </child>
             <child>
               <object class="GtkButton">
-                <property name="action-name">date-time-window.done</property>
+                <property name="action-name">date-time-range-dialog.done</property>
                 <property name="label">Done</property>
                 <style>
                   <class name="suggested-action"/>

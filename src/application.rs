@@ -21,7 +21,7 @@ use crate::{
     settings::{OperationMode, Settings},
     timeline::Timeline,
     timeline_item_kind::TimelineItemKind,
-    ui::{EntryDialog, SendDialog, TestWindow, ToastId, Window},
+    ui::{EntityDataDialog, SendDialog, TestWindow, ToastId, Window},
     APP_ID, GRESOURCE_PREFIX,
 };
 
@@ -319,7 +319,9 @@ impl Application {
         } else if self.settings().operation_mode() != OperationMode::Counter {
             tracing::debug!("Gathering entity data from user");
 
-            match EntryDialog::gather_data(entity_id, Some(&self.window())).await {
+            match EntityDataDialog::gather_data(entity_id, &EntityData::new(), Some(&self.window()))
+                .await
+            {
                 Ok(data) => data,
                 Err(oneshot::Canceled) => {
                     tracing::debug!("Gathering entity data was canceled; ignoring detected entity");

@@ -536,7 +536,8 @@ impl StocksView {
         let selected_item_notify_id = imp.stock_sort_dropdown_selected_item_id.get().unwrap();
         imp.stock_sort_dropdown
             .block_signal(selected_item_notify_id);
-        imp.stock_sort_dropdown.set_selected(stock_sort.position());
+        imp.stock_sort_dropdown
+            .set_selected(stock_sort.model_position());
         imp.stock_sort_dropdown
             .unblock_signal(selected_item_notify_id);
 

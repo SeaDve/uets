@@ -193,7 +193,7 @@ impl CameraViewfinder {
         self.imp().capture_image.borrow().clone()
     }
 
-    fn set_capture_image(&self, image: Option<JpegImage>) {
+    pub fn set_capture_image(&self, image: Option<JpegImage>) {
         let imp = self.imp();
 
         imp.capture_picture

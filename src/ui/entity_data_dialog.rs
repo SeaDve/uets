@@ -5,12 +5,17 @@ use futures_channel::oneshot;
 use gtk::glib::{self, closure};
 
 use crate::{
+    date_time_boxed::DateTimeBoxed,
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_id::EntityId,
+    list_model_enum,
+    sex::Sex,
     stock::Stock,
     ui::{camera_viewfinder::CameraViewfinder, date_time_button::DateTimeButton},
     utils, Application,
 };
+
+list_model_enum!(Sex);
 
 mod imp {
     use std::cell::RefCell;
@@ -18,8 +23,8 @@ mod imp {
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
-    #[template(resource = "/io/github/seadve/Uets/ui/entry_dialog.ui")]
-    pub struct EntryDialog {
+    #[template(resource = "/io/github/seadve/Uets/ui/entity_data_dialog.ui")]
+    pub struct EntityDataDialog {
         #[template_child]
         pub(super) window_title: TemplateChild<adw::WindowTitle>,
         #[template_child]
@@ -49,20 +54,20 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for EntryDialog {
-        const NAME: &'static str = "UetsEntryDialog";
-        type Type = super::EntryDialog;
+    impl ObjectSubclass for EntityDataDialog {
+        const NAME: &'static str = "UetsEntityDataDialog";
+        type Type = super::EntityDataDialog;
         type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
 
-            klass.install_action("entry-window.cancel", None, move |obj, _, _| {
+            klass.install_action("entity-data-dialog.cancel", None, move |obj, _, _| {
                 let imp = obj.imp();
 
                 let _ = imp.result_tx.take().unwrap();
             });
-            klass.install_action("entry-window.done", None, move |obj, _, _| {
+            klass.install_action("entity-data-dialog.done", None, move |obj, _, _| {
                 let imp = obj.imp();
 
                 imp.result_tx.take().unwrap().send(()).unwrap();
@@ -74,27 +79,24 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for EntryDialog {
+    impl ObjectImpl for EntityDataDialog {
         fn constructed(&self) {
             self.parent_constructed();
 
-            let mode = Application::get().settings().operation_mode();
-            self.stock_id_row
-                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::StockId));
-            self.location_row
-                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Location));
-            self.expiration_dt_row
-                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt));
-            self.photo_viewfinder_group
-                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Photo));
-            self.name_row
-                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Name));
-            self.sex_row
-                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Sex));
-            self.email_row
-                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Email));
-            self.program_row
-                .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::Program));
+            let operation_mode = Application::get().settings().operation_mode();
+            for field_ty in EntityDataFieldTy::all() {
+                let widget = match field_ty {
+                    EntityDataFieldTy::StockId => self.stock_id_row.upcast_ref::<gtk::Widget>(),
+                    EntityDataFieldTy::Location => self.location_row.upcast_ref(),
+                    EntityDataFieldTy::ExpirationDt => self.expiration_dt_row.upcast_ref(),
+                    EntityDataFieldTy::Photo => self.photo_viewfinder_group.upcast_ref(),
+                    EntityDataFieldTy::Name => self.name_row.upcast_ref(),
+                    EntityDataFieldTy::Sex => self.sex_row.upcast_ref(),
+                    EntityDataFieldTy::Email => self.email_row.upcast_ref(),
+                    EntityDataFieldTy::Program => self.program_row.upcast_ref(),
+                };
+                widget.set_visible(operation_mode.is_valid_entity_data_field_ty(*field_ty));
+            }
 
             let stock_sorter = utils::new_sorter::<Stock>(false, |a, b| a.id().cmp(b.id()));
             let sorted_stock_model = gtk::SortListModel::new(
@@ -109,6 +111,10 @@ mod imp {
                 )));
             self.stock_id_dropdown.set_model(Some(&sorted_stock_model));
 
+            self.sex_row
+                .set_expression(Some(&adw::EnumListItem::this_expression("name")));
+            self.sex_row.set_model(Some(&Sex::new_model()));
+
             self.photo_viewfinder
                 .set_camera(Some(Application::get().camera().clone()));
         }
@@ -118,24 +124,65 @@ mod imp {
         }
     }
 
-    impl WidgetImpl for EntryDialog {}
-    impl AdwDialogImpl for EntryDialog {}
+    impl WidgetImpl for EntityDataDialog {}
+    impl AdwDialogImpl for EntityDataDialog {}
 }
 
 glib::wrapper! {
-    pub struct EntryDialog(ObjectSubclass<imp::EntryDialog>)
+    pub struct EntityDataDialog(ObjectSubclass<imp::EntityDataDialog>)
         @extends gtk::Widget, adw::Dialog;
 }
 
-impl EntryDialog {
+impl EntityDataDialog {
     pub async fn gather_data(
         entity_id: &EntityId,
+        initial_data: &EntityData,
         parent: Option<&impl IsA<gtk::Widget>>,
     ) -> Result<EntityData, oneshot::Canceled> {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
         imp.window_title.set_subtitle(&entity_id.to_string());
+
+        for field in initial_data.fields() {
+            match field {
+                EntityDataField::StockId(stock_id) => {
+                    if let Some(position) = imp
+                        .stock_id_dropdown
+                        .model()
+                        .unwrap()
+                        .iter::<glib::Object>()
+                        .position(|o| {
+                            let stock = o.unwrap().downcast::<Stock>().unwrap();
+                            stock.id() == stock_id
+                        })
+                    {
+                        imp.stock_id_dropdown.set_selected(position as u32);
+                    }
+                }
+                EntityDataField::Location(location) => {
+                    imp.location_row.set_text(location);
+                }
+                EntityDataField::ExpirationDt(dt) => {
+                    imp.expiration_dt_button.set_dt(Some(DateTimeBoxed(*dt)));
+                }
+                EntityDataField::Photo(image) => {
+                    imp.photo_viewfinder.set_capture_image(Some(image.clone()));
+                }
+                EntityDataField::Name(name) => {
+                    imp.name_row.set_text(name);
+                }
+                EntityDataField::Sex(sex) => {
+                    imp.sex_row.set_selected(sex.model_position());
+                }
+                EntityDataField::Email(email) => {
+                    imp.email_row.set_text(email);
+                }
+                EntityDataField::Program(program) => {
+                    imp.program_row.set_text(program);
+                }
+            }
+        }
 
         let (result_tx, result_rx) = oneshot::channel();
         imp.result_tx.replace(Some(result_tx));
@@ -159,10 +206,15 @@ impl EntryDialog {
 
         let data = EntityData::from_fields(
             [
-                imp.stock_id_dropdown
-                    .selected_item()
-                    .map(|stock| stock.downcast::<Stock>().unwrap().id().clone())
-                    .map(EntityDataField::StockId),
+                operation_mode
+                    .is_valid_entity_data_field_ty(EntityDataFieldTy::StockId)
+                    .then(|| {
+                        imp.stock_id_dropdown
+                            .selected_item()
+                            .map(|stock| stock.downcast::<Stock>().unwrap().id().clone())
+                            .map(EntityDataField::StockId)
+                    })
+                    .flatten(),
                 Some(imp.location_row.text().to_string())
                     .filter(|t| !t.is_empty())
                     .map(EntityDataField::Location),
@@ -187,10 +239,11 @@ impl EntryDialog {
                         imp.sex_row
                             .selected_item()
                             .map(|item| {
-                                item.downcast::<gtk::StringObject>()
+                                item.downcast::<adw::EnumListItem>()
                                     .unwrap()
-                                    .string()
-                                    .to_string()
+                                    .value()
+                                    .try_into()
+                                    .unwrap()
                             })
                             .map(EntityDataField::Sex)
                     })

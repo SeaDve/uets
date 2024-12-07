@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <template class="UetsEntryDialog" parent="AdwDialog">
+  <template class="UetsEntityDataDialog" parent="AdwDialog">
     <property name="follows-content-size">True</property>
     <property name="presentation-mode">bottom-sheet</property>
     <property name="child">
@@ -54,14 +54,6 @@
                 <child>
                   <object class="AdwComboRow" id="sex_row">
                     <property name="title">Sex</property>
-                    <property name="model">
-                      <object class="GtkStringList">
-                        <items>
-                          <item>Male</item>
-                          <item>Female</item>
-                        </items>
-                      </object>
-                    </property>
                   </object>
                 </child>
                 <child>
@@ -102,7 +94,7 @@
             <property name="spacing">12</property>
             <child>
               <object class="GtkButton">
-                <property name="action-name">entry-window.cancel</property>
+                <property name="action-name">entity-data-dialog.cancel</property>
                 <property name="label">Cancel</property>
                 <style>
                   <class name="pill"/>
@@ -111,7 +103,7 @@
             </child>
             <child>
               <object class="GtkButton">
-                <property name="action-name">entry-window.done</property>
+                <property name="action-name">entity-data-dialog.done</property>
                 <property name="label">Done</property>
                 <style>
                   <class name="suggested-action"/>

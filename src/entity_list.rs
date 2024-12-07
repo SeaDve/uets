@@ -66,7 +66,7 @@ impl EntityList {
         self.imp().list.borrow().get(id).cloned()
     }
 
-    pub fn insert(&self, entity: Entity) {
+    pub fn insert(&self, entity: Entity) -> bool {
         let imp = self.imp();
 
         let (index, removed, added) = match imp.list.borrow_mut().entry(entity.id().clone()) {
@@ -79,6 +79,8 @@ impl EntityList {
         };
 
         self.items_changed(index as u32, removed, added);
+
+        removed == 0
     }
 
     pub fn insert_many(&self, entities: Vec<Entity>) -> u32 {

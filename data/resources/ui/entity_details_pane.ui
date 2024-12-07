@@ -56,6 +56,15 @@
             <child>
               <object class="AdwPreferencesGroup" id="data_group">
                 <property name="title">Data</property>
+                <property name="header-suffix">
+                  <object class="GtkButton">
+                    <property name="icon-name">edit-symbolic</property>
+                    <property name="action-name">entity-details-pane.edit-data</property>
+                    <style>
+                      <class name="flat"/>
+                    </style>
+                  </object>
+                </property>
               </object>
             </child>
             <child>

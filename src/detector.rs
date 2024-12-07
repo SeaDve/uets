@@ -17,6 +17,7 @@ use crate::{
     jpeg_image::JpegImage,
     remote::Remote,
     rfid_reader::RfidReader,
+    sex::Sex,
     sound::Sound,
     Application,
 };
@@ -403,21 +404,25 @@ fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
         .inspect_err(|err| tracing::debug!("Failed to deserialize national id data: {:?}", err))
         .ok()?;
 
+    let mut fields = vec![EntityDataField::Name(format!(
+        "{}, {} {}",
+        data.subject.last_name.to_title_case(),
+        data.subject.first_name.to_title_case(),
+        data.subject
+            .middle_name
+            .chars()
+            .next()
+            .map(|c| format!("{}.", c.to_uppercase()))
+            .unwrap_or_default(),
+    ))];
+
+    match data.subject.sex.parse::<Sex>() {
+        Ok(sex) => fields.push(EntityDataField::Sex(sex)),
+        Err(err) => tracing::warn!("Failed to parse sex: {:?}", err),
+    }
+
     Some((
         EntityId::new(data.subject.pcn),
-        EntityData::from_fields([
-            EntityDataField::Name(format!(
-                "{}, {} {}",
-                data.subject.last_name.to_title_case(),
-                data.subject.first_name.to_title_case(),
-                data.subject
-                    .middle_name
-                    .chars()
-                    .next()
-                    .map(|c| format!("{}.", c.to_uppercase()))
-                    .unwrap_or_default(),
-            )),
-            EntityDataField::Sex(data.subject.sex),
-        ]),
+        EntityData::from_fields(fields),
     ))
 }

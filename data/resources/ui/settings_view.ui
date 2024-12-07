@@ -101,7 +101,7 @@
               <object class="AdwExpanderRow" id="enable_n_inside_hook_row">
                 <property name="show-enable-switch">True</property>
                 <property name="title">Enable Count Hook</property>
-                <property name="subtitle">Turn off the switch if entitites inside count reached a certain amount</property>
+                <property name="subtitle">Turn off the switch if entities inside count reached a certain amount</property>
                 <child>
                   <object class="AdwSpinRow" id="n_inside_hook_threshold_row">
                     <property name="title">Count Threshold</property>
@@ -240,7 +240,6 @@
                 <property name="icon-name">update-symbolic</property>
                 <style>
                   <class name="flat"/>
-                  <class name="circular"/>
                 </style>
               </object>
             </property>
