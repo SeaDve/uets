@@ -28,6 +28,8 @@ const int SERVER_PORT = 8888;
 const uint8_t RST_PIN = 5;
 const uint8_t SS_PIN = 4;
 
+const uint8_t BUZZER_PIN = D8;
+
 WiFiServer server(SERVER_PORT);
 MFRC522 rfid(SS_PIN, RST_PIN);
 
@@ -66,6 +68,8 @@ void setup()
 {
   Serial.begin(9600);
 
+  pinMode(BUZZER_PIN, OUTPUT);
+
   server_setup();
   rfid_setup();
 }
@@ -90,6 +94,8 @@ void loop()
     {
       if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial())
       {
+        tone(BUZZER_PIN, 2000);
+
         String content = "";
         for (byte i = 0; i < rfid.uid.size; i++)
         {
@@ -104,6 +110,8 @@ void loop()
 
         rfid.PICC_HaltA();
         rfid.PCD_StopCrypto1();
+
+        noTone(BUZZER_PIN);
       }
     }
 
