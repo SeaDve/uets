@@ -326,6 +326,7 @@ mod imp {
                 [
                     Some(entity.id().to_string()),
                     entity.stock_id().map(|s| s.to_string()),
+                    entity.data().name().cloned(),
                 ]
                 .into_iter()
                 .flatten()

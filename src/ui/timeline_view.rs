@@ -286,9 +286,10 @@ mod imp {
                     .get(item.entity_id())
                     .expect("entity must be known");
                 [
+                    Some(item.dt().with_timezone(&Local).format("%B %Y").to_string()),
                     Some(item.entity_id().to_string()),
                     entity.stock_id().map(|s| s.to_string()),
-                    Some(item.dt().with_timezone(&Local).format("%B %Y").to_string()),
+                    entity.data().name().cloned(),
                 ]
                 .into_iter()
                 .flatten()
