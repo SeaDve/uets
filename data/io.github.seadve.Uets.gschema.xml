@@ -11,18 +11,6 @@
       </choices>
       <default>"counter"</default>
     </key>
-    <key name="enable-lower-limit-reached-alert" type="b">
-      <default>false</default>
-    </key>
-    <key name="lower-limit-reached-alert-threshold" type="u">
-      <default>0</default>
-    </key>
-    <key name="enable-upper-limit-reached-alert" type="b">
-      <default>false</default>
-    </key>
-    <key name="upper-limit-reached-alert-threshold" type="u">
-      <default>4294967295</default>
-    </key>
     <key name="camera-ip-addr" type="s">
       <default>"192.168.100.159"</default>
     </key>
@@ -34,6 +22,18 @@
     </key>
     <key name="relay-ip-addr" type="s">
       <default>"uets-relay.local"</default>
+    </key>
+    <key name="enable-lower-limit-reached-alert" type="b">
+      <default>false</default>
+    </key>
+    <key name="lower-limit-reached-threshold" type="u">
+      <default>0</default>
+    </key>
+    <key name="enable-upper-limit-reached-alert" type="b">
+      <default>false</default>
+    </key>
+    <key name="upper-limit-reached-threshold" type="u">
+      <default>4294967295</default>
     </key>
     <key name="enable-detection-wo-id" type="b">
       <default>true</default>

@@ -81,13 +81,14 @@ mod imp {
                     obj.update_avatar_icon_name();
                 }
             ));
-            app.settings().connect_limit_reached_changed(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.update_n_inside_label();
-                }
-            ));
+            app.settings()
+                .connect_limit_reached_threshold_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_n_inside_label();
+                    }
+                ));
 
             obj.update_n_inside_label();
             obj.update_avatar_icon_name();

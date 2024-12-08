@@ -74,13 +74,31 @@ mod imp {
 
             SendDialog::init_premade_connection();
 
-            self.settings.connect_limit_reached_changed(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.alert_if_limit_reached();
-                }
-            ));
+            self.settings
+                .connect_limit_reached_threshold_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.alert_if_limit_reached();
+                    }
+                ));
+            self.settings
+                .connect_enable_lower_limit_reached_alert_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.alert_if_limit_reached();
+                    }
+                ));
+            self.settings
+                .connect_enable_upper_limit_reached_alert_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.alert_if_limit_reached();
+                    }
+                ));
+
             self.settings.connect_camera_ip_addr_changed(clone!(
                 #[weak]
                 obj,
@@ -329,22 +347,22 @@ impl Application {
     }
 
     fn alert_if_limit_reached(&self) {
-        if let Some(limit_reached) = self
-            .settings()
-            .compute_limit_reached(self.timeline().n_inside())
-        {
-            match limit_reached {
-                LimitReached::Lower => {
-                    self.add_message_toast_with_id(ToastId::LimitReached, "Amount Depleted");
-                }
-                LimitReached::Upper => {
-                    self.add_message_toast_with_id(ToastId::LimitReached, "Capacity Exceeded");
-                }
-            }
+        let settings = self.settings();
 
-            Sound::CriticalAlert.play();
-        } else {
-            self.remove_message_toast_with_id(ToastId::LimitReached);
+        match settings.compute_limit_reached(self.timeline().n_inside()) {
+            Some(LimitReached::Lower) if settings.enable_lower_limit_reached_alert() => {
+                self.add_message_toast_with_id(ToastId::LimitReached, "Amount Depleted");
+
+                Sound::CriticalAlert.play();
+            }
+            Some(LimitReached::Upper) if settings.enable_upper_limit_reached_alert() => {
+                self.add_message_toast_with_id(ToastId::LimitReached, "Capacity Exceeded");
+
+                Sound::CriticalAlert.play();
+            }
+            _ => {
+                self.remove_message_toast_with_id(ToastId::LimitReached);
+            }
         }
     }
 

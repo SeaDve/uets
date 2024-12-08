@@ -2,12 +2,24 @@ use std::rc::Rc;
 
 use gtk::glib::clone;
 
-use crate::{format, settings::Settings, ui::InformationRow};
+use crate::{
+    format, settings::Settings, signal_handler_id_group::SignalHandlerIdGroup, ui::InformationRow,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LimitReached {
-    Upper,
     Lower,
+    Upper,
+}
+
+impl LimitReached {
+    pub fn is_lower(&self) -> bool {
+        matches!(self, LimitReached::Lower)
+    }
+
+    pub fn is_upper(&self) -> bool {
+        matches!(self, LimitReached::Upper)
+    }
 }
 
 pub trait LabelExt {
@@ -44,53 +56,53 @@ impl InformationRowExt for InformationRow {
 
 pub trait SettingsExt {
     fn compute_limit_reached(&self, count: u32) -> Option<LimitReached>;
-    fn connect_limit_reached_changed(&self, f: impl Fn(&Self) + 'static);
+    fn connect_limit_reached_threshold_changed(
+        &self,
+        f: impl Fn(&Self) + 'static,
+    ) -> SignalHandlerIdGroup;
 }
 
 impl SettingsExt for Settings {
     fn compute_limit_reached(&self, count: u32) -> Option<LimitReached> {
-        let lower = self.lower_limit_reached_alert_threshold();
-        let upper = self.upper_limit_reached_alert_threshold();
+        let lower = self.lower_limit_reached_threshold();
+        let upper = self.upper_limit_reached_threshold();
 
         if lower >= upper {
             tracing::warn!("Lower >= upper limit");
             return None;
         }
 
-        if count <= lower && self.enable_lower_limit_reached_alert() {
+        if count <= lower {
             Some(LimitReached::Lower)
-        } else if count >= upper && self.enable_upper_limit_reached_alert() {
+        } else if count >= upper {
             Some(LimitReached::Upper)
         } else {
             None
         }
     }
 
-    fn connect_limit_reached_changed(&self, f: impl Fn(&Self) + 'static) {
+    fn connect_limit_reached_threshold_changed(
+        &self,
+        f: impl Fn(&Self) + 'static,
+    ) -> SignalHandlerIdGroup {
+        let handler_ids = SignalHandlerIdGroup::new();
+
         let f = Rc::new(f);
 
-        self.connect_lower_limit_reached_alert_threshold_changed(clone!(
+        let handler_id = self.connect_lower_limit_reached_threshold_changed(clone!(
             #[strong]
             f,
             move |s| f(s)
         ));
+        handler_ids.add(handler_id);
 
-        self.connect_upper_limit_reached_alert_threshold_changed(clone!(
+        let handler_id = self.connect_upper_limit_reached_threshold_changed(clone!(
             #[strong]
             f,
             move |s| f(s)
         ));
+        handler_ids.add(handler_id);
 
-        self.connect_enable_lower_limit_reached_alert_changed(clone!(
-            #[strong]
-            f,
-            move |s| f(s)
-        ));
-
-        self.connect_enable_upper_limit_reached_alert_changed(clone!(
-            #[strong]
-            f,
-            move |s| f(s)
-        ));
+        handler_ids
     }
 }

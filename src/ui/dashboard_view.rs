@@ -153,13 +153,14 @@ mod imp {
 
             let app = Application::get();
 
-            app.settings().connect_limit_reached_changed(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.update_n_inside_label();
-                }
-            ));
+            app.settings()
+                .connect_limit_reached_threshold_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_n_inside_label();
+                    }
+                ));
 
             let timeline = app.timeline();
             timeline.connect_items_changed(clone!(

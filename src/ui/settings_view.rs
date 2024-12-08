@@ -22,13 +22,9 @@ mod imp {
         #[template_child]
         pub(super) n_inside_hook_threshold_row: TemplateChild<adw::SpinRow>,
         #[template_child]
-        pub(super) enable_lower_limit_reached_alert_row: TemplateChild<adw::ExpanderRow>,
+        pub(super) lower_limit_reached_threshold_row: TemplateChild<adw::SpinRow>,
         #[template_child]
-        pub(super) lower_limit_reached_alert_threshold_row: TemplateChild<adw::SpinRow>,
-        #[template_child]
-        pub(super) enable_upper_limit_reached_alert_row: TemplateChild<adw::ExpanderRow>,
-        #[template_child]
-        pub(super) upper_limit_reached_alert_threshold_row: TemplateChild<adw::SpinRow>,
+        pub(super) upper_limit_reached_threshold_row: TemplateChild<adw::SpinRow>,
         #[template_child]
         pub(super) fullscreen_window_button: TemplateChild<gtk::Button>,
         #[template_child]
@@ -100,40 +96,29 @@ mod imp {
 
             let action_group = gio::SimpleActionGroup::new();
             action_group.add_action(&settings.create_operation_mode_action());
+            action_group.add_action(&settings.create_enable_lower_limit_reached_alert_action());
+            action_group.add_action(&settings.create_enable_upper_limit_reached_alert_action());
             action_group.add_action(&settings.create_enable_detection_wo_id_action());
             obj.insert_action_group("settings-view", Some(&action_group));
+
+            settings
+                .bind_lower_limit_reached_threshold(
+                    &*self.lower_limit_reached_threshold_row,
+                    "value",
+                )
+                .build();
+            settings
+                .bind_upper_limit_reached_threshold(
+                    &*self.upper_limit_reached_threshold_row,
+                    "value",
+                )
+                .build();
 
             settings
                 .bind_enable_n_inside_hook(&*self.enable_n_inside_hook_row, "enable-expansion")
                 .build();
             settings
                 .bind_n_inside_hook_threshold(&*self.n_inside_hook_threshold_row, "value")
-                .build();
-
-            settings
-                .bind_enable_lower_limit_reached_alert(
-                    &*self.enable_lower_limit_reached_alert_row,
-                    "enable-expansion",
-                )
-                .build();
-            settings
-                .bind_lower_limit_reached_alert_threshold(
-                    &*self.lower_limit_reached_alert_threshold_row,
-                    "value",
-                )
-                .build();
-
-            settings
-                .bind_enable_upper_limit_reached_alert(
-                    &*self.enable_upper_limit_reached_alert_row,
-                    "enable-expansion",
-                )
-                .build();
-            settings
-                .bind_upper_limit_reached_alert_threshold(
-                    &*self.upper_limit_reached_alert_threshold_row,
-                    "value",
-                )
                 .build();
 
             self.fullscreen_window_button.connect_clicked(|_| {

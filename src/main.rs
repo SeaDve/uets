@@ -39,6 +39,7 @@ mod search_query;
 mod search_query_ext;
 mod settings;
 mod sex;
+mod signal_handler_id_group;
 mod sound;
 mod stock;
 mod stock_data;

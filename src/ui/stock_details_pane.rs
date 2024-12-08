@@ -186,7 +186,7 @@ mod imp {
                 }
             ));
 
-            app.settings().connect_limit_reached_changed(clone!(
+            app.settings().connect_limit_reached_threshold_changed(clone!(
                 #[weak]
                 obj,
                 move |_| {

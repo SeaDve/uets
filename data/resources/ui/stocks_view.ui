@@ -56,6 +56,9 @@
                   <class name="toolbar"/>
                 </style>
                 <child>
+                  <object class="GtkDropDown" id="limit_reached_dropdown"/>
+                </child>
+                <child>
                   <object class="UetsDateTimeRangeButton" id="dt_range_button"/>
                 </child>
                 <child>

@@ -8,11 +8,13 @@ use gtk::{
 use crate::{
     date_time_range::DateTimeRange,
     fuzzy_filter::FuzzyFilter,
+    limit_reached::SettingsExt,
     list_model_enum,
     report::{self, ReportKind},
     report_table,
     search_query::SearchQueries,
     search_query_ext::SearchQueriesDateTimeRangeExt,
+    signal_handler_id_group::{SignalHandlerIdGroup, SignalHandlerIdGroupObjectExt},
     stock::Stock,
     stock_id::StockId,
     stock_list::StockList,
@@ -20,7 +22,7 @@ use crate::{
         date_time_range_button::DateTimeRangeButton, search_entry::SearchEntry,
         send_dialog::SendDialog, stock_details_pane::StockDetailsPane, stock_row::StockRow,
     },
-    utils::new_sorter,
+    utils::{new_filter, new_sorter},
     Application,
 };
 
@@ -29,6 +31,18 @@ struct S;
 impl S {
     const FROM: &str = "from";
     const TO: &str = "to";
+
+    const IS: &str = "is";
+
+    const IS_LIMIT_REACHED_VALUES: &[&str] = &[
+        Self::LIMIT_REACHED,
+        Self::LOWER_LIMIT_REACHED,
+        Self::UPPER_LIMIT_REACHED,
+    ];
+
+    const LIMIT_REACHED: &str = "limit-reached";
+    const LOWER_LIMIT_REACHED: &str = "lower-limit-reached";
+    const UPPER_LIMIT_REACHED: &str = "upper-limit-reached";
 
     const SORT: &str = "sort";
     const SORT_VALUES: &[&str] = &[
@@ -46,6 +60,28 @@ impl S {
     const COUNT_DESC: &str = "count-desc";
     const UPDATED_ASC: &str = "updated-asc";
     const UPDATED_DESC: &str = "updated-desc";
+}
+
+#[derive(Debug, Clone, Copy, glib::Enum)]
+#[enum_type(name = "UetsLimitReachedFilter")]
+enum LimitReachedFilter {
+    All,
+    LimitReached,
+    LowerLimitReached,
+    UpperLimitReached,
+}
+
+list_model_enum!(LimitReachedFilter);
+
+impl LimitReachedFilter {
+    fn display(&self) -> &'static str {
+        match self {
+            Self::All => "All",
+            Self::LimitReached => "Limit Reached",
+            Self::LowerLimitReached => "Amount Depleted",
+            Self::UpperLimitReached => "Capacity Exceeded",
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, glib::Enum)]
@@ -94,6 +130,8 @@ mod imp {
         #[template_child]
         pub(super) search_entry: TemplateChild<SearchEntry>,
         #[template_child]
+        pub(super) limit_reached_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
         pub(super) dt_range_button: TemplateChild<DateTimeRangeButton>,
         #[template_child]
         pub(super) stock_sort_dropdown: TemplateChild<gtk::DropDown>,
@@ -120,8 +158,11 @@ mod imp {
 
         pub(super) fuzzy_filter: OnceCell<FuzzyFilter>,
 
+        pub(super) limit_reached_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) dt_range_button_range_notify_id: OnceCell<glib::SignalHandlerId>,
         pub(super) stock_sort_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
+
+        pub(super) settings_limit_reached_id: RefCell<Option<SignalHandlerIdGroup>>,
 
         pub(super) rows: RefCell<Vec<WeakRef<StockRow>>>,
     }
@@ -163,6 +204,31 @@ mod imp {
                     obj.handle_search_entry_search_changed(entry);
                 }
             ));
+
+            self.limit_reached_dropdown.set_expression(Some(
+                &gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|list_item: adw::EnumListItem| {
+                        LimitReachedFilter::try_from(list_item.value())
+                            .unwrap()
+                            .display()
+                    }),
+                ),
+            ));
+            self.limit_reached_dropdown
+                .set_model(Some(&LimitReachedFilter::new_model()));
+            let limit_reached_dropdown_selected_item_notify_id = self
+                .limit_reached_dropdown
+                .connect_selected_item_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |dropdown| {
+                        obj.handle_limit_reached_dropdown_selected_item_notify(dropdown);
+                    }
+                ));
+            self.limit_reached_dropdown_selected_item_id
+                .set(limit_reached_dropdown_selected_item_notify_id)
+                .unwrap();
 
             let dt_range_button_range_notify_id =
                 self.dt_range_button.connect_range_notify(clone!(
@@ -394,10 +460,41 @@ impl StocksView {
         self.update_n_results_label();
     }
 
+    fn bind_limit_reached_filter(&self, filter: &gtk::CustomFilter) {
+        let imp = self.imp();
+
+        let handler_id_group = Application::get()
+            .settings()
+            .connect_limit_reached_threshold_changed(clone!(
+                #[weak]
+                filter,
+                move |_| {
+                    filter.changed(gtk::FilterChange::Different);
+                }
+            ));
+        imp.settings_limit_reached_id
+            .replace(Some(handler_id_group));
+    }
+
     fn handle_search_entry_search_changed(&self, entry: &SearchEntry) {
         let imp = self.imp();
 
         let queries = entry.queries();
+
+        let limit_reached = match queries.find_last_with_values(S::IS, S::IS_LIMIT_REACHED_VALUES) {
+            Some(S::LIMIT_REACHED) => LimitReachedFilter::LimitReached,
+            Some(S::LOWER_LIMIT_REACHED) => LimitReachedFilter::LowerLimitReached,
+            Some(S::UPPER_LIMIT_REACHED) => LimitReachedFilter::UpperLimitReached,
+            _ => LimitReachedFilter::All,
+        };
+
+        let selected_item_notify_id = imp.limit_reached_dropdown_selected_item_id.get().unwrap();
+        imp.limit_reached_dropdown
+            .block_signal(selected_item_notify_id);
+        imp.limit_reached_dropdown
+            .set_selected(limit_reached.model_position());
+        imp.limit_reached_dropdown
+            .unblock_signal(selected_item_notify_id);
 
         let dt_range = queries.dt_range(S::FROM, S::TO);
 
@@ -409,6 +506,12 @@ impl StocksView {
             .unblock_signal(dt_range_button_range_notify_id);
 
         self.set_dt_range(dt_range);
+
+        if let Some(handler_id_group) = imp.settings_limit_reached_id.take() {
+            Application::get()
+                .settings()
+                .disconnect_group(handler_id_group);
+        }
 
         if queries.is_empty() {
             imp.filter_list_model.set_filter(gtk::Filter::NONE);
@@ -427,10 +530,83 @@ impl StocksView {
         );
         every_filter.append(fuzzy_filter.clone());
 
+        match limit_reached {
+            LimitReachedFilter::All => {}
+            LimitReachedFilter::LimitReached => {
+                let filter = new_filter(move |stock: &Stock| {
+                    Application::get()
+                        .settings()
+                        .compute_limit_reached(stock.n_inside_for_dt_range(&dt_range))
+                        .is_some()
+                });
+                self.bind_limit_reached_filter(&filter);
+                every_filter.append(filter);
+            }
+            LimitReachedFilter::LowerLimitReached => {
+                let filter = new_filter(move |stock: &Stock| {
+                    Application::get()
+                        .settings()
+                        .compute_limit_reached(stock.n_inside_for_dt_range(&dt_range))
+                        .is_some_and(|l| l.is_lower())
+                });
+                self.bind_limit_reached_filter(&filter);
+                every_filter.append(filter);
+            }
+            LimitReachedFilter::UpperLimitReached => {
+                let filter = new_filter(move |stock: &Stock| {
+                    Application::get()
+                        .settings()
+                        .compute_limit_reached(stock.n_inside_for_dt_range(&dt_range))
+                        .is_some_and(|l| l.is_upper())
+                });
+                self.bind_limit_reached_filter(&filter);
+                every_filter.append(filter);
+            }
+        };
+
         imp.filter_list_model.set_filter(Some(&every_filter));
 
         self.update_fallback_sorter();
         self.update_n_results_label();
+    }
+
+    fn handle_limit_reached_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
+        let imp = self.imp();
+
+        let selected_item = dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+
+        let mut queries = imp.search_entry.queries();
+
+        match selected_item.value().try_into().unwrap() {
+            LimitReachedFilter::All => {
+                queries.remove_all(S::IS, S::LIMIT_REACHED);
+                queries.remove_all(S::IS, S::LOWER_LIMIT_REACHED);
+                queries.remove_all(S::IS, S::UPPER_LIMIT_REACHED);
+            }
+            LimitReachedFilter::LimitReached => {
+                queries.replace_all_or_insert(S::IS, S::IS_LIMIT_REACHED_VALUES, S::LIMIT_REACHED);
+            }
+            LimitReachedFilter::LowerLimitReached => {
+                queries.replace_all_or_insert(
+                    S::IS,
+                    S::IS_LIMIT_REACHED_VALUES,
+                    S::LOWER_LIMIT_REACHED,
+                );
+            }
+            LimitReachedFilter::UpperLimitReached => {
+                queries.replace_all_or_insert(
+                    S::IS,
+                    S::IS_LIMIT_REACHED_VALUES,
+                    S::UPPER_LIMIT_REACHED,
+                );
+            }
+        }
+
+        imp.search_entry.set_queries(queries);
     }
 
     async fn handle_share_report(&self, kind: ReportKind) {
