@@ -7,6 +7,8 @@ use gtk::{
 
 use crate::ui::time_picker::{NaiveTimeBoxed, TimePicker};
 
+const DEFAULT_SHOW_TIME: bool = true;
+
 #[derive(Default, Clone, Copy, PartialEq, Eq, glib::Boxed)]
 #[boxed_type(name = "UetsNaiveDateTimeBoxed")]
 pub struct NaiveDateTimeBoxed(pub NaiveDateTime);
@@ -22,6 +24,8 @@ mod imp {
     pub struct DateTimePicker {
         #[property(get, set = Self::set_dt, explicit_notify)]
         pub(super) dt: Cell<NaiveDateTimeBoxed>,
+        #[property(get, set = Self::set_show_time, explicit_notify, default = DEFAULT_SHOW_TIME)]
+        pub(super) show_time: Cell<bool>,
 
         #[template_child]
         pub(super) hbox: TemplateChild<gtk::Box>, // Unused
@@ -50,6 +54,8 @@ mod imp {
     impl ObjectImpl for DateTimePicker {
         fn constructed(&self) {
             self.parent_constructed();
+
+            self.show_time.set(DEFAULT_SHOW_TIME);
 
             let obj = self.obj();
 
@@ -84,6 +90,7 @@ mod imp {
 
             obj.update_ui_from_dt(NaiveDateTimeBoxed::default());
             obj.update_dt_from_ui();
+            obj.update_time_picker_visibility();
         }
 
         fn dispose(&self) {
@@ -103,6 +110,18 @@ mod imp {
 
             obj.update_ui_from_dt(dt);
             obj.update_dt_from_ui();
+        }
+
+        fn set_show_time(&self, show_time: bool) {
+            let obj = self.obj();
+
+            if show_time == self.show_time.get() {
+                return;
+            }
+
+            self.show_time.set(show_time);
+            obj.update_time_picker_visibility();
+            obj.notify_show_time();
         }
     }
 }
@@ -165,5 +184,12 @@ impl DateTimePicker {
 
         imp.dt.set(dt);
         self.notify_dt()
+    }
+
+    fn update_time_picker_visibility(&self) {
+        let imp = self.imp();
+
+        let show_time = self.show_time();
+        imp.time_picker.set_visible(show_time);
     }
 }

@@ -41,6 +41,7 @@
                     <property name="title">Expiration Date</property>
                     <child type="suffix">
                       <object class="UetsDateTimeButton" id="expiration_dt_button">
+                        <property name="show-time">False</property>
                         <property name="valign">center</property>
                       </object>
                     </child>
