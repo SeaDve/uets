@@ -26,6 +26,10 @@ UETS is a universal system that tracks entities using RFID tags. It is designed 
 
 - Automatically control IoT devices, such as lights, doors, etc. based on entity count data.
 
+### Security
+
+- Prevents unauthorized entities from entering.
+
 ## 🕹️ Operation Modes
 
 ### Counter
