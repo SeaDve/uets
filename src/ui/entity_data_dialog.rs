@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use adw::{prelude::*, subclass::prelude::*};
 use futures_channel::oneshot;
-use gtk::glib::{self, closure};
+use gtk::glib::{self, clone, closure};
 
 use crate::{
     date_time_boxed::DateTimeBoxed,
@@ -11,6 +11,7 @@ use crate::{
     list_model_enum,
     sex::Sex,
     stock::Stock,
+    stock_id::StockId,
     ui::{camera_viewfinder::CameraViewfinder, date_time_button::DateTimeButton},
     utils, Application,
 };
@@ -28,7 +29,11 @@ mod imp {
         #[template_child]
         pub(super) window_title: TemplateChild<adw::WindowTitle>,
         #[template_child]
+        pub(super) stock_id_group: TemplateChild<adw::PreferencesGroup>,
+        #[template_child]
         pub(super) stock_id_row: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub(super) stock_id_custom_row: TemplateChild<adw::EntryRow>,
         #[template_child]
         pub(super) location_row: TemplateChild<adw::EntryRow>,
         #[template_child]
@@ -81,6 +86,8 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
+            let obj = self.obj();
+
             let stock_sorter = utils::new_sorter::<Stock>(false, |a, b| a.id().cmp(b.id()));
             let sorted_stock_model = gtk::SortListModel::new(
                 Some(Application::get().timeline().stock_list().clone()),
@@ -94,12 +101,22 @@ mod imp {
                 )));
             self.stock_id_row.set_model(Some(&sorted_stock_model));
 
+            self.stock_id_custom_row.connect_text_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_stock_id_row_sensitivity();
+                }
+            ));
+
             self.sex_row
                 .set_expression(Some(&adw::EnumListItem::this_expression("name")));
             self.sex_row.set_model(Some(&Sex::new_model()));
 
             self.photo_viewfinder
                 .set_camera(Some(Application::get().camera().clone()));
+
+            obj.update_stock_id_row_sensitivity();
         }
 
         fn dispose(&self) {
@@ -132,7 +149,7 @@ impl EntityDataDialog {
         let ignored_data_field_tys = ignored_data_field_ty.into_iter().collect::<HashSet<_>>();
         for field_ty in EntityDataFieldTy::all() {
             let widget = match field_ty {
-                EntityDataFieldTy::StockId => imp.stock_id_row.upcast_ref::<gtk::Widget>(),
+                EntityDataFieldTy::StockId => imp.stock_id_group.upcast_ref::<gtk::Widget>(),
                 EntityDataFieldTy::Location => imp.location_row.upcast_ref(),
                 EntityDataFieldTy::ExpirationDt => imp.expiration_dt_row.upcast_ref(),
                 EntityDataFieldTy::Photo => imp.photo_viewfinder_group.upcast_ref(),
@@ -161,6 +178,8 @@ impl EntityDataDialog {
                         })
                     {
                         imp.stock_id_row.set_selected(position as u32);
+                    } else {
+                        imp.stock_id_custom_row.set_text(&stock_id.to_string());
                     }
                 }
                 EntityDataField::Location(location) => {
@@ -212,10 +231,15 @@ impl EntityDataDialog {
                 operation_mode
                     .is_valid_entity_data_field_ty(EntityDataFieldTy::StockId)
                     .then(|| {
-                        imp.stock_id_row
-                            .selected_item()
-                            .map(|stock| stock.downcast::<Stock>().unwrap().id().clone())
-                            .map(EntityDataField::StockId)
+                        let raw_stock_id_custom = imp.stock_id_custom_row.text();
+                        if raw_stock_id_custom.is_empty() {
+                            imp.stock_id_row
+                                .selected_item()
+                                .map(|stock| stock.downcast::<Stock>().unwrap().id().clone())
+                                .map(EntityDataField::StockId)
+                        } else {
+                            Some(EntityDataField::StockId(StockId::new(raw_stock_id_custom)))
+                        }
                     })
                     .flatten(),
                 Some(imp.location_row.text().to_string())
@@ -266,5 +290,12 @@ impl EntityDataDialog {
         }
 
         data
+    }
+
+    fn update_stock_id_row_sensitivity(&self) {
+        let imp = self.imp();
+
+        let is_custom = !imp.stock_id_custom_row.text().is_empty();
+        imp.stock_id_row.set_sensitive(!is_custom);
     }
 }
