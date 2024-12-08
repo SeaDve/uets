@@ -28,9 +28,7 @@ mod imp {
         #[template_child]
         pub(super) window_title: TemplateChild<adw::WindowTitle>,
         #[template_child]
-        pub(super) stock_id_row: TemplateChild<adw::ActionRow>,
-        #[template_child]
-        pub(super) stock_id_dropdown: TemplateChild<gtk::DropDown>,
+        pub(super) stock_id_row: TemplateChild<adw::ComboRow>,
         #[template_child]
         pub(super) location_row: TemplateChild<adw::EntryRow>,
         #[template_child]
@@ -89,12 +87,12 @@ mod imp {
                 Some(stock_sorter),
             );
 
-            self.stock_id_dropdown
+            self.stock_id_row
                 .set_expression(Some(gtk::ClosureExpression::new::<String>(
                     &[] as &[gtk::Expression],
                     closure!(|stock: &Stock| stock.id().to_string()),
                 )));
-            self.stock_id_dropdown.set_model(Some(&sorted_stock_model));
+            self.stock_id_row.set_model(Some(&sorted_stock_model));
 
             self.sex_row
                 .set_expression(Some(&adw::EnumListItem::this_expression("name")));
@@ -153,7 +151,7 @@ impl EntityDataDialog {
             match field {
                 EntityDataField::StockId(stock_id) => {
                     if let Some(position) = imp
-                        .stock_id_dropdown
+                        .stock_id_row
                         .model()
                         .unwrap()
                         .iter::<glib::Object>()
@@ -162,7 +160,7 @@ impl EntityDataDialog {
                             stock.id() == stock_id
                         })
                     {
-                        imp.stock_id_dropdown.set_selected(position as u32);
+                        imp.stock_id_row.set_selected(position as u32);
                     }
                 }
                 EntityDataField::Location(location) => {
@@ -214,7 +212,7 @@ impl EntityDataDialog {
                 operation_mode
                     .is_valid_entity_data_field_ty(EntityDataFieldTy::StockId)
                     .then(|| {
-                        imp.stock_id_dropdown
+                        imp.stock_id_row
                             .selected_item()
                             .map(|stock| stock.downcast::<Stock>().unwrap().id().clone())
                             .map(EntityDataField::StockId)

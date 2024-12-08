@@ -21,14 +21,9 @@
             <child>
               <object class="AdwPreferencesGroup">
                 <child>
-                  <object class="AdwActionRow" id="stock_id_row">
+                  <object class="AdwComboRow" id="stock_id_row">
                     <property name="title">Stock Name</property>
-                    <child type="suffix">
-                      <object class="GtkDropDown" id="stock_id_dropdown">
-                        <property name="valign">center</property>
-                        <property name="show-arrow">False</property>
-                      </object>
-                    </child>
+                    <property name="enable-search">True</property>
                   </object>
                 </child>
                 <child>
