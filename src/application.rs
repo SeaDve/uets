@@ -180,6 +180,13 @@ mod imp {
                     ));
                 }
             ));
+            self.detector.connect_detected_invalid(clone!(
+                #[weak]
+                obj,
+                move |_, code| {
+                    obj.handle_detected_invalid(code);
+                }
+            ));
             self.detector.connect_detected_wo_id(clone!(
                 #[weak]
                 obj,
@@ -342,6 +349,8 @@ impl Application {
     }
 
     async fn handle_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
+        Sound::DetectedSuccess.play();
+
         let timeline = self.timeline();
 
         let data = if let Some(data) = entity_data {
@@ -407,7 +416,15 @@ impl Application {
         }
     }
 
+    fn handle_detected_invalid(&self, _code: &str) {
+        Sound::DetectedError.play();
+
+        self.add_message_toast("Invalid code detected");
+    }
+
     fn handle_detected_wo_id(&self, dt: &DateTimeBoxed, image: Option<&JpegImage>) -> Result<()> {
+        Sound::CriticalAlert.play();
+
         self.add_message_toast("Detected unregistered entity!");
 
         let item = DetectedWoIdItem::new(dt.0, image.cloned());

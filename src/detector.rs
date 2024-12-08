@@ -18,7 +18,6 @@ use crate::{
     remote::Remote,
     rfid_reader::RfidReader,
     sex::Sex,
-    sound::Sound,
     Application,
 };
 
@@ -58,6 +57,9 @@ mod imp {
                     Signal::builder("detected")
                         .param_types([EntityId::static_type(), Option::<EntityData>::static_type()])
                         .build(),
+                    Signal::builder("detected-invalid")
+                        .param_types([String::static_type()])
+                        .build(),
                     Signal::builder("detected-wo-id")
                         .param_types([
                             DateTimeBoxed::static_type(),
@@ -87,6 +89,17 @@ impl Detector {
             "detected",
             false,
             closure_local!(|obj: &Self, id: &EntityId, data: Option<EntityData>| f(obj, id, data)),
+        )
+    }
+
+    pub fn connect_detected_invalid<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &str) + 'static,
+    {
+        self.connect_closure(
+            "detected-invalid",
+            false,
+            closure_local!(|obj: &Self, code: &str| f(obj, code)),
         )
     }
 
@@ -153,16 +166,12 @@ impl Detector {
             move |_, id| {
                 let entity_id = EntityId::new(id);
                 obj.emit_detected(&entity_id, None);
-
-                Sound::DetectedSuccess.play();
             }
         ));
     }
 
     pub fn simulate_detected(&self, id: &EntityId, data: Option<&EntityData>) {
         self.emit_detected(id, data);
-
-        Sound::DetectedSuccess.play();
     }
 
     pub fn set_enable_detection_wo_id(&self, is_enabled: bool) {
@@ -202,14 +211,8 @@ impl Detector {
 
                     if let Some((id, data)) = entity_from_qrcode(code) {
                         obj.emit_detected(&id, Some(&data));
-
-                        Sound::DetectedSuccess.play();
                     } else {
-                        tracing::warn!("Invalid entity code: {}", code);
-
-                        Application::get().add_message_toast("Unknown QR code format");
-
-                        Sound::DetectedError.play();
+                        obj.emit_by_name::<()>("detected-invalid", &[&code]);
                     }
 
                     imp.camera_last_detected.replace(Some(code.to_string()));
@@ -296,8 +299,6 @@ impl Detector {
         } else {
             tracing::warn!("No detected without ID capture data");
         }
-
-        Sound::CriticalAlert.play();
     }
 
     fn restart_camera_last_detected_timeout(&self) {
