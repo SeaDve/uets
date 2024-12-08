@@ -4,7 +4,12 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use crate::{date_time_range::DateTimeRange, stock::Stock, Application};
+use crate::{
+    date_time_range::DateTimeRange,
+    limit_reached::{LabelExt, SettingsExt},
+    stock::Stock,
+    Application,
+};
 
 mod imp {
     use std::cell::{OnceCell, RefCell};
@@ -67,15 +72,22 @@ mod imp {
             );
             self.stock_signals.set(stock_signals).unwrap();
 
-            Application::get()
-                .settings()
-                .connect_operation_mode_changed(clone!(
-                    #[weak]
-                    obj,
-                    move |_| {
-                        obj.update_avatar_icon_name();
-                    }
-                ));
+            let app = Application::get();
+
+            app.settings().connect_operation_mode_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_avatar_icon_name();
+                }
+            ));
+            app.settings().connect_limit_reached_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_n_inside_label();
+                }
+            ));
 
             obj.update_n_inside_label();
             obj.update_avatar_icon_name();
@@ -136,7 +148,8 @@ impl StockRow {
 
         if let Some(stock) = self.stock() {
             let n_inside = stock.n_inside_for_dt_range(&imp.dt_range.borrow());
-            imp.n_inside_label.set_label(&n_inside.to_string());
+            imp.n_inside_label
+                .set_label_from_limit_reached(n_inside, Application::get().settings());
         } else {
             imp.n_inside_label.set_label("");
         }

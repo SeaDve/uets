@@ -13,6 +13,7 @@ use crate::{
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ToastId {
     Detected,
+    LimitReached,
 }
 
 mod imp {
@@ -210,6 +211,15 @@ impl Window {
         imp.toast_overlay.add_toast(toast.clone());
 
         imp.toasts.borrow_mut().insert(id, toast);
+    }
+
+    pub fn remove_message_toast_with_id(&self, id: ToastId) {
+        let imp = self.imp();
+
+        let toast = imp.toasts.borrow_mut().remove(&id);
+        if let Some(toast) = toast {
+            toast.dismiss();
+        }
     }
 
     fn update_stocks_entities_stack_pages_display(&self) {

@@ -11,6 +11,7 @@ use crate::{
     date_time_range::DateTimeRange,
     entity::Entity,
     entity_data::{EntityDataField, EntityDataFieldTy},
+    format,
     stock_id::StockId,
     ui::{entity_data_dialog::EntityDataDialog, information_row::InformationRow},
     Application,
@@ -292,12 +293,10 @@ impl EntityDetailsPane {
                 let value = match field {
                     EntityDataField::ExpirationDt(dt) => {
                         let date_fmt = date_time::format::human_readable_date(*dt);
-                        let date_fmt_escaped = glib::markup_escape_text(&date_fmt);
-
                         if *dt < Utc::now() {
-                            format!("<span foreground=\"red\">{}</span>", date_fmt_escaped)
+                            format::red_markup(&date_fmt)
                         } else {
-                            date_fmt_escaped.to_string()
+                            glib::markup_escape_text(&date_fmt).to_string()
                         }
                     }
                     _ => glib::markup_escape_text(&field.to_string()).to_string(),

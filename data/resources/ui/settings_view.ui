@@ -87,9 +87,49 @@
             <property name="title">Alerts</property>
             <child>
               <object class="AdwSwitchRow">
-                <property name="title">Enable Detection Without ID</property>
+                <property name="title">Detect Entities Without ID</property>
                 <property name="subtitle">Alert when an entity enters without proper registration</property>
                 <property name="action-name">settings-view.enable-detection-wo-id</property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwExpanderRow" id="enable_lower_limit_reached_alert_row">
+                <property name="show-enable-switch">True</property>
+                <property name="title">Amount Depleted</property>
+                <property name="subtitle">Alert when the amount decreases to the provided lower limit</property>
+                <child>
+                  <object class="AdwSpinRow" id="lower_limit_reached_alert_threshold_row">
+                    <property name="title">Amount Depleted Threshold</property>
+                    <property name="adjustment">
+                      <object class="GtkAdjustment">
+                        <property name="lower">0</property>
+                        <property name="upper">4294967295</property>
+                        <property name="step_increment">1</property>
+                        <property name="page_increment">10</property>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwExpanderRow" id="enable_upper_limit_reached_alert_row">
+                <property name="show-enable-switch">True</property>
+                <property name="title">Capacity Exceeded</property>
+                <property name="subtitle">Alert when the amount reached the provided upper limit</property>
+                <child>
+                  <object class="AdwSpinRow" id="upper_limit_reached_alert_threshold_row">
+                    <property name="title">Capacity Exceeded Threshold</property>
+                    <property name="adjustment">
+                      <object class="GtkAdjustment">
+                        <property name="lower">0</property>
+                        <property name="upper">4294967295</property>
+                        <property name="step_increment">1</property>
+                        <property name="page_increment">10</property>
+                      </object>
+                    </property>
+                  </object>
+                </child>
               </object>
             </child>
           </object>

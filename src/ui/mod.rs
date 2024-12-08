@@ -30,6 +30,7 @@ mod window;
 
 pub use self::{
     entity_data_dialog::EntityDataDialog,
+    information_row::InformationRow,
     send_dialog::SendDialog,
     test_window::TestWindow,
     window::{ToastId, Window},

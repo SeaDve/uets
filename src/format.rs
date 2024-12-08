@@ -1,6 +1,13 @@
 use chrono::TimeDelta;
 use gtk::glib;
 
+pub fn red_markup(text: &str) -> String {
+    format!(
+        "<span foreground=\"red\">{}</span>",
+        glib::markup_escape_text(text)
+    )
+}
+
 pub fn transfer_progress(sent_bytes: u64, total_bytes: u64) -> String {
     format!(
         "{} / {}",

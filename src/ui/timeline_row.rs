@@ -221,16 +221,18 @@ impl TimelineRow {
                 .get(entity_id)
                 .expect("entity must be known");
 
-            let entity_uri = format!("entity:{}", entity_id);
+            let entity_id_escaped = glib::markup_escape_text(&entity_id.to_string());
+            let entity_uri = format!("entity:{}", entity_id_escaped);
             let title = if let Some(stock_id) = entity.stock_id() {
-                let stock_uri = format!("stock:{}", stock_id);
-                format!("<a href=\"{stock_uri}\">{stock_id}</a> (<a href=\"{entity_uri}\">{entity_id}</a>)")
+                let stock_id_escaped = glib::markup_escape_text(&stock_id.to_string());
+                let stock_uri = format!("stock:{}", stock_id_escaped);
+                format!("<a href=\"{stock_uri}\">{stock_id_escaped}</a> (<a href=\"{entity_uri}\">{entity_id_escaped}</a>)")
             } else {
-                let entity_display = entity
+                let entity_display = &entity
                     .data()
                     .name()
                     .cloned()
-                    .unwrap_or_else(|| entity_id.to_string());
+                    .map_or_else(|| entity_id_escaped, |name| glib::markup_escape_text(&name));
                 format!("<a href=\"{entity_uri}\">{entity_display}</a>")
             };
 

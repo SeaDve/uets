@@ -5,6 +5,7 @@ use crate::{
     date_time,
     date_time_range::DateTimeRange,
     entity_id::EntityId,
+    limit_reached::{LabelExt, SettingsExt},
     ui::{
         camera_live_feed_dialog::CameraLiveFeedDialog,
         detected_wo_id_dialog::DetectedWoIdDialog,
@@ -151,8 +152,16 @@ mod imp {
             let obj = self.obj();
 
             let app = Application::get();
-            let timeline = app.timeline();
 
+            app.settings().connect_limit_reached_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_n_inside_label();
+                }
+            ));
+
+            let timeline = app.timeline();
             timeline.connect_items_changed(clone!(
                 #[weak]
                 obj,
@@ -285,8 +294,11 @@ impl DashboardView {
     fn update_n_inside_label(&self) {
         let imp = self.imp();
 
-        let n_inside = Application::get().timeline().n_inside();
-        imp.n_inside_label.set_label(&n_inside.to_string());
+        let app = Application::get();
+
+        let n_inside = app.timeline().n_inside();
+        imp.n_inside_label
+            .set_label_from_limit_reached(n_inside, app.settings());
     }
 
     fn update_max_n_inside_row(&self) {

@@ -7,6 +7,7 @@ use gtk::{
 use crate::{
     date_time,
     date_time_range::DateTimeRange,
+    limit_reached::{InformationRowExt, SettingsExt},
     report::{self, ReportKind},
     report_table,
     stock::Stock,
@@ -175,11 +176,21 @@ mod imp {
             );
             self.stock_signals.set(stock_signals).unwrap();
 
-            Application::get().timeline().connect_items_changed(clone!(
+            let app = Application::get();
+
+            app.timeline().connect_items_changed(clone!(
                 #[weak]
                 obj,
                 move |_, _, _, _| {
                     obj.update_graphs_data();
+                }
+            ));
+
+            app.settings().connect_limit_reached_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_n_inside_row();
                 }
             ));
 
@@ -357,12 +368,13 @@ impl StockDetailsPane {
     fn update_n_inside_row(&self) {
         let imp = self.imp();
 
-        let stock = imp.stock.borrow();
-        let n_inside = stock
-            .as_ref()
-            .map(|s| s.n_inside_for_dt_range(&imp.dt_range.borrow()))
-            .unwrap_or_default();
-        imp.n_inside_row.set_value(n_inside.to_string());
+        if let Some(stock) = self.stock() {
+            let n_inside = stock.n_inside_for_dt_range(&imp.dt_range.borrow());
+            imp.n_inside_row
+                .set_value_from_limit_reached(n_inside, Application::get().settings());
+        } else {
+            imp.n_inside_row.set_value("");
+        }
     }
 
     fn update_max_n_inside_row(&self) {

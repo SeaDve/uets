@@ -16,9 +16,11 @@ use crate::{
     entity_data::EntityData,
     entity_id::EntityId,
     jpeg_image::JpegImage,
+    limit_reached::{LimitReached, SettingsExt},
     relay::{Relay, RelayState},
     rfid_reader::RfidReader,
     settings::{OperationMode, Settings},
+    sound::Sound,
     timeline::Timeline,
     timeline_item_kind::TimelineItemKind,
     ui::{EntityDataDialog, SendDialog, TestWindow, ToastId, Window},
@@ -72,6 +74,13 @@ mod imp {
 
             SendDialog::init_premade_connection();
 
+            self.settings.connect_limit_reached_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.alert_if_limit_reached();
+                }
+            ));
             self.settings.connect_camera_ip_addr_changed(clone!(
                 #[weak]
                 obj,
@@ -201,11 +210,14 @@ mod imp {
                 obj,
                 move |_| {
                     obj.update_relay_state();
+                    obj.alert_if_limit_reached();
                 }
             ));
 
             obj.setup_actions();
             obj.setup_accels();
+
+            obj.alert_if_limit_reached();
 
             obj.update_relay_state();
         }
@@ -298,11 +310,35 @@ impl Application {
         self.window().add_message_toast_with_id(id, message);
     }
 
+    pub fn remove_message_toast_with_id(&self, id: ToastId) {
+        self.window().remove_message_toast_with_id(id);
+    }
+
     pub fn window(&self) -> Window {
         self.windows()
             .into_iter()
             .find_map(|w| w.downcast::<Window>().ok())
             .unwrap_or_else(|| Window::new(self))
+    }
+
+    fn alert_if_limit_reached(&self) {
+        if let Some(limit_reached) = self
+            .settings()
+            .compute_limit_reached(self.timeline().n_inside())
+        {
+            match limit_reached {
+                LimitReached::Lower => {
+                    self.add_message_toast_with_id(ToastId::LimitReached, "Amount Depleted");
+                }
+                LimitReached::Upper => {
+                    self.add_message_toast_with_id(ToastId::LimitReached, "Capacity Exceeded");
+                }
+            }
+
+            Sound::CriticalAlert.play();
+        } else {
+            self.remove_message_toast_with_id(ToastId::LimitReached);
+        }
     }
 
     async fn handle_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {

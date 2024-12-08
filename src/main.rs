@@ -27,6 +27,7 @@ mod format;
 mod fuzzy_filter;
 mod fuzzy_sorter;
 mod jpeg_image;
+mod limit_reached;
 mod log;
 mod operation_mode_ext;
 mod relay;
