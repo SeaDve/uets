@@ -13,7 +13,7 @@ use crate::{
     date_time_range::DateTimeRange,
     db::{self, EnvExt},
     entity::Entity,
-    entity_data::EntityData,
+    entity_data::{EntityData, EntityDataFieldTy},
     entity_id::EntityId,
     entity_list::EntityList,
     log::Log,
@@ -441,12 +441,9 @@ impl Timeline {
         Ok(item_kind)
     }
 
-    pub fn replace_entity_data(&self, entity_id: &EntityId, entity_data: EntityData) -> Result<()> {
-        let entity = self
-            .entity_list()
-            .get(entity_id)
-            .context("Unknown entity")?;
-        entity.set_data(entity_data);
+    pub fn replace_entity_data(&self, id: &EntityId, data: EntityData) -> Result<()> {
+        let entity = self.entity_list().get(id).context("Unknown entity")?;
+        entity.set_data(data.without_field(EntityDataFieldTy::StockId)); // FIXME Allow changing stock ID
 
         let (env, _, edb, _) = self.db();
         env.with_write_txn(|wtxn| {
@@ -457,12 +454,12 @@ impl Timeline {
         Ok(())
     }
 
-    pub fn register_entity_data(&self, entity_data: HashMap<EntityId, EntityData>) -> Result<()> {
+    pub fn register_entity_data(&self, data_map: HashMap<EntityId, EntityData>) -> Result<()> {
         let mut new_entities = Vec::new();
         let mut updated_entities = Vec::new();
         let mut new_stock_ids = HashSet::new();
 
-        for (id, data) in entity_data {
+        for (id, data) in data_map {
             if let Some(stock_id) = data.stock_id() {
                 if !self.stock_list().contains(stock_id) {
                     new_stock_ids.insert(stock_id.clone());
@@ -470,7 +467,7 @@ impl Timeline {
             }
 
             if let Some(entity) = self.entity_list().get(&id) {
-                entity.set_data(data);
+                entity.set_data(data.without_field(EntityDataFieldTy::StockId));
                 updated_entities.push(entity);
             } else {
                 new_entities.push(Entity::new(id.clone(), data));

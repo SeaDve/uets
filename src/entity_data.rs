@@ -88,6 +88,12 @@ impl EntityData {
         Self(fields.into_iter().map(|f| (f.ty(), f)).collect())
     }
 
+    pub fn without_field(&self, field_ty: EntityDataFieldTy) -> Self {
+        let mut new = self.clone();
+        new.0.shift_remove(&field_ty);
+        new
+    }
+
     pub fn has_field(&self, field_ty: EntityDataFieldTy) -> bool {
         self.0.contains_key(&field_ty)
     }
