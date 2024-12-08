@@ -33,6 +33,19 @@ label.n-inside  {
     padding: 6px;
 }
 
+/* EntityPhotoGalleryCell */
+
+.entity-photo-gallery-cell-label {
+    padding: 3px 6px;
+    border-radius: 9999px;
+}
+
+/* EntityPhotoGalleryDialog */
+
+.entity-photo-gallery-dialog-grid-view {
+    padding: 3px;
+}
+
 /* SendDialog */
 
 .code-label {

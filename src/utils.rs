@@ -45,3 +45,12 @@ pub fn new_sorter<T: IsA<glib::Object>>(
         })
     }
 }
+
+pub fn new_filter<T: IsA<glib::Object>>(
+    predicate: impl Fn(&T) -> bool + 'static,
+) -> gtk::CustomFilter {
+    gtk::CustomFilter::new(move |o| {
+        let item = o.downcast_ref::<T>().unwrap();
+        predicate(item)
+    })
+}

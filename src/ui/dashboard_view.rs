@@ -1,12 +1,14 @@
 use adw::{prelude::*, subclass::prelude::*};
-use gtk::glib::{self, clone};
+use gtk::glib::{self, clone, closure_local};
 
 use crate::{
     date_time,
     date_time_range::DateTimeRange,
+    entity_id::EntityId,
     ui::{
         camera_live_feed_dialog::CameraLiveFeedDialog,
         detected_wo_id_dialog::DetectedWoIdDialog,
+        entity_photo_gallery_dialog::EntityPhotoGalleryDialog,
         information_row::InformationRow,
         receive_dialog::{InvalidFileExtension, ReceiveDialog},
         time_graph::TimeGraph,
@@ -15,6 +17,10 @@ use crate::{
 };
 
 mod imp {
+    use std::sync::OnceLock;
+
+    use glib::subclass::Signal;
+
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
@@ -74,6 +80,27 @@ mod imp {
                     let app = Application::get();
                     let list = app.detected_wo_id_list();
                     dialog.set_model(Some(list));
+
+                    dialog.present(Some(obj));
+                },
+            );
+            klass.install_action(
+                "dashboard-view.show-entity-gallery-dialog",
+                None,
+                move |obj, _, _| {
+                    let dialog = EntityPhotoGalleryDialog::new();
+
+                    let app = Application::get();
+                    let list = app.timeline().entity_list();
+                    dialog.set_model(Some(list));
+
+                    dialog.connect_show_entity_request(clone!(
+                        #[weak]
+                        obj,
+                        move |_, id| {
+                            obj.emit_by_name::<()>("show-entity-request", &[id]);
+                        }
+                    ));
 
                     dialog.present(Some(obj));
                 },
@@ -188,6 +215,16 @@ mod imp {
         fn dispose(&self) {
             self.dispose_template();
         }
+
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
+
+            SIGNALS.get_or_init(|| {
+                vec![Signal::builder("show-entity-request")
+                    .param_types([EntityId::static_type()])
+                    .build()]
+            })
+        }
     }
 
     impl WidgetImpl for DashboardView {}
@@ -201,6 +238,17 @@ glib::wrapper! {
 impl DashboardView {
     pub fn new() -> Self {
         glib::Object::new()
+    }
+
+    pub fn connect_show_entity_request<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &EntityId) + 'static,
+    {
+        self.connect_closure(
+            "show-entity-request",
+            false,
+            closure_local!(|obj: &Self, id: &EntityId| f(obj, id)),
+        )
     }
 
     fn update_graphs_data(&self) {

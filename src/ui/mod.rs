@@ -10,6 +10,8 @@ mod detected_wo_id_row;
 mod entities_view;
 mod entity_data_dialog;
 mod entity_details_pane;
+mod entity_photo_gallery_cell;
+mod entity_photo_gallery_dialog;
 mod entity_row;
 mod information_row;
 mod receive_dialog;

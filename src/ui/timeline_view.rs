@@ -21,6 +21,7 @@ use crate::{
         date_time_range_button::DateTimeRangeButton, search_entry::SearchEntry,
         send_dialog::SendDialog, timeline_row::TimelineRow,
     },
+    utils::new_filter,
     Application,
 };
 
@@ -524,30 +525,22 @@ impl TimelineView {
         match item_kind {
             TimelineItemKindFilter::All => {}
             TimelineItemKindFilter::Entry => {
-                every_filter.append(gtk::CustomFilter::new(|o| {
-                    let entity = o.downcast_ref::<TimelineItem>().unwrap();
-                    entity.kind().is_entry()
-                }));
+                every_filter.append(new_filter(|item: &TimelineItem| item.kind().is_entry()));
             }
             TimelineItemKindFilter::Exit => {
-                every_filter.append(gtk::CustomFilter::new(|o| {
-                    let entity = o.downcast_ref::<TimelineItem>().unwrap();
-                    entity.kind().is_exit()
-                }));
+                every_filter.append(new_filter(|item: &TimelineItem| item.kind().is_exit()));
             }
         }
 
         if !dt_range.is_all_time() {
-            every_filter.append(gtk::CustomFilter::new(move |o| {
-                let entity = o.downcast_ref::<TimelineItem>().unwrap();
-                dt_range.contains(entity.dt())
+            every_filter.append(new_filter(move |item: &TimelineItem| {
+                dt_range.contains(item.dt())
             }));
         }
 
         let any_stock_filter = gtk::AnyFilter::new();
         for stock_id in queries.all_values(S::STOCK).into_iter().map(StockId::new) {
-            any_stock_filter.append(gtk::CustomFilter::new(move |o| {
-                let item = o.downcast_ref::<TimelineItem>().unwrap();
+            any_stock_filter.append(new_filter(move |item: &TimelineItem| {
                 let entity = Application::get()
                     .timeline()
                     .entity_list()
@@ -559,18 +552,17 @@ impl TimelineView {
 
         let any_entity_filter = gtk::AnyFilter::new();
         for entity_id in queries.all_values(S::ENTITY).into_iter().map(EntityId::new) {
-            any_entity_filter.append(gtk::CustomFilter::new(move |o| {
-                let item = o.downcast_ref::<TimelineItem>().unwrap();
+            any_entity_filter.append(new_filter(move |item: &TimelineItem| {
                 item.entity_id() == &entity_id
             }));
         }
 
         if any_stock_filter.n_items() == 0 {
-            any_stock_filter.append(gtk::CustomFilter::new(|_| true));
+            any_stock_filter.append(new_filter(|_: &TimelineItem| true));
         }
 
         if any_entity_filter.n_items() == 0 {
-            any_entity_filter.append(gtk::CustomFilter::new(|_| true));
+            any_entity_filter.append(new_filter(|_: &TimelineItem| true));
         }
 
         every_filter.append(any_stock_filter);

@@ -21,7 +21,7 @@ use crate::{
         date_time_range_button::DateTimeRangeButton, entity_details_pane::EntityDetailsPane,
         entity_row::EntityRow, search_entry::SearchEntry, send_dialog::SendDialog,
     },
-    utils::new_sorter,
+    utils::{new_filter, new_sorter},
     Application,
 };
 
@@ -544,14 +544,12 @@ impl EntitiesView {
         match entity_zone {
             EntityZoneFilter::All => {}
             EntityZoneFilter::Inside => {
-                every_filter.append(gtk::CustomFilter::new(move |o| {
-                    let entity = o.downcast_ref::<Entity>().unwrap();
+                every_filter.append(new_filter(move |entity: &Entity| {
                     entity.is_inside_for_dt_range(&dt_range)
                 }));
             }
             EntityZoneFilter::Outside => {
-                every_filter.append(gtk::CustomFilter::new(move |o| {
-                    let entity = o.downcast_ref::<Entity>().unwrap();
+                every_filter.append(new_filter(move |entity: &Entity| {
                     !entity.is_inside_for_dt_range(&dt_range)
                 }));
             }
@@ -559,14 +557,13 @@ impl EntitiesView {
 
         let any_stock_filter = gtk::AnyFilter::new();
         for stock_id in queries.all_values(S::STOCK).into_iter().map(StockId::new) {
-            any_stock_filter.append(gtk::CustomFilter::new(move |o| {
-                let entity = o.downcast_ref::<Entity>().unwrap();
+            any_stock_filter.append(new_filter(move |entity: &Entity| {
                 entity.stock_id().is_some_and(|s_id| s_id == stock_id)
             }));
         }
 
         if any_stock_filter.n_items() == 0 {
-            any_stock_filter.append(gtk::CustomFilter::new(|_| true));
+            any_stock_filter.append(new_filter(|_: &Entity| true));
         }
 
         every_filter.append(any_stock_filter);
