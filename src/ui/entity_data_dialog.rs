@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::collections::HashSet;
 
 use adw::{prelude::*, subclass::prelude::*};
 use futures_channel::oneshot;
@@ -83,21 +83,6 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
-            let operation_mode = Application::get().settings().operation_mode();
-            for field_ty in EntityDataFieldTy::all() {
-                let widget = match field_ty {
-                    EntityDataFieldTy::StockId => self.stock_id_row.upcast_ref::<gtk::Widget>(),
-                    EntityDataFieldTy::Location => self.location_row.upcast_ref(),
-                    EntityDataFieldTy::ExpirationDt => self.expiration_dt_row.upcast_ref(),
-                    EntityDataFieldTy::Photo => self.photo_viewfinder_group.upcast_ref(),
-                    EntityDataFieldTy::Name => self.name_row.upcast_ref(),
-                    EntityDataFieldTy::Sex => self.sex_row.upcast_ref(),
-                    EntityDataFieldTy::Email => self.email_row.upcast_ref(),
-                    EntityDataFieldTy::Program => self.program_row.upcast_ref(),
-                };
-                widget.set_visible(operation_mode.is_valid_entity_data_field_ty(*field_ty));
-            }
-
             let stock_sorter = utils::new_sorter::<Stock>(false, |a, b| a.id().cmp(b.id()));
             let sorted_stock_model = gtk::SortListModel::new(
                 Some(Application::get().timeline().stock_list().clone()),
@@ -137,12 +122,32 @@ impl EntityDataDialog {
     pub async fn gather_data(
         entity_id: &EntityId,
         initial_data: &EntityData,
+        ignored_data_field_ty: impl IntoIterator<Item = EntityDataFieldTy>,
         parent: Option<&impl IsA<gtk::Widget>>,
     ) -> Result<EntityData, oneshot::Canceled> {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
         imp.window_title.set_subtitle(&entity_id.to_string());
+
+        let operation_mode = Application::get().settings().operation_mode();
+        let ignored_data_field_tys = ignored_data_field_ty.into_iter().collect::<HashSet<_>>();
+        for field_ty in EntityDataFieldTy::all() {
+            let widget = match field_ty {
+                EntityDataFieldTy::StockId => imp.stock_id_row.upcast_ref::<gtk::Widget>(),
+                EntityDataFieldTy::Location => imp.location_row.upcast_ref(),
+                EntityDataFieldTy::ExpirationDt => imp.expiration_dt_row.upcast_ref(),
+                EntityDataFieldTy::Photo => imp.photo_viewfinder_group.upcast_ref(),
+                EntityDataFieldTy::Name => imp.name_row.upcast_ref(),
+                EntityDataFieldTy::Sex => imp.sex_row.upcast_ref(),
+                EntityDataFieldTy::Email => imp.email_row.upcast_ref(),
+                EntityDataFieldTy::Program => imp.program_row.upcast_ref(),
+            };
+            widget.set_visible(
+                operation_mode.is_valid_entity_data_field_ty(*field_ty)
+                    && !ignored_data_field_tys.contains(field_ty),
+            );
+        }
 
         for field in initial_data.fields() {
             match field {
@@ -227,7 +232,6 @@ impl EntityDataDialog {
                     })
                     .flatten(),
                 imp.photo_viewfinder
-                    .borrow()
                     .capture_image()
                     .map(EntityDataField::Photo),
                 Some(imp.name_row.text().to_string())
@@ -260,7 +264,7 @@ impl EntityDataDialog {
         );
 
         if !operation_mode.is_valid_entity_data(&data) {
-            tracing::debug!(?operation_mode, "Invalid entity data: {:?}", data);
+            tracing::warn!(?operation_mode, "Invalid entity data: {:?}", data);
         }
 
         data

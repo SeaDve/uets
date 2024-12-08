@@ -319,8 +319,13 @@ impl Application {
         } else if self.settings().operation_mode() != OperationMode::Counter {
             tracing::debug!("Gathering entity data from user");
 
-            match EntityDataDialog::gather_data(entity_id, &EntityData::new(), Some(&self.window()))
-                .await
+            match EntityDataDialog::gather_data(
+                entity_id,
+                &EntityData::new(),
+                [],
+                Some(&self.window()),
+            )
+            .await
             {
                 Ok(data) => data,
                 Err(oneshot::Canceled) => {

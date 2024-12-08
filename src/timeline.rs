@@ -441,7 +441,7 @@ impl Timeline {
         Ok(item_kind)
     }
 
-    pub fn update_entity_data(&self, entity_id: &EntityId, entity_data: EntityData) -> Result<()> {
+    pub fn replace_entity_data(&self, entity_id: &EntityId, entity_data: EntityData) -> Result<()> {
         let entity = self
             .entity_list()
             .get(entity_id)

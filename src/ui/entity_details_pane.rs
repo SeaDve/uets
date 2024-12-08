@@ -77,6 +77,7 @@ mod imp {
                     let updated_data = match EntityDataDialog::gather_data(
                         entity.id(),
                         &entity.data(),
+                        [EntityDataFieldTy::StockId], // FIXME Allow changing stock ID
                         Some(&obj),
                     )
                     .await
@@ -89,7 +90,7 @@ mod imp {
 
                     if let Err(err) = Application::get()
                         .timeline()
-                        .update_entity_data(entity.id(), updated_data)
+                        .replace_entity_data(entity.id(), updated_data)
                     {
                         tracing::error!("Failed to update entity data: {:?}", err);
                     }
