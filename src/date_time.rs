@@ -28,6 +28,12 @@ pub mod format {
         }
     }
 
+    pub fn human_readable_date(dt: DateTime<Utc>) -> String {
+        let dt = dt.with_timezone(&Local);
+
+        dt.format("%b %-d %Y").to_string()
+    }
+
     pub fn fuzzy(dt: DateTime<Utc>) -> String {
         let dt = dt.with_timezone(&Local);
         let now = Local::now();

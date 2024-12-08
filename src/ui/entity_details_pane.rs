@@ -1,4 +1,5 @@
 use adw::{prelude::*, subclass::prelude::*};
+use chrono::Utc;
 use futures_channel::oneshot;
 use gtk::{
     gdk,
@@ -6,9 +7,10 @@ use gtk::{
 };
 
 use crate::{
+    date_time,
     date_time_range::DateTimeRange,
     entity::Entity,
-    entity_data::EntityDataFieldTy,
+    entity_data::{EntityDataField, EntityDataFieldTy},
     stock_id::StockId,
     ui::{entity_data_dialog::EntityDataDialog, information_row::InformationRow},
     Application,
@@ -286,7 +288,22 @@ impl EntityDetailsPane {
 
                 let row = InformationRow::new();
                 row.set_title(&field.ty().to_string());
-                row.set_value(field.to_string());
+
+                let value = match field {
+                    EntityDataField::ExpirationDt(dt) => {
+                        let date_fmt = date_time::format::human_readable_date(*dt);
+                        let date_fmt_escaped = glib::markup_escape_text(&date_fmt);
+
+                        if *dt < Utc::now() {
+                            format!("<span foreground=\"red\">{}</span>", date_fmt_escaped)
+                        } else {
+                            date_fmt_escaped.to_string()
+                        }
+                    }
+                    _ => glib::markup_escape_text(&field.to_string()).to_string(),
+                };
+                row.set_value_use_markup(true);
+                row.set_value(value);
 
                 imp.data_group.add(&row);
                 imp.data_group_rows.borrow_mut().push(row);
