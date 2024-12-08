@@ -13,6 +13,11 @@
           <attribute name="action">stocks-view.share-report</attribute>
           <attribute name="target">spreadsheet</attribute>
         </item>
+        <item>
+          <attribute name="label">Share As CSV</attribute>
+          <attribute name="action">stocks-view.share-report</attribute>
+          <attribute name="target">csv</attribute>
+        </item>
       </section>
     </menu>
     <property name="layout-manager">

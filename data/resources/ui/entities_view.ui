@@ -12,6 +12,11 @@
         <attribute name="action">entities-view.share-report</attribute>
         <attribute name="target">spreadsheet</attribute>
       </item>
+      <item>
+        <attribute name="label">Share As CSV</attribute>
+        <attribute name="action">entities-view.share-report</attribute>
+        <attribute name="target">csv</attribute>
+      </item>
     </section>
   </menu>
   <template class="UetsEntitiesView">

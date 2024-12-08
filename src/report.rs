@@ -12,6 +12,7 @@ pub fn file_name(title: &str, kind: ReportKind) -> String {
     let extension = match kind {
         ReportKind::Pdf => "pdf",
         ReportKind::Spreadsheet => "xlsx",
+        ReportKind::Csv => "csv",
     };
 
     format!("{title} ({timestamp}).{extension}")
@@ -30,6 +31,7 @@ pub fn builder(kind: ReportKind, title: impl Into<String>) -> ReportBuilder {
 pub enum ReportKind {
     Pdf,
     Spreadsheet,
+    Csv,
 }
 
 pub struct ReportBuilder {
@@ -58,6 +60,7 @@ impl ReportBuilder {
             let ret = match kind {
                 ReportKind::Pdf => pdf::build(self),
                 ReportKind::Spreadsheet => spreadsheet::build(self),
+                ReportKind::Csv => csv::build(self),
             };
 
             tracing::debug!("Built {:?} report in {:?}", kind, now.elapsed());
@@ -360,5 +363,38 @@ mod spreadsheet {
         }
 
         Ok(book.save_to_buffer()?)
+    }
+}
+
+mod csv {
+    use anyhow::Result;
+    use chrono::Local;
+    use csv::Writer;
+
+    use crate::{report::ReportBuilder, report_table::ReportTableCell};
+
+    pub fn build(b: ReportBuilder) -> Result<Vec<u8>> {
+        let mut bytes = Vec::new();
+
+        if let Some(t) = b.table {
+            let mut w = Writer::from_writer(&mut bytes);
+
+            w.write_record(t.columns)?;
+
+            for row in t.rows.into_iter() {
+                w.write_record(row.into_iter().map(|r| {
+                    match r {
+                        ReportTableCell::DateTime(dt) => dt
+                            .with_timezone(&Local)
+                            .format("%Y/%m/%d %H:%M:%S")
+                            .to_string(),
+                        ReportTableCell::U32(u32) => u32.to_string(),
+                        ReportTableCell::String(string) => string,
+                    }
+                }))?;
+            }
+        }
+
+        Ok(bytes)
     }
 }
