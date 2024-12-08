@@ -36,7 +36,7 @@ mod imp {
         pub(super) camera: RefCell<Option<Camera>>,
         pub(super) aux_cameras: RefCell<Vec<(Camera, Vec<glib::SignalHandlerId>)>>,
         pub(super) camera_last_detected: RefCell<Option<String>>,
-        pub(super) camera_last_detected_timeout: RefCell<Option<glib::SourceId>>,
+        pub(super) camera_last_detected_reset_timeout: RefCell<Option<glib::SourceId>>,
 
         pub(super) detected_wo_id_capture: RefCell<Option<(DateTimeBoxed, Option<JpegImage>)>>,
         pub(super) detected_wo_id_alert_timeout: RefCell<Option<glib::SourceId>>,
@@ -218,7 +218,7 @@ impl Detector {
                     }
 
                     imp.camera_last_detected.replace(Some(code.to_string()));
-                    obj.restart_camera_last_detected_timeout();
+                    obj.restart_camera_last_detected_reset_timeout();
                 }
             )),
             camera.connect_motion_detected(clone!(
@@ -303,10 +303,10 @@ impl Detector {
         }
     }
 
-    fn restart_camera_last_detected_timeout(&self) {
+    fn restart_camera_last_detected_reset_timeout(&self) {
         let imp = self.imp();
 
-        if let Some(source_id) = imp.camera_last_detected_timeout.take() {
+        if let Some(source_id) = imp.camera_last_detected_reset_timeout.take() {
             source_id.remove();
         }
 
@@ -317,13 +317,14 @@ impl Detector {
                 self,
                 move || {
                     let imp = obj.imp();
-                    imp.camera_last_detected_timeout.replace(None);
+                    imp.camera_last_detected_reset_timeout.replace(None);
 
                     imp.camera_last_detected.replace(None);
                 },
             ),
         );
-        imp.camera_last_detected_timeout.replace(Some(source_id));
+        imp.camera_last_detected_reset_timeout
+            .replace(Some(source_id));
     }
 }
 

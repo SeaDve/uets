@@ -17,6 +17,8 @@ const PORT: u16 = 8080;
 
 const SENSOR_REQUEST_INTERVAL: Duration = Duration::from_millis(200);
 
+const MOTION_ACTIVE_RESET_DELAY: Duration = Duration::from_secs(3);
+
 #[derive(Debug, Default, Clone, PartialEq, Eq, glib::Boxed)]
 #[boxed_type(name = "UetsCameraState")]
 pub enum CameraState {
@@ -58,8 +60,10 @@ mod imp {
         pub(super) pipeline: RefCell<Option<(gst::Pipeline, BusWatchGuard)>>,
         pub(super) ip_addr: RefCell<String>,
 
-        pub(super) motion_active: Cell<(u64, bool)>,
         pub(super) sensor_request_handle: RefCell<Option<glib::JoinHandle<()>>>,
+
+        pub(super) motion_active: Cell<Option<(u64, bool)>>,
+        pub(super) motion_active_reset_timeout: RefCell<Option<glib::SourceId>>,
     }
 
     #[glib::object_subclass]
@@ -321,20 +325,51 @@ impl Camera {
             .await
             .map_err(|err| err.into_inner())?;
 
-        let (prev_ts, prev_motion_active) = imp.motion_active.get();
         let (ts, motion_active) = data.motion_active.motion_active_latest()?;
 
-        if ts > prev_ts && motion_active != prev_motion_active {
-            imp.motion_active.set((ts, motion_active));
-
-            tracing::debug!(motion_active);
-
-            if motion_active && !prev_motion_active {
-                self.emit_by_name::<()>("motion-detected", &[]);
-            }
+        if imp
+            .motion_active
+            .get()
+            .is_some_and(|(prev_ts, prev_motion_active)| {
+                ts <= prev_ts || motion_active == prev_motion_active
+            })
+        {
+            return Ok(());
         }
 
+        tracing::debug!(motion_active);
+
+        if motion_active && imp.motion_active.get().map_or(true, |(_, active)| !active) {
+            self.emit_by_name::<()>("motion-detected", &[]);
+        }
+
+        imp.motion_active.set(Some((ts, motion_active)));
+        self.restart_motion_active_reset_timeout();
+
         Ok(())
+    }
+
+    fn restart_motion_active_reset_timeout(&self) {
+        let imp = self.imp();
+
+        if let Some(source_id) = imp.motion_active_reset_timeout.take() {
+            source_id.remove();
+        }
+
+        let source_id = glib::timeout_add_local_once(
+            MOTION_ACTIVE_RESET_DELAY,
+            clone!(
+                #[weak(rename_to = obj)]
+                self,
+                move || {
+                    let imp = obj.imp();
+                    imp.motion_active_reset_timeout.replace(None);
+
+                    imp.motion_active.replace(None);
+                },
+            ),
+        );
+        imp.motion_active_reset_timeout.replace(Some(source_id));
     }
 
     fn handle_bus_message(&self, message: &gst::Message) -> glib::ControlFlow {
