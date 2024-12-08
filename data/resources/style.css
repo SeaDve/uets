@@ -35,6 +35,10 @@ label.n-inside  {
 
 /* EntityPhotoGalleryCell */
 
+.entity-photo-gallery-cell-picture {
+    border-radius: 3px;
+}
+
 .entity-photo-gallery-cell-label {
     padding: 3px 6px;
     border-radius: 9999px;

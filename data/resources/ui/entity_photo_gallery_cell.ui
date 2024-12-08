@@ -11,6 +11,10 @@
             <property name="height-request">250</property>
             <property name="width-request">250</property>
             <property name="content-fit">cover</property>
+            <property name="overflow">hidden</property>
+            <style>
+              <class name="entity-photo-gallery-cell-picture"/>
+            </style>
           </object>
         </property>
         <child type="overlay">
