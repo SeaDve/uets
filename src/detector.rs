@@ -209,6 +209,8 @@ impl Detector {
                         return;
                     }
 
+                    tracing::debug!("Detected code: {}", code);
+
                     if let Some((id, data)) = entity_from_qrcode(code) {
                         obj.emit_detected(&id, Some(&data));
                     } else {
@@ -341,7 +343,7 @@ fn entity_from_qrifying_cea(code: &str) -> Option<(EntityId, EntityData)> {
         .operation_mode()
         .is_for_person()
     {
-        tracing::debug!("Operation mode is not for person");
+        tracing::trace!("Operation mode is not for person");
 
         return None;
     }
@@ -368,7 +370,7 @@ fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
         .operation_mode()
         .is_for_person()
     {
-        tracing::debug!("Operation mode is not for person");
+        tracing::trace!("Operation mode is not for person");
 
         return None;
     }

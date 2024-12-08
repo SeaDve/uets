@@ -354,7 +354,7 @@ impl Camera {
                     let symbol = structure.get::<String>("symbol").unwrap();
                     let symbol_type = structure.get::<String>("type").unwrap();
 
-                    tracing::debug!("Detected barcode: {} ({})", symbol, symbol_type);
+                    tracing::trace!("Detected barcode: {} ({})", symbol, symbol_type);
                     self.emit_by_name::<()>("code-detected", &[&symbol]);
                 }
 
