@@ -8,6 +8,7 @@ const char *HOST_NAME = "uets-relay";
 
 const int SERVER_PORT = 8888;
 
+const uint8_t LED_PIN = D2;
 const uint8_t RELAY_PIN = D3;
 
 ESP8266WebServer server(SERVER_PORT);
@@ -16,6 +17,7 @@ void handle_high()
 {
     Serial.println("Handling high");
 
+    digitalWrite(LED_PIN, HIGH);
     digitalWrite(RELAY_PIN, HIGH);
     server.send(200);
 }
@@ -24,6 +26,7 @@ void handle_low()
 {
     Serial.println("Handling low");
 
+    digitalWrite(LED_PIN, LOW);
     digitalWrite(RELAY_PIN, LOW);
     server.send(200);
 }
@@ -71,6 +74,7 @@ void setup()
 {
     Serial.begin(9600);
 
+    pinMode(LED_PIN, OUTPUT);
     pinMode(RELAY_PIN, OUTPUT);
 
     server_setup();
