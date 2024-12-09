@@ -574,19 +574,18 @@ impl EntitiesView {
         // Clear search filter so we can find the entity
         imp.search_entry.set_queries(SearchQueries::new());
 
-        let position = imp
-            .selection_model
-            .iter::<glib::Object>()
-            .position(|o| {
-                let entity = o.unwrap().downcast::<Entity>().unwrap();
-                entity.id() == entity_id
-            })
-            .expect("entity must exist") as u32;
+        let Some(position) = imp.selection_model.iter::<glib::Object>().position(|o| {
+            let entity = o.unwrap().downcast::<Entity>().unwrap();
+            entity.id() == entity_id
+        }) else {
+            tracing::warn!("Entity not found: {}", entity_id);
+            return;
+        };
 
-        imp.selection_model.set_selected(position);
+        imp.selection_model.set_selected(position as u32);
 
         imp.list_view
-            .activate_action("list.scroll-to-item", Some(&position.to_variant()))
+            .activate_action("list.scroll-to-item", Some(&(position as u32).to_variant()))
             .unwrap();
     }
 
