@@ -293,7 +293,16 @@ impl EntityDetailsPane {
         }
 
         if let Some(entity) = self.entity() {
-            for field in entity.data().fields() {
+            let entity_data = entity.data();
+            let mut fields = entity_data.fields().collect::<Vec<_>>();
+
+            let default_allowed_dt_range_field =
+                EntityDataField::AllowedDtRange(DateTimeRange::default());
+            if !entity_data.has_field(EntityDataFieldTy::AllowedDtRange) {
+                fields.push(&default_allowed_dt_range_field);
+            }
+
+            for field in fields {
                 if matches!(
                     field.ty(),
                     EntityDataFieldTy::StockId | EntityDataFieldTy::Photo

@@ -42,6 +42,7 @@ impl Timeline {
                     EntityDataFieldTy::ExpirationDt => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("expiration")
                     }),
+                    EntityDataFieldTy::AllowedDtRange => None, // TODO
                     EntityDataFieldTy::Photo => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("photo")
                     }),
@@ -92,6 +93,7 @@ impl Timeline {
                                     .ok()
                             })
                             .map(EntityDataField::ExpirationDt),
+                        EntityDataFieldTy::AllowedDtRange => None, // TODO
                         EntityDataFieldTy::Photo => row[idx]
                             .as_string()
                             .map(|s| JpegImage::from_base64(&s))

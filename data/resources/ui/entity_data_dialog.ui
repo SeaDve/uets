@@ -52,6 +52,16 @@
                   </object>
                 </child>
                 <child>
+                  <object class="AdwActionRow" id="allowed_dt_range_row">
+                    <property name="title">Allowed Date Range</property>
+                    <child type="suffix">
+                      <object class="UetsDateTimeRangeButton" id="allowed_dt_range_button">
+                        <property name="valign">center</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
                   <object class="AdwEntryRow" id="name_row">
                     <property name="title">Name</property>
                   </object>

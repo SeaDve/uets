@@ -666,6 +666,7 @@ impl EntitiesView {
                                 EntityDataField::ExpirationDt(dt) => {
                                     date_time::format::human_readable_date(*dt)
                                 }
+                                EntityDataField::AllowedDtRange(dt_range) => dt_range.to_string(),
                                 EntityDataField::Photo(_) => unreachable!(),
                                 EntityDataField::Name(n) => n.to_owned(),
                                 EntityDataField::Sex(s) => s.to_string(),
@@ -673,6 +674,9 @@ impl EntitiesView {
                                 EntityDataField::Program(p) => p.to_owned(),
                             };
                             cells.push(string.into());
+                        }
+                        None if matches!(field_ty, EntityDataFieldTy::AllowedDtRange) => {
+                            cells.push(DateTimeRange::default().to_string().into());
                         }
                         None => {
                             cells.push("".to_string().into());

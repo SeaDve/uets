@@ -5,7 +5,10 @@ use gtk::glib;
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{jpeg_image::JpegImage, settings::OperationMode, sex::Sex, stock_id::StockId};
+use crate::{
+    date_time_range::DateTimeRange, jpeg_image::JpegImage, settings::OperationMode, sex::Sex,
+    stock_id::StockId,
+};
 
 macro_rules! entity_data_field {
     ($($field:ident($ty:ty) => $display:expr),*) => {
@@ -55,6 +58,7 @@ entity_data_field! {
     StockId(StockId) => "Stock Name",
     Location(String) => "Location",
     ExpirationDt(DateTime<Utc>) => "Expiration Date",
+    AllowedDtRange(DateTimeRange) => "Allowed Date Range",
     Photo(JpegImage) => "Photo",
     Name(String) => "Name",
     Sex(Sex) => "Sex",
@@ -110,6 +114,7 @@ impl EntityData {
     entity_data_getter!(stock_id, StockId, &StockId);
     entity_data_getter!(location, Location, &String);
     entity_data_getter!(expiration_dt, ExpirationDt, &DateTime<Utc>);
+    entity_data_getter!(allowed_dt_range, AllowedDtRange, &DateTimeRange);
     entity_data_getter!(photo, Photo, &JpegImage);
     entity_data_getter!(name, Name, &String);
     entity_data_getter!(sex, Sex, &Sex);
@@ -144,6 +149,7 @@ impl ValidEntityFields {
         }
 
         let person_valid_entity_fields = &[
+            f!(EntityDataFieldTy::AllowedDtRange),
             f!(EntityDataFieldTy::Photo),
             f!(EntityDataFieldTy::Name),
             f!(EntityDataFieldTy::Sex),
@@ -154,19 +160,22 @@ impl ValidEntityFields {
             OperationMode::Counter => person_valid_entity_fields,
             OperationMode::Attendance => person_valid_entity_fields,
             OperationMode::Parking => &[
+                f!(EntityDataFieldTy::AllowedDtRange),
                 f!(EntityDataFieldTy::Photo),
                 f!(EntityDataFieldTy::Location),
             ],
             OperationMode::Inventory => &[
-                f!(EntityDataFieldTy::Photo),
                 f!(req EntityDataFieldTy::StockId),
                 f!(EntityDataFieldTy::Location),
                 f!(EntityDataFieldTy::ExpirationDt),
+                f!(EntityDataFieldTy::AllowedDtRange),
+                f!(EntityDataFieldTy::Photo),
             ],
             OperationMode::Refrigerator => &[
-                f!(EntityDataFieldTy::Photo),
                 f!(req EntityDataFieldTy::StockId),
                 f!(EntityDataFieldTy::ExpirationDt),
+                f!(EntityDataFieldTy::AllowedDtRange),
+                f!(EntityDataFieldTy::Photo),
             ],
         })
     }

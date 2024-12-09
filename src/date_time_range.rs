@@ -1,8 +1,11 @@
+use std::fmt;
+
 use chrono::{
     DateTime, Datelike, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Timelike,
     Utc, Weekday,
 };
-use gtk::glib;
+use gtk::{glib, pango};
+use serde::{Deserialize, Serialize};
 
 use crate::date_time;
 
@@ -11,11 +14,19 @@ const MIN_TIME: NaiveTime = NaiveTime::MIN;
 #[allow(deprecated)]
 const MAX_TIME: NaiveTime = NaiveTime::from_hms(23, 59, 59);
 
-#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, glib::Boxed)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, glib::Boxed)]
 #[boxed_type(name = "UetsDateTimeRange")]
 pub struct DateTimeRange {
     pub start: Option<DateTime<Utc>>,
     pub end: Option<DateTime<Utc>>,
+}
+
+impl fmt::Display for DateTimeRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (_, stripped, _) =
+            pango::parse_markup(&self.label_markup(), 0 as char).map_err(|_| fmt::Error)?;
+        write!(f, "{}", stripped)
+    }
 }
 
 impl DateTimeRange {

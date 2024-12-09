@@ -328,7 +328,7 @@ impl Timeline {
         &self,
         entity_id: &EntityId,
         entity_data: EntityData,
-    ) -> Result<TimelineItemKind> {
+    ) -> Result<TimelineItem> {
         let imp = self.imp();
 
         let entity = self
@@ -450,7 +450,7 @@ impl Timeline {
             });
         }
 
-        let (index, prev_value) = imp.list.borrow_mut().insert_full(now_dt, item);
+        let (index, prev_value) = imp.list.borrow_mut().insert_full(now_dt, item.clone());
         debug_assert_eq!(prev_value, None);
 
         self.entity_list().insert(entity);
@@ -468,7 +468,7 @@ impl Timeline {
 
         debug_assert!(imp.list.borrow().keys().is_sorted());
 
-        Ok(item_kind)
+        Ok(item)
     }
 
     pub fn replace_entity_data(&self, id: &EntityId, data: EntityData) -> Result<()> {

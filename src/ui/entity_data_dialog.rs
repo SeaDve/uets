@@ -12,7 +12,10 @@ use crate::{
     sex::Sex,
     stock::Stock,
     stock_id::StockId,
-    ui::{camera_viewfinder::CameraViewfinder, date_time_button::DateTimeButton},
+    ui::{
+        camera_viewfinder::CameraViewfinder, date_time_button::DateTimeButton,
+        date_time_range_button::DateTimeRangeButton,
+    },
     utils, Application,
 };
 
@@ -40,6 +43,10 @@ mod imp {
         pub(super) expiration_dt_row: TemplateChild<adw::ActionRow>,
         #[template_child]
         pub(super) expiration_dt_button: TemplateChild<DateTimeButton>,
+        #[template_child]
+        pub(super) allowed_dt_range_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub(super) allowed_dt_range_button: TemplateChild<DateTimeRangeButton>,
         #[template_child]
         pub(super) name_row: TemplateChild<adw::EntryRow>,
         #[template_child]
@@ -152,6 +159,7 @@ impl EntityDataDialog {
                 EntityDataFieldTy::StockId => imp.stock_id_group.upcast_ref::<gtk::Widget>(),
                 EntityDataFieldTy::Location => imp.location_row.upcast_ref(),
                 EntityDataFieldTy::ExpirationDt => imp.expiration_dt_row.upcast_ref(),
+                EntityDataFieldTy::AllowedDtRange => imp.allowed_dt_range_row.upcast_ref(),
                 EntityDataFieldTy::Photo => imp.photo_viewfinder_group.upcast_ref(),
                 EntityDataFieldTy::Name => imp.name_row.upcast_ref(),
                 EntityDataFieldTy::Sex => imp.sex_row.upcast_ref(),
@@ -187,6 +195,9 @@ impl EntityDataDialog {
                 }
                 EntityDataField::ExpirationDt(dt) => {
                     imp.expiration_dt_button.set_dt(Some(DateTimeBoxed(*dt)));
+                }
+                EntityDataField::AllowedDtRange(dt_range) => {
+                    imp.allowed_dt_range_button.set_range(dt_range);
                 }
                 EntityDataField::Photo(image) => {
                     imp.photo_viewfinder.set_capture_image(Some(image.clone()));
@@ -251,6 +262,14 @@ impl EntityDataDialog {
                         imp.expiration_dt_button
                             .dt()
                             .map(|dt| EntityDataField::ExpirationDt(dt.0))
+                    })
+                    .flatten(),
+                operation_mode
+                    .is_valid_entity_data_field_ty(EntityDataFieldTy::AllowedDtRange)
+                    .then(|| {
+                        Some(imp.allowed_dt_range_button.range())
+                            .filter(|range| !range.is_all_time())
+                            .map(EntityDataField::AllowedDtRange)
                     })
                     .flatten(),
                 imp.photo_viewfinder

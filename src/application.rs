@@ -13,6 +13,7 @@ use crate::{
     detected_wo_id_item::DetectedWoIdItem,
     detected_wo_id_list::DetectedWoIdList,
     detector::Detector,
+    entity::Entity,
     entity_data::EntityData,
     entity_entry_tracker::EntityIdSet,
     entity_id::EntityId,
@@ -252,12 +253,33 @@ mod imp {
                         match entity_ids.iter().collect::<Vec<_>>().as_slice() {
                             [] => return,
                             [id] => {
-                                obj.add_message_toast(&format!("“{}” overstayed", id));
+                                let entity = obj
+                                    .timeline()
+                                    .entity_list()
+                                    .get(id)
+                                    .expect("entity must exist");
+
+                                obj.add_message_toast(&format!(
+                                    "“{}” overstayed",
+                                    id_or_name(&entity)
+                                ));
                             }
                             [id1, id2] => {
+                                let entity1 = obj
+                                    .timeline()
+                                    .entity_list()
+                                    .get(id1)
+                                    .expect("entity must exist");
+                                let entity2 = obj
+                                    .timeline()
+                                    .entity_list()
+                                    .get(id2)
+                                    .expect("entity must exist");
+
                                 obj.add_message_toast(&format!(
                                     "“{}” and “{}” overstayed",
-                                    id1, id2
+                                    id_or_name(&entity1),
+                                    id_or_name(&entity2),
                                 ));
                             }
                             ids => {
@@ -400,8 +422,6 @@ impl Application {
     }
 
     async fn handle_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
-        Sound::DetectedSuccess.play();
-
         let timeline = self.timeline();
 
         let data = if let Some(data) = entity_data {
@@ -441,9 +461,9 @@ impl Application {
         // if it doesn't have a stock id.
         let entity_name = data.name().cloned();
         match timeline.handle_detected(entity_id, data) {
-            Ok(item_kind) => {
+            Ok(item) => {
                 if let Some(name) = entity_name {
-                    match item_kind {
+                    match item.kind() {
                         TimelineItemKind::Entry => {
                             self.add_message_toast_with_id(
                                 ToastId::Detected,
@@ -458,11 +478,36 @@ impl Application {
                         }
                     }
                 }
+
+                let entity = timeline
+                    .entity_list()
+                    .get(item.entity_id())
+                    .expect("entity must exist");
+
+                if !entity
+                    .data()
+                    .allowed_dt_range()
+                    .copied()
+                    .unwrap_or_default()
+                    .contains(item.dt())
+                    && item.kind().is_entry()
+                {
+                    self.add_message_toast_with_id(
+                        ToastId::Detected,
+                        &format!("“{}” is not allowed!", id_or_name(&entity)),
+                    );
+
+                    Sound::CriticalAlert.play();
+                } else {
+                    Sound::DetectedSuccess.play();
+                }
             }
             Err(err) => {
                 tracing::error!("Failed to handle entity: {:?}", err);
 
                 self.add_message_toast("Can't handle entity");
+
+                Sound::DetectedError.play();
             }
         }
     }
@@ -540,4 +585,11 @@ fn init_env() -> Result<(heed::Env, Timeline, DetectedWoIdList)> {
     let detected_wo_id_list = DetectedWoIdList::load_from_env(env.clone())?;
 
     Ok((env, timeline, detected_wo_id_list))
+}
+
+fn id_or_name(entity: &Entity) -> String {
+    entity
+        .data()
+        .name()
+        .map_or_else(|| entity.id().to_string(), |n| n.clone())
 }
