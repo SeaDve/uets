@@ -178,6 +178,7 @@ mod imp {
                     ];
                     if operation_mode == OperationMode::Refrigerator {
                         suggestions.push("Provide Filipino recipes based on the available stocks");
+                        suggestions.push("Which items should now be consumed or disposed immediately?");
                     }
                     if operation_mode.is_valid_entity_data_field_ty(EntityDataFieldTy::StockId) {
                         suggestions.push("Provide suggestions on replenishments");
