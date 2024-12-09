@@ -60,15 +60,23 @@ mod imp {
 
             let obj = self.obj();
 
-            Application::get()
-                .settings()
-                .connect_operation_mode_changed(clone!(
-                    #[weak]
-                    obj,
-                    move |_| {
-                        obj.update_status_label();
-                    }
-                ));
+            let app = Application::get();
+            let settings = app.settings();
+
+            settings.connect_operation_mode_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_status_label();
+                }
+            ));
+            settings.connect_max_entry_to_exit_duration_secs_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_status_label();
+                }
+            ));
 
             let entity_signals = glib::SignalGroup::new::<Entity>();
             entity_signals.connect_notify_local(
@@ -215,7 +223,9 @@ impl TimelineRow {
         if let Some(item) = &self.item() {
             let entity_id = item.entity_id();
 
-            let entity = Application::get()
+            let app = Application::get();
+
+            let entity = app
                 .timeline()
                 .entity_list()
                 .get(entity_id)
@@ -236,7 +246,9 @@ impl TimelineRow {
                 format!("<a href=\"{entity_uri}\">{entity_display}</a>")
             };
 
-            let operation_mode = Application::get().settings().operation_mode();
+            let settings = app.settings();
+            let operation_mode = settings.operation_mode();
+            let max_entry_to_exit_duration_secs = settings.max_entry_to_exit_duration_secs();
 
             let text = match item.kind() {
                 TimelineItemKind::Entry => {
@@ -246,11 +258,18 @@ impl TimelineRow {
                     let entry_to_exit_duration = item
                         .entry_to_exit_duration()
                         .expect("entry to exit duration must have been set on exit");
+                    let entry_to_exit_duration_formatted = format::duration(entry_to_exit_duration);
                     format!(
                         "<b>{}</b> {} after <i>{}</i> {}",
                         title,
                         operation_mode.exit_verb(),
-                        format::duration(entry_to_exit_duration),
+                        if entry_to_exit_duration.num_seconds().unsigned_abs()
+                            > max_entry_to_exit_duration_secs as u64
+                        {
+                            format::red_markup(&entry_to_exit_duration_formatted)
+                        } else {
+                            entry_to_exit_duration_formatted
+                        },
                         operation_mode.entry_to_exit_duration_suffix(),
                     )
                 }
