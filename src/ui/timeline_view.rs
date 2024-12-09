@@ -314,6 +314,8 @@ mod imp {
 
             obj.update_stack();
             obj.update_n_results_label();
+            obj.update_scroll_to_bottom_revealer_reveal_child();
+            obj.update_scroll_to_bottom_revealer_can_target();
         }
 
         fn dispose(&self) {

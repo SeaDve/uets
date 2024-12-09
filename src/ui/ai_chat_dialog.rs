@@ -15,7 +15,7 @@ const API_KEY: &str = "AIzaSyD6aJhtX0rjAHkvEkpzJGCobtsy5AL1_aY";
 const MODEL_NAME: &str = "gemini-1.5-flash-latest";
 
 mod imp {
-    use std::cell::OnceCell;
+    use std::cell::{Cell, OnceCell};
 
     use super::*;
 
@@ -31,6 +31,8 @@ mod imp {
         #[template_child]
         pub(super) message_list_box: TemplateChild<gtk::ListBox>,
         #[template_child]
+        pub(super) scroll_to_bottom_revealer: TemplateChild<gtk::Revealer>,
+        #[template_child]
         pub(super) suggestion_button: TemplateChild<gtk::MenuButton>,
         #[template_child]
         pub(super) suggestion_list_box: TemplateChild<gtk::ListBox>,
@@ -38,8 +40,10 @@ mod imp {
         pub(super) message_entry: TemplateChild<gtk::Entry>,
 
         pub(super) message_list: AiChatMessageList,
-
         pub(super) system_instruction: OnceCell<Option<String>>,
+
+        pub(super) is_sticky: Cell<bool>,
+        pub(super) is_auto_scrolling: Cell<bool>,
     }
 
     #[glib::object_subclass]
@@ -68,6 +72,9 @@ mod imp {
                     obj.handle_send_message(&message);
                 },
             );
+            klass.install_action("ai-chat-dialog.scroll-to-bottom", None, |obj, _, _| {
+                obj.scroll_to_bottom();
+            });
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -79,7 +86,58 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
+            self.is_sticky.set(true);
+
             let obj = self.obj();
+
+            let vadj = self.main_page.vadjustment();
+            vadj.connect_value_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    let imp = obj.imp();
+
+                    let is_at_bottom = obj.is_at_bottom();
+                    if imp.is_auto_scrolling.get() {
+                        if is_at_bottom {
+                            imp.is_auto_scrolling.set(false);
+                            imp.is_sticky.set(true);
+                        } else {
+                            obj.scroll_to_bottom();
+                        }
+                    } else {
+                        imp.is_sticky.set(is_at_bottom);
+                    }
+
+                    obj.update_scroll_to_bottom_revealer_reveal_child();
+                }
+            ));
+            vadj.connect_upper_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    let imp = obj.imp();
+
+                    if imp.is_sticky.get() {
+                        obj.scroll_to_bottom();
+                    }
+
+                    obj.update_scroll_to_bottom_revealer_reveal_child();
+                }
+            ));
+            vadj.connect_page_size_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    let imp = obj.imp();
+
+                    if imp.is_sticky.get() {
+                        obj.scroll_to_bottom();
+                    }
+
+                    obj.update_scroll_to_bottom_revealer_reveal_child();
+                }
+            ));
 
             self.message_list_box
                 .bind_model(Some(&self.message_list), |o| {
@@ -87,6 +145,15 @@ mod imp {
                     let row = AiChatMessageRow::new(message);
                     row.upcast()
                 });
+
+            self.scroll_to_bottom_revealer
+                .connect_child_revealed_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_scroll_to_bottom_revealer_can_target();
+                    }
+                ));
 
             self.suggestion_list_box.connect_row_activated(clone!(
                 #[weak]
@@ -126,6 +193,8 @@ mod imp {
 
             obj.update_stack();
             obj.update_send_message_action();
+            obj.update_scroll_to_bottom_revealer_reveal_child();
+            obj.update_scroll_to_bottom_revealer_can_target();
         }
 
         fn dispose(&self) {
@@ -163,6 +232,22 @@ impl AiChatDialog {
         }
 
         this
+    }
+
+    fn scroll_to_bottom(&self) {
+        let imp = self.imp();
+
+        imp.is_auto_scrolling.set(true);
+        imp.main_page.emit_scroll_child(gtk::ScrollType::End, false);
+
+        self.update_scroll_to_bottom_revealer_reveal_child();
+    }
+
+    fn is_at_bottom(&self) -> bool {
+        let imp = self.imp();
+
+        let vadj = imp.main_page.vadjustment();
+        vadj.value() + vadj.page_size() == vadj.upper()
     }
 
     fn handle_send_message(&self, text: &str) {
@@ -304,6 +389,20 @@ impl AiChatDialog {
                 .last()
                 .map_or(true, |message| message.is_loaded());
         self.action_set_enabled("ai-chat-dialog.send-message", is_enabled);
+    }
+
+    fn update_scroll_to_bottom_revealer_reveal_child(&self) {
+        let imp = self.imp();
+
+        imp.scroll_to_bottom_revealer
+            .set_reveal_child(!self.is_at_bottom() && !imp.is_auto_scrolling.get());
+    }
+
+    fn update_scroll_to_bottom_revealer_can_target(&self) {
+        let imp = self.imp();
+
+        imp.scroll_to_bottom_revealer
+            .set_can_target(imp.scroll_to_bottom_revealer.is_child_revealed());
     }
 }
 

@@ -21,29 +21,52 @@
           </object>
         </child>
         <property name="content">
-          <object class="GtkStack" id="stack">
-            <property name="transition-type">crossfade</property>
-            <child>
-              <object class="AdwStatusPage" id="empty_page">
-                <property name="title">Start Asking Queries</property>
-                <property name="description">This chat is powered by AI and provides information and assistance based on programmed knowledge and algorithms. It is not a substitute for professional advice. Always verify critical information independently.</property>
-                <style>
-                  <class name="compact"/>
-                </style>
-              </object>
-            </child>
-            <child>
-              <object class="GtkScrolledWindow" id="main_page">
-                <property name="propagate-natural-width">True</property>
-                <property name="propagate-natural-height">True</property>
-                <property name="hscrollbar-policy">never</property>
-                <property name="child">
-                  <object class="GtkListBox" id="message_list_box">
-                    <property name="margin-start">6</property>
-                    <property name="margin-end">6</property>
-                    <property name="selection-mode">none</property>
+          <object class="GtkOverlay">
+            <property name="child">
+              <object class="GtkStack" id="stack">
+                <property name="transition-type">crossfade</property>
+                <child>
+                  <object class="AdwStatusPage" id="empty_page">
+                    <property name="title">Start Asking Queries</property>
+                    <property name="description">This chat is powered by AI and provides information and assistance based on programmed knowledge and algorithms. It is not a substitute for professional advice. Always verify critical information independently.</property>
                     <style>
-                      <class name="background"/>
+                      <class name="compact"/>
+                    </style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkScrolledWindow" id="main_page">
+                    <property name="propagate-natural-width">True</property>
+                    <property name="propagate-natural-height">True</property>
+                    <property name="hscrollbar-policy">never</property>
+                    <property name="child">
+                      <object class="GtkListBox" id="message_list_box">
+                        <property name="margin-start">6</property>
+                        <property name="margin-end">6</property>
+                        <property name="selection-mode">none</property>
+                        <style>
+                          <class name="background"/>
+                        </style>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+              </object>
+            </property>
+            <child type="overlay">
+              <object class="GtkRevealer" id="scroll_to_bottom_revealer">
+                <property name="halign">end</property>
+                <property name="valign">end</property>
+                <property name="margin-end">18</property>
+                <property name="margin-bottom">18</property>
+                <property name="transition-type">crossfade</property>
+                <property name="child">
+                  <object class="GtkButton">
+                    <property name="icon-name">go-down-symbolic</property>
+                    <property name="action-name">ai-chat-dialog.scroll-to-bottom</property>
+                    <style>
+                      <class name="circular"/>
+                      <class name="osd"/>
                     </style>
                   </object>
                 </property>

@@ -38,7 +38,7 @@ Take note of the following contexts:
 
 Take note of the following instructions:
 - Use short sentences and avoid long paragraphs, breakdown into bullet points for each information,
-- When providing a response, consider the context of the data provided.
+- When providing a response, consider the data provided.
 - All given csv data are connected to each other, so make sure to consider all of them.
 "#;
 
@@ -161,10 +161,7 @@ mod imp {
                         csv_bytes_res_to_string("Stocks Data", stocks_csv),
                     ];
 
-                    let mut suggestions = vec![
-                        "Provide useful insights based on current data",
-                        "Predict future trends based on current data",
-                    ];
+                    let mut suggestions = vec!["Provide useful insights", "Predict future trends"];
                     if operation_mode == OperationMode::Refrigerator {
                         suggestions.push("Provide Filipino recipes based on the available stocks");
                     }
