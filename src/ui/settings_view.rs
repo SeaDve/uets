@@ -28,6 +28,8 @@ mod imp {
         #[template_child]
         pub(super) upper_limit_reached_threshold_row: TemplateChild<adw::SpinRow>,
         #[template_child]
+        pub(super) max_entry_to_exit_duration_row: TemplateChild<adw::SpinRow>,
+        #[template_child]
         pub(super) fullscreen_window_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub(super) show_test_window_button: TemplateChild<gtk::Button>,
@@ -112,6 +114,13 @@ mod imp {
             settings
                 .bind_upper_limit_reached_threshold(
                     &*self.upper_limit_reached_threshold_row,
+                    "value",
+                )
+                .build();
+
+            settings
+                .bind_max_entry_to_exit_duration_secs(
+                    &*self.max_entry_to_exit_duration_row,
                     "value",
                 )
                 .build();

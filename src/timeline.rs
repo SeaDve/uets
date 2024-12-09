@@ -11,6 +11,7 @@ use crate::{
     db::{self, EnvExt},
     entity::Entity,
     entity_data::EntityData,
+    entity_entry_tracker::EntityEntryTracker,
     entity_id::EntityId,
     entity_list::EntityList,
     log::Log,
@@ -62,6 +63,7 @@ mod imp {
 
         pub(super) entity_list: OnceCell<EntityList>,
         pub(super) stock_list: OnceCell<StockList>,
+        pub(super) entity_entry_tracker: EntityEntryTracker,
 
         pub(super) n_inside_log: RefCell<Log<u32>>,
         pub(super) max_n_inside_log: RefCell<Log<u32>>,
@@ -177,6 +179,12 @@ impl Timeline {
 
         this.setup_data();
 
+        for entity in this.entity_list().iter() {
+            if entity.is_inside() {
+                imp.entity_entry_tracker.handle_entry(entity.id());
+            }
+        }
+
         tracing::debug!("Loaded timeline in {:?}", start_time.elapsed());
 
         debug_assert!(imp.list.borrow().keys().is_sorted());
@@ -190,6 +198,10 @@ impl Timeline {
 
     pub fn stock_list(&self) -> &StockList {
         self.imp().stock_list.get().unwrap()
+    }
+
+    pub fn entity_entry_tracker(&self) -> &EntityEntryTracker {
+        &self.imp().entity_entry_tracker
     }
 
     pub fn get(&self, dt: &DateTime<Utc>) -> Option<TimelineItem> {
@@ -419,6 +431,12 @@ impl Timeline {
         self.entity_list().insert(entity);
         if let Some(stock) = stock {
             self.stock_list().insert(stock);
+        }
+
+        if item_kind.is_entry() {
+            imp.entity_entry_tracker.handle_entry(entity_id);
+        } else {
+            imp.entity_entry_tracker.handle_exit(entity_id);
         }
 
         self.items_changed(index as u32, 0, 1);

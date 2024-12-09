@@ -67,6 +67,19 @@
                 </property>
               </object>
             </child>
+            <child>
+              <object class="AdwSpinRow" id="max_entry_to_exit_duration_row">
+                <property name="title">Maximum Duration of Stay (Seconds)</property>
+                <property name="adjustment">
+                  <object class="GtkAdjustment">
+                    <property name="lower">1</property>
+                    <property name="upper">4294967295</property>
+                    <property name="step_increment">1</property>
+                    <property name="page_increment">10</property>
+                  </object>
+                </property>
+              </object>
+            </child>
           </object>
         </child>
         <child>

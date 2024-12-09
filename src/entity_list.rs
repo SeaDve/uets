@@ -66,6 +66,10 @@ impl EntityList {
         self.imp().list.borrow().get(id).cloned()
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = Entity> + '_ {
+        ListModelExtManual::iter(self).map(|item| item.unwrap())
+    }
+
     pub fn insert(&self, entity: Entity) -> bool {
         let imp = self.imp();
 

@@ -23,6 +23,7 @@ mod detected_wo_id_list;
 mod detector;
 mod entity;
 mod entity_data;
+mod entity_entry_tracker;
 mod entity_expiration;
 mod entity_id;
 mod entity_list;

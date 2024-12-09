@@ -14,6 +14,7 @@ use crate::{
     detected_wo_id_list::DetectedWoIdList,
     detector::Detector,
     entity_data::EntityData,
+    entity_entry_tracker::Overstayed,
     entity_id::EntityId,
     jpeg_image::JpegImage,
     limit_reached::{LimitReached, SettingsExt},
@@ -238,6 +239,38 @@ mod imp {
                     obj.alert_if_limit_reached();
                 }
             ));
+            obj.timeline()
+                .entity_entry_tracker()
+                .connect_overstayed(clone!(
+                    #[weak]
+                    obj,
+                    move |_, Overstayed(entity_ids)| {
+                        if entity_ids.is_empty() {
+                            return;
+                        }
+
+                        match entity_ids.iter().collect::<Vec<_>>().as_slice() {
+                            [] => return,
+                            [id] => {
+                                obj.add_message_toast(&format!("“{}” overstayed", id));
+                            }
+                            [id1, id2] => {
+                                obj.add_message_toast(&format!(
+                                    "“{}” and “{}” overstayed",
+                                    id1, id2
+                                ));
+                            }
+                            ids => {
+                                obj.add_message_toast(&format!(
+                                    "{} entities overstayed",
+                                    ids.len()
+                                ));
+                            }
+                        }
+
+                        Sound::CriticalAlert.play();
+                    }
+                ));
 
             obj.setup_actions();
             obj.setup_accels();

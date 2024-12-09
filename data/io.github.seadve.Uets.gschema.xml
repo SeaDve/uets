@@ -44,5 +44,8 @@
     <key name="n-inside-hook-threshold" type="u">
       <default>0</default>
     </key>
+    <key name="max-entry-to-exit-duration-secs" type="u">
+      <default>4294967295</default>
+    </key>
   </schema>
 </schemalist>
