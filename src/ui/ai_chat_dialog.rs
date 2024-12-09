@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::Result;
-use gtk::glib::{self, clone};
+use gtk::glib::{self, clone, closure_local};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -15,7 +15,12 @@ const API_KEY: &str = "AIzaSyD6aJhtX0rjAHkvEkpzJGCobtsy5AL1_aY";
 const MODEL_NAME: &str = "gemini-1.5-flash-latest";
 
 mod imp {
-    use std::cell::{Cell, OnceCell};
+    use std::{
+        cell::{Cell, OnceCell},
+        sync::OnceLock,
+    };
+
+    use glib::subclass::Signal;
 
     use super::*;
 
@@ -139,12 +144,29 @@ mod imp {
                 }
             ));
 
-            self.message_list_box
-                .bind_model(Some(&self.message_list), |o| {
-                    let message = o.downcast_ref::<AiChatMessage>().unwrap();
-                    let row = AiChatMessageRow::new(message);
-                    row.upcast()
-                });
+            self.message_list_box.bind_model(
+                Some(&self.message_list),
+                clone!(
+                    #[weak]
+                    obj,
+                    #[upgrade_or_panic]
+                    move |o| {
+                        let message = o.downcast_ref::<AiChatMessage>().unwrap();
+
+                        let row = AiChatMessageRow::new(message);
+                        row.connect_activate_link(clone!(
+                            #[weak]
+                            obj,
+                            #[upgrade_or_panic]
+                            move |_, uri| {
+                                obj.emit_by_name::<bool>("activate-link", &[&uri]).into()
+                            }
+                        ));
+
+                        row.upcast()
+                    }
+                ),
+            );
 
             self.scroll_to_bottom_revealer
                 .connect_child_revealed_notify(clone!(
@@ -200,6 +222,17 @@ mod imp {
         fn dispose(&self) {
             self.dispose_template();
         }
+
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
+
+            SIGNALS.get_or_init(|| {
+                vec![Signal::builder("activate-link")
+                    .param_types([String::static_type()])
+                    .return_type::<bool>()
+                    .build()]
+            })
+        }
     }
 
     impl WidgetImpl for AiChatDialog {}
@@ -233,6 +266,17 @@ impl AiChatDialog {
         }
 
         this
+    }
+
+    pub fn connect_activate_link<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &str) -> glib::Propagation + 'static,
+    {
+        self.connect_closure(
+            "activate-link",
+            false,
+            closure_local!(|obj: &Self, uri: &str| f(obj, uri)),
+        )
     }
 
     fn scroll_to_bottom(&self) {

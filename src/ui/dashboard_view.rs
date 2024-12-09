@@ -12,6 +12,7 @@ use crate::{
     limit_reached::{LimitReachedLabelExt, LimitReachedSettingsExt},
     report::ReportKind,
     settings::OperationMode,
+    stock_id::StockId,
     ui::{
         ai_chat_dialog::AiChatDialog,
         camera_live_feed_dialog::CameraLiveFeedDialog,
@@ -38,10 +39,12 @@ Take note of the following contexts:
 - Zone refers to whether the entity is inside or outside the location; don't refer to it as "zone", use different phrasings.
 
 Take note of the following instructions:
+- Use markdown format for the response.
 - Use short sentences and avoid long paragraphs, breakdown into bullet points for each information,
 - When providing a response, consider the data provided.
 - All given csv data are connected to each other, so make sure to consider all of them.
 - Don't refer to the entity as "entities", refer to them as "people", "item", "foods", "vehicles", "animals", or "objects", depending on the context or operation mode.
+- When mentioning any entity ids or stock ids, always make them a link via markdown format: `[entity_id](entity:entity_id)` or `[stock_id](stock:stock_id)`.
 "#;
 
 mod imp {
@@ -195,6 +198,28 @@ mod imp {
                         ),
                         suggestions,
                     );
+
+                    dialog.connect_activate_link(clone!(
+                        #[weak]
+                        obj,
+                        #[upgrade_or_panic]
+                        move |_, uri| {
+                            match uri.split_once(":") {
+                                Some(("entity", raw_id)) => {
+                                    let entity_id = EntityId::new(raw_id);
+                                    obj.emit_by_name::<()>("show-entity-request", &[&entity_id]);
+                                    glib::Propagation::Stop
+                                }
+                                Some(("stock", raw_id)) => {
+                                    let stock_id = StockId::new(raw_id);
+                                    obj.emit_by_name::<()>("show-stock-request", &[&stock_id]);
+                                    glib::Propagation::Stop
+                                }
+                                _ => glib::Propagation::Proceed,
+                            }
+                        }
+                    ));
+
                     dialog.present(Some(&obj));
                 },
             );
@@ -322,9 +347,14 @@ mod imp {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
 
             SIGNALS.get_or_init(|| {
-                vec![Signal::builder("show-entity-request")
-                    .param_types([EntityId::static_type()])
-                    .build()]
+                vec![
+                    Signal::builder("show-entity-request")
+                        .param_types([EntityId::static_type()])
+                        .build(),
+                    Signal::builder("show-stock-request")
+                        .param_types([StockId::static_type()])
+                        .build(),
+                ]
             })
         }
     }
@@ -350,6 +380,17 @@ impl DashboardView {
             "show-entity-request",
             false,
             closure_local!(|obj: &Self, id: &EntityId| f(obj, id)),
+        )
+    }
+
+    pub fn connect_show_stock_request<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &StockId) + 'static,
+    {
+        self.connect_closure(
+            "show-stock-request",
+            false,
+            closure_local!(|obj: &Self, id: &StockId| f(obj, id)),
         )
     }
 

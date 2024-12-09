@@ -87,6 +87,15 @@ mod imp {
                     imp.view_stack.set_visible_child_name("entities");
                 }
             ));
+            self.dashboard_view.connect_show_stock_request(clone!(
+                #[weak]
+                obj,
+                move |_, stock_id| {
+                    let imp = obj.imp();
+                    imp.stocks_view.show_stock(stock_id);
+                    imp.view_stack.set_visible_child_name("stocks");
+                }
+            ));
 
             self.stocks_view.connect_show_timeline_request(clone!(
                 #[weak]

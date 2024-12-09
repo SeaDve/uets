@@ -1,5 +1,5 @@
 use gtk::{
-    glib::{self, clone},
+    glib::{self, clone, closure_local},
     prelude::*,
     subclass::prelude::*,
 };
@@ -7,7 +7,12 @@ use gtk::{
 use crate::ai_chat_message::{AiChatMessage, AiChatMessageState, AiChatMessageTy};
 
 mod imp {
-    use std::cell::{OnceCell, RefCell};
+    use std::{
+        cell::{OnceCell, RefCell},
+        sync::OnceLock,
+    };
+
+    use glib::subclass::Signal;
 
     use super::*;
 
@@ -63,6 +68,20 @@ mod imp {
                 }
             }
 
+            self.ai_message_label.connect_activate_link(clone!(
+                #[weak]
+                obj,
+                #[upgrade_or_panic]
+                move |_, uri| obj.emit_by_name::<bool>("activate-link", &[&uri]).into()
+            ));
+
+            self.user_message_label.connect_activate_link(clone!(
+                #[weak]
+                obj,
+                #[upgrade_or_panic]
+                move |_, uri| obj.emit_by_name::<bool>("activate-link", &[&uri]).into()
+            ));
+
             obj.update_labels();
         }
 
@@ -72,6 +91,17 @@ mod imp {
             if let Some(handler_id) = self.message_state_notify_id.take() {
                 obj.message().disconnect(handler_id);
             }
+        }
+
+        fn signals() -> &'static [Signal] {
+            static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
+
+            SIGNALS.get_or_init(|| {
+                vec![Signal::builder("activate-link")
+                    .param_types([String::static_type()])
+                    .return_type::<bool>()
+                    .build()]
+            })
         }
     }
 
@@ -104,6 +134,17 @@ glib::wrapper! {
 impl AiChatMessageRow {
     pub fn new(message: &AiChatMessage) -> Self {
         glib::Object::builder().property("message", message).build()
+    }
+
+    pub fn connect_activate_link<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &str) -> glib::Propagation + 'static,
+    {
+        self.connect_closure(
+            "activate-link",
+            false,
+            closure_local!(|obj: &Self, uri: &str| f(obj, uri)),
+        )
     }
 
     fn update_labels(&self) {
