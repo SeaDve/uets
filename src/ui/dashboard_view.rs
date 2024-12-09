@@ -175,6 +175,7 @@ mod imp {
 
                     let mut suggestions = vec![
                         "What can you do?",
+                        "Summarize all data",
                         "Provide useful insights",
                         "Provide current data trends",
                         "Predict future trends",
