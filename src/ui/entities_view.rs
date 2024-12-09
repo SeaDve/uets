@@ -6,9 +6,10 @@ use gtk::{
 };
 
 use crate::{
+    date_time,
     date_time_range::DateTimeRange,
     entity::Entity,
-    entity_data::EntityDataFieldTy,
+    entity_data::{EntityDataField, EntityDataFieldTy, ValidEntityFields},
     entity_expiration::{EntityExpiration, EntityExpirationEntityExt},
     entity_id::EntityId,
     entity_list::EntityList,
@@ -573,32 +574,74 @@ impl EntitiesView {
             .map(|o| o.unwrap().downcast::<Entity>().unwrap())
             .collect::<Vec<_>>();
 
+        let operation_mode = Application::get().settings().operation_mode();
+        let valid_entity_field_tys = ValidEntityFields::for_operation_mode(operation_mode)
+            .iter()
+            .filter(|field_ty| {
+                !matches!(
+                    field_ty,
+                    EntityDataFieldTy::StockId | EntityDataFieldTy::Photo
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let mut table = report_table::builder("Entities")
+            .column("ID")
+            .column("Stock ID")
+            .column("Zone")
+            .rows(entities.iter().map(|entity| {
+                let stock_id = entity
+                    .stock_id()
+                    .map(|id| id.to_string())
+                    .unwrap_or_default();
+                let zone = if entity.is_inside_for_dt_range(&imp.dt_range.borrow()) {
+                    "Inside"
+                } else {
+                    "Outside"
+                };
+
+                let mut cells = report_table::row_builder()
+                    .cell(entity.id().to_string())
+                    .cell(stock_id)
+                    .cell(zone.to_string())
+                    .build();
+
+                let data = entity.data();
+                for field_ty in &valid_entity_field_tys {
+                    match data.get(*field_ty) {
+                        Some(field) => {
+                            let string = match field {
+                                EntityDataField::StockId(_) => unreachable!(),
+                                EntityDataField::Location(l) => l.to_owned(),
+                                EntityDataField::ExpirationDt(dt) => {
+                                    date_time::format::human_readable_date(*dt)
+                                }
+                                EntityDataField::Photo(_) => unreachable!(),
+                                EntityDataField::Name(n) => n.to_owned(),
+                                EntityDataField::Sex(s) => s.to_string(),
+                                EntityDataField::Email(e) => e.to_owned(),
+                                EntityDataField::Program(p) => p.to_owned(),
+                            };
+                            cells.push(string.into());
+                        }
+                        None => {
+                            cells.push("".to_string().into());
+                        }
+                    }
+                }
+
+                cells
+            }))
+            .build();
+
+        for field_ty in valid_entity_field_tys {
+            table.columns.push(field_ty.to_string());
+        }
+
         report::builder(kind, "Entities Report")
             .prop("Total Entities", entities.len())
             .prop("Search Query", imp.search_entry.queries())
-            .table(
-                report_table::builder("Entities")
-                    .column("ID")
-                    .column("Stock ID")
-                    .column("Zone")
-                    .rows(entities.iter().map(|entity| {
-                        let stock_id = entity
-                            .stock_id()
-                            .map(|id| id.to_string())
-                            .unwrap_or_default();
-                        let zone = if entity.is_inside_for_dt_range(&imp.dt_range.borrow()) {
-                            "Inside"
-                        } else {
-                            "Outside"
-                        };
-                        report_table::row_builder()
-                            .cell(entity.id().to_string())
-                            .cell(stock_id)
-                            .cell(zone.to_string())
-                            .build()
-                    }))
-                    .build(),
-            )
+            .table(table)
             .build()
             .await
     }

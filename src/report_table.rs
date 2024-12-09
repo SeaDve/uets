@@ -64,33 +64,6 @@ impl ReportTableBuilder {
     }
 
     pub fn build(self) -> ReportTable {
-        debug_assert!(self
-            .rows
-            .iter()
-            .all(|cells| cells.len() == self.columns.len()));
-
-        debug_assert!(self
-            .graphs
-            .iter()
-            .all(|(_, dt_col_idx, val_col_idx)| dt_col_idx != val_col_idx));
-        debug_assert!(self
-            .graphs
-            .iter()
-            .all(|(_, dt_col_idx, _)| *dt_col_idx < self.columns.len()));
-        debug_assert!(self
-            .graphs
-            .iter()
-            .all(|(_, _, val_col_idx)| *val_col_idx < self.columns.len()));
-
-        debug_assert!(self
-            .graphs
-            .iter()
-            .all(|(_, dt_col_idx, _)| self.rows.iter().all(|row| row[*dt_col_idx].is_date())));
-        debug_assert!(self
-            .graphs
-            .iter()
-            .all(|(_, _, val_col_idx)| self.rows.iter().all(|row| row[*val_col_idx].is_u32())));
-
         ReportTable {
             title: self.title,
             columns: self.columns,

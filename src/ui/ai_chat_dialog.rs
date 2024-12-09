@@ -11,7 +11,7 @@ use crate::{
     ui::ai_chat_message_row::AiChatMessageRow,
 };
 
-const API_KEY: &str = "";
+const API_KEY: &str = "AIzaSyD6aJhtX0rjAHkvEkpzJGCobtsy5AL1_aY";
 const MODEL_NAME: &str = "gemini-1.5-flash-latest";
 
 mod imp {

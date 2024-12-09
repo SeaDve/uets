@@ -48,6 +48,32 @@ impl ReportBuilder {
     }
 
     pub fn table(mut self, table: ReportTable) -> Self {
+        debug_assert!(table
+            .rows
+            .iter()
+            .all(|cells| cells.len() == table.columns.len()));
+        debug_assert!(table
+            .graphs
+            .iter()
+            .all(|(_, dt_col_idx, val_col_idx)| dt_col_idx != val_col_idx));
+        debug_assert!(table
+            .graphs
+            .iter()
+            .all(|(_, dt_col_idx, _)| *dt_col_idx < table.columns.len()));
+        debug_assert!(table
+            .graphs
+            .iter()
+            .all(|(_, _, val_col_idx)| *val_col_idx < table.columns.len()));
+
+        debug_assert!(table
+            .graphs
+            .iter()
+            .all(|(_, dt_col_idx, _)| table.rows.iter().all(|row| row[*dt_col_idx].is_date())));
+        debug_assert!(table
+            .graphs
+            .iter()
+            .all(|(_, _, val_col_idx)| table.rows.iter().all(|row| row[*val_col_idx].is_u32())));
+
         self.table = Some(table);
         self
     }

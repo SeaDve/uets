@@ -90,6 +90,10 @@ impl EntityData {
         self.0.contains_key(&field_ty)
     }
 
+    pub fn get(&self, field_ty: EntityDataFieldTy) -> Option<&EntityDataField> {
+        self.0.get(&field_ty)
+    }
+
     pub fn fields(&self) -> impl Iterator<Item = &EntityDataField> + '_ {
         self.0.values()
     }
@@ -169,6 +173,10 @@ impl ValidEntityFields {
 
     pub fn contains(&self, field: EntityDataFieldTy) -> bool {
         self.0.iter().any(|&(f, _)| f == field)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = EntityDataFieldTy> + '_ {
+        self.0.iter().map(|&(ty, _)| ty)
     }
 
     pub fn is_valid_entity_data(&self, entity_data: &EntityData) -> bool {
