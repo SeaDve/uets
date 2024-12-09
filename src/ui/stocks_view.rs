@@ -39,7 +39,6 @@ impl S {
         Self::LOWER_LIMIT_REACHED,
         Self::UPPER_LIMIT_REACHED,
     ];
-
     const LIMIT_REACHED: &str = "limit-reached";
     const LOWER_LIMIT_REACHED: &str = "lower-limit-reached";
     const UPPER_LIMIT_REACHED: &str = "upper-limit-reached";
@@ -584,9 +583,7 @@ impl StocksView {
 
         match selected_item.value().try_into().unwrap() {
             LimitReachedFilter::All => {
-                queries.remove_all(S::IS, S::LIMIT_REACHED);
-                queries.remove_all(S::IS, S::LOWER_LIMIT_REACHED);
-                queries.remove_all(S::IS, S::UPPER_LIMIT_REACHED);
+                queries.remove_all(S::IS, S::LIMIT_REACHED_VALUES);
             }
             LimitReachedFilter::LimitReached => {
                 queries.replace_all_or_insert(S::IS, S::LIMIT_REACHED_VALUES, S::LIMIT_REACHED);

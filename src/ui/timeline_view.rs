@@ -30,6 +30,7 @@ struct S;
 impl S {
     const IS: &str = "is";
 
+    const ITEM_KIND_VALUES: &[&str] = &[Self::ENTRY, Self::EXIT];
     const ENTRY: &str = "entry";
     const EXIT: &str = "exit";
 
@@ -481,7 +482,7 @@ impl TimelineView {
 
         let queries = entry.queries();
 
-        let item_kind = match queries.find_last_with_values(S::IS, &[S::ENTRY, S::EXIT]) {
+        let item_kind = match queries.find_last_with_values(S::IS, S::ITEM_KIND_VALUES) {
             Some(S::ENTRY) => TimelineItemKindFilter::Entry,
             Some(S::EXIT) => TimelineItemKindFilter::Exit,
             None => TimelineItemKindFilter::All,
@@ -586,14 +587,13 @@ impl TimelineView {
 
         match selected_item.value().try_into().unwrap() {
             TimelineItemKindFilter::All => {
-                queries.remove_all(S::IS, S::ENTRY);
-                queries.remove_all(S::IS, S::EXIT);
+                queries.remove_all(S::IS, S::ITEM_KIND_VALUES);
             }
             TimelineItemKindFilter::Entry => {
-                queries.replace_all_or_insert(S::IS, &[S::EXIT], S::ENTRY);
+                queries.replace_all_or_insert(S::IS, S::ITEM_KIND_VALUES, S::ENTRY);
             }
             TimelineItemKindFilter::Exit => {
-                queries.replace_all_or_insert(S::IS, &[S::ENTRY], S::EXIT);
+                queries.replace_all_or_insert(S::IS, S::ITEM_KIND_VALUES, S::EXIT);
             }
         }
 

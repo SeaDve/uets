@@ -62,6 +62,9 @@
                   <object class="GtkDropDown" id="entity_expiration_dropdown"/>
                 </child>
                 <child>
+                  <object class="GtkDropDown" id="entity_sex_dropdown"/>
+                </child>
+                <child>
                   <object class="UetsDateTimeRangeButton" id="dt_range_button"/>
                 </child>
                 <child>

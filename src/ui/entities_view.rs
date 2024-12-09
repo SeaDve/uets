@@ -32,8 +32,13 @@ struct S;
 impl S {
     const IS: &str = "is";
 
+    const ENTITY_ZONE_VALUES: &[&str] = &[Self::INSIDE, Self::OUTSIDE];
     const INSIDE: &str = "inside";
     const OUTSIDE: &str = "outside";
+
+    const ENTITY_SEX_VALUES: &[&str] = &[Self::MALE, Self::FEMALE];
+    const MALE: &str = "male";
+    const FEMALE: &str = "female";
 
     const ENTITY_EXPIRATION_VALUES: &[&str] = &[
         Self::NO_EXPIRATION,
@@ -42,7 +47,6 @@ impl S {
         Self::EXPIRED,
         Self::EXPIRING_OR_EXPIRED,
     ];
-
     const NO_EXPIRATION: &str = "no-expiration";
     const NOT_EXPIRING: &str = "not-expiring";
     const EXPIRING: &str = "expiring";
@@ -108,6 +112,16 @@ impl EntityExpirationFilter {
     }
 }
 
+#[derive(Debug, Clone, Copy, glib::Enum)]
+#[enum_type(name = "UetsEntitySexFilter")]
+enum EntitySexFilter {
+    All,
+    Male,
+    Female,
+}
+
+list_model_enum!(EntitySexFilter);
+
 #[derive(Debug, Default, Clone, Copy, glib::Enum)]
 #[enum_type(name = "UetsEntitySort")]
 enum EntitySort {
@@ -164,6 +178,8 @@ mod imp {
         #[template_child]
         pub(super) entity_expiration_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
+        pub(super) entity_sex_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
         pub(super) dt_range_button: TemplateChild<DateTimeRangeButton>,
         #[template_child]
         pub(super) entity_sort_dropdown: TemplateChild<gtk::DropDown>,
@@ -184,6 +200,7 @@ mod imp {
 
         pub(super) entity_zone_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) entity_expiration_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
+        pub(super) entity_sex_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) dt_range_button_range_notify_id: OnceCell<glib::SignalHandlerId>,
         pub(super) entity_sort_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
 
@@ -229,6 +246,7 @@ mod imp {
                     obj,
                     move |_| {
                         obj.update_entity_expiration_dropdown_visibility();
+                        obj.update_entity_sex_dropdown_visibility();
                     }
                 ));
 
@@ -279,6 +297,23 @@ mod imp {
                 ));
             self.entity_expiration_dropdown_selected_item_id
                 .set(entity_expiration_dropdown_selected_item_notify_id)
+                .unwrap();
+
+            self.entity_sex_dropdown
+                .set_expression(Some(&adw::EnumListItem::this_expression("name")));
+            self.entity_sex_dropdown
+                .set_model(Some(&EntitySexFilter::new_model()));
+            let entity_sex_dropdown_selected_item_notify_id = self
+                .entity_sex_dropdown
+                .connect_selected_item_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |dropdown| {
+                        obj.handle_entity_sex_dropdown_selected_item_notify(dropdown);
+                    }
+                ));
+            self.entity_sex_dropdown_selected_item_id
+                .set(entity_sex_dropdown_selected_item_notify_id)
                 .unwrap();
 
             let dt_range_button_range_notify_id =
@@ -421,6 +456,7 @@ mod imp {
 
             obj.update_fallback_sorter();
             obj.update_entity_expiration_dropdown_visibility();
+            obj.update_entity_sex_dropdown_visibility();
             obj.update_stack();
             obj.update_n_results_label();
         }
@@ -620,6 +656,21 @@ impl EntitiesView {
         imp.entity_expiration_dropdown
             .unblock_signal(selected_item_notify_id);
 
+        let entity_sex = match queries.find_last_with_values(S::IS, S::ENTITY_SEX_VALUES) {
+            Some(S::MALE) => EntitySexFilter::Male,
+            Some(S::FEMALE) => EntitySexFilter::Female,
+            None => EntitySexFilter::All,
+            Some(_) => unreachable!(),
+        };
+
+        let selected_item_notify_id = imp.entity_sex_dropdown_selected_item_id.get().unwrap();
+        imp.entity_sex_dropdown
+            .block_signal(selected_item_notify_id);
+        imp.entity_sex_dropdown
+            .set_selected(entity_sex.model_position());
+        imp.entity_sex_dropdown
+            .unblock_signal(selected_item_notify_id);
+
         let dt_range = queries.dt_range(S::FROM, S::TO);
 
         let dt_range_button_range_notify_id = imp.dt_range_button_range_notify_id.get().unwrap();
@@ -699,6 +750,20 @@ impl EntitiesView {
             }
         }
 
+        match entity_sex {
+            EntitySexFilter::All => {}
+            EntitySexFilter::Male => {
+                every_filter.append(new_filter(move |entity: &Entity| {
+                    entity.data().sex().is_some_and(|s| s.is_male())
+                }));
+            }
+            EntitySexFilter::Female => {
+                every_filter.append(new_filter(move |entity: &Entity| {
+                    entity.data().sex().is_some_and(|s| s.is_female())
+                }));
+            }
+        }
+
         let any_stock_filter = gtk::AnyFilter::new();
         for stock_id in queries.all_values(S::STOCK).into_iter().map(StockId::new) {
             any_stock_filter.append(new_filter(move |entity: &Entity| {
@@ -730,14 +795,13 @@ impl EntitiesView {
 
         match selected_item.value().try_into().unwrap() {
             EntityZoneFilter::All => {
-                queries.remove_all(S::IS, S::INSIDE);
-                queries.remove_all(S::IS, S::OUTSIDE);
+                queries.remove_all(S::IS, S::ENTITY_ZONE_VALUES);
             }
             EntityZoneFilter::Inside => {
-                queries.replace_all_or_insert(S::IS, &[S::OUTSIDE], S::INSIDE);
+                queries.replace_all_or_insert(S::IS, S::ENTITY_ZONE_VALUES, S::INSIDE);
             }
             EntityZoneFilter::Outside => {
-                queries.replace_all_or_insert(S::IS, &[S::INSIDE], S::OUTSIDE);
+                queries.replace_all_or_insert(S::IS, S::ENTITY_ZONE_VALUES, S::OUTSIDE);
             }
         }
 
@@ -757,11 +821,7 @@ impl EntitiesView {
 
         match selected_item.value().try_into().unwrap() {
             EntityExpirationFilter::All => {
-                queries.remove_all(S::IS, S::NO_EXPIRATION);
-                queries.remove_all(S::IS, S::NOT_EXPIRING);
-                queries.remove_all(S::IS, S::EXPIRING);
-                queries.remove_all(S::IS, S::EXPIRED);
-                queries.remove_all(S::IS, S::EXPIRING_OR_EXPIRED);
+                queries.remove_all(S::IS, S::ENTITY_EXPIRATION_VALUES);
             }
             EntityExpirationFilter::NoExpiration => {
                 queries.replace_all_or_insert(S::IS, S::ENTITY_EXPIRATION_VALUES, S::NO_EXPIRATION);
@@ -781,6 +841,32 @@ impl EntitiesView {
                     S::ENTITY_EXPIRATION_VALUES,
                     S::EXPIRING_OR_EXPIRED,
                 );
+            }
+        }
+
+        imp.search_entry.set_queries(queries);
+    }
+
+    fn handle_entity_sex_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
+        let imp = self.imp();
+
+        let selected_item = dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+
+        let mut queries = imp.search_entry.queries();
+
+        match selected_item.value().try_into().unwrap() {
+            EntitySexFilter::All => {
+                queries.remove_all(S::IS, S::ENTITY_SEX_VALUES);
+            }
+            EntitySexFilter::Male => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_SEX_VALUES, S::MALE);
+            }
+            EntitySexFilter::Female => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_SEX_VALUES, S::FEMALE);
             }
         }
 
@@ -884,6 +970,16 @@ impl EntitiesView {
             .operation_mode()
             .is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt);
         imp.entity_expiration_dropdown.set_visible(is_visible);
+    }
+
+    fn update_entity_sex_dropdown_visibility(&self) {
+        let imp = self.imp();
+
+        let is_visible = Application::get()
+            .settings()
+            .operation_mode()
+            .is_valid_entity_data_field_ty(EntityDataFieldTy::Sex);
+        imp.entity_sex_dropdown.set_visible(is_visible);
     }
 
     fn update_stack(&self) {

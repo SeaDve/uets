@@ -10,6 +10,16 @@ pub enum Sex {
     Female,
 }
 
+impl Sex {
+    pub fn is_male(&self) -> bool {
+        matches!(self, Self::Male)
+    }
+
+    pub fn is_female(&self) -> bool {
+        matches!(self, Self::Female)
+    }
+}
+
 impl fmt::Display for Sex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
