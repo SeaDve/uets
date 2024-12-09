@@ -777,6 +777,8 @@ impl EntitiesView {
 
         if queries.is_empty() {
             imp.filter_list_model.set_filter(gtk::Filter::NONE);
+            self.update_fallback_sorter();
+            self.update_n_results_label();
             return;
         }
 

@@ -560,6 +560,8 @@ impl StocksView {
 
         if queries.is_empty() {
             imp.filter_list_model.set_filter(gtk::Filter::NONE);
+            self.update_fallback_sorter();
+            self.update_n_results_label();
             return;
         }
 
@@ -610,9 +612,6 @@ impl StocksView {
         };
 
         imp.filter_list_model.set_filter(Some(&every_filter));
-
-        self.update_fallback_sorter();
-        self.update_n_results_label();
     }
 
     fn handle_limit_reached_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
