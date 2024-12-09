@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::Utc;
 use gtk::{
     glib::{self, clone, closure, closure_local},
     prelude::*,
@@ -13,6 +14,7 @@ use crate::{
     entity_expiration::{EntityExpiration, EntityExpirationEntityExt},
     entity_id::EntityId,
     entity_list::EntityList,
+    format,
     fuzzy_filter::FuzzyFilter,
     list_model_enum,
     report::{self, ReportKind},
@@ -627,9 +629,25 @@ impl EntitiesView {
                     .map(|id| id.to_string())
                     .unwrap_or_default();
                 let zone = if entity.is_inside_for_dt_range(&imp.dt_range.borrow()) {
-                    "Inside"
+                    let last_action_dt = entity.last_action_dt().expect("last action must exist");
+                    let duration_start = if let Some(start) = imp.dt_range.borrow().start {
+                        start.max(last_action_dt)
+                    } else {
+                        last_action_dt
+                    };
+
+                    let duration_end = if let Some(end) = imp.dt_range.borrow().end {
+                        end
+                    } else {
+                        Utc::now()
+                    };
+
+                    format!(
+                        "Inside ({})",
+                        format::duration(duration_end - duration_start)
+                    )
                 } else {
-                    "Outside"
+                    "Outside".into()
                 };
 
                 let mut cells = report_table::row_builder()
