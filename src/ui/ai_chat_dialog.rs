@@ -226,6 +226,7 @@ impl AiChatDialog {
         for suggestion in suggestions {
             let button = gtk::Label::builder()
                 .label(suggestion.into())
+                .wrap(true)
                 .xalign(0.0)
                 .build();
             imp.suggestion_list_box.append(&button);
