@@ -8,6 +8,8 @@ use gtk::{
 use crate::{
     date_time_range::DateTimeRange,
     entity::Entity,
+    entity_data::EntityDataFieldTy,
+    entity_expiration::{EntityExpiration, EntityExpirationEntityExt},
     entity_id::EntityId,
     entity_list::EntityList,
     fuzzy_filter::FuzzyFilter,
@@ -32,6 +34,20 @@ impl S {
 
     const INSIDE: &str = "inside";
     const OUTSIDE: &str = "outside";
+
+    const ENTITY_EXPIRATION_VALUES: &[&str] = &[
+        Self::NO_EXPIRATION,
+        Self::NOT_EXPIRING,
+        Self::EXPIRING,
+        Self::EXPIRED,
+        Self::EXPIRING_OR_EXPIRED,
+    ];
+
+    const NO_EXPIRATION: &str = "no-expiration";
+    const NOT_EXPIRING: &str = "not-expiring";
+    const EXPIRING: &str = "expiring";
+    const EXPIRED: &str = "expired";
+    const EXPIRING_OR_EXPIRED: &str = "expiring-or-expired";
 
     const FROM: &str = "from";
     const TO: &str = "to";
@@ -65,6 +81,32 @@ enum EntityZoneFilter {
 }
 
 list_model_enum!(EntityZoneFilter);
+
+#[derive(Debug, Clone, Copy, glib::Enum)]
+#[enum_type(name = "UetsEntityExpirationStateFilter")]
+enum EntityExpirationFilter {
+    All,
+    NoExpiration,
+    NotExpiring,
+    Expiring,
+    Expired,
+    ExpiringOrExpired,
+}
+
+list_model_enum!(EntityExpirationFilter);
+
+impl EntityExpirationFilter {
+    fn display(&self) -> &'static str {
+        match self {
+            Self::All => "All",
+            Self::NoExpiration => "No Expiration",
+            Self::NotExpiring => "Not Expiring",
+            Self::Expiring => "Expiring",
+            Self::Expired => "Expired",
+            Self::ExpiringOrExpired => "Expiring or Expired",
+        }
+    }
+}
 
 #[derive(Debug, Default, Clone, Copy, glib::Enum)]
 #[enum_type(name = "UetsEntitySort")]
@@ -120,6 +162,8 @@ mod imp {
         #[template_child]
         pub(super) entity_zone_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
+        pub(super) entity_expiration_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
         pub(super) dt_range_button: TemplateChild<DateTimeRangeButton>,
         #[template_child]
         pub(super) entity_sort_dropdown: TemplateChild<gtk::DropDown>,
@@ -139,6 +183,7 @@ mod imp {
         pub(super) dt_range: RefCell<DateTimeRange>,
 
         pub(super) entity_zone_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
+        pub(super) entity_expiration_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) dt_range_button_range_notify_id: OnceCell<glib::SignalHandlerId>,
         pub(super) entity_sort_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
 
@@ -177,6 +222,16 @@ mod imp {
 
             let obj = self.obj();
 
+            Application::get()
+                .settings()
+                .connect_operation_mode_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_entity_expiration_dropdown_visibility();
+                    }
+                ));
+
             self.search_entry.connect_search_changed(clone!(
                 #[weak]
                 obj,
@@ -200,6 +255,30 @@ mod imp {
                 ));
             self.entity_zone_dropdown_selected_item_id
                 .set(entity_zone_dropdown_selected_item_notify_id)
+                .unwrap();
+
+            self.entity_expiration_dropdown
+                .set_expression(Some(&gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|list_item: adw::EnumListItem| {
+                        EntityExpirationFilter::try_from(list_item.value())
+                            .unwrap()
+                            .display()
+                    }),
+                )));
+            self.entity_expiration_dropdown
+                .set_model(Some(&EntityExpirationFilter::new_model()));
+            let entity_expiration_dropdown_selected_item_notify_id = self
+                .entity_expiration_dropdown
+                .connect_selected_item_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |dropdown| {
+                        obj.handle_entity_expiration_dropdown_selected_item_notify(dropdown);
+                    }
+                ));
+            self.entity_expiration_dropdown_selected_item_id
+                .set(entity_expiration_dropdown_selected_item_notify_id)
                 .unwrap();
 
             let dt_range_button_range_notify_id =
@@ -337,6 +416,7 @@ mod imp {
             self.fuzzy_filter.set(fuzzy_filter).unwrap();
 
             obj.update_fallback_sorter();
+            obj.update_entity_expiration_dropdown_visibility();
             obj.update_stack();
             obj.update_n_results_label();
         }
@@ -502,7 +582,8 @@ impl EntitiesView {
         let entity_zone = match queries.find_last_with_values(S::IS, &[S::INSIDE, S::OUTSIDE]) {
             Some(S::INSIDE) => EntityZoneFilter::Inside,
             Some(S::OUTSIDE) => EntityZoneFilter::Outside,
-            _ => EntityZoneFilter::All,
+            None => EntityZoneFilter::All,
+            Some(_) => unreachable!(),
         };
 
         let selected_item_notify_id = imp.entity_zone_dropdown_selected_item_id.get().unwrap();
@@ -511,6 +592,28 @@ impl EntitiesView {
         imp.entity_zone_dropdown
             .set_selected(entity_zone.model_position());
         imp.entity_zone_dropdown
+            .unblock_signal(selected_item_notify_id);
+
+        let entity_expiration =
+            match queries.find_last_with_values(S::IS, S::ENTITY_EXPIRATION_VALUES) {
+                Some(S::NO_EXPIRATION) => EntityExpirationFilter::NoExpiration,
+                Some(S::NOT_EXPIRING) => EntityExpirationFilter::NotExpiring,
+                Some(S::EXPIRING) => EntityExpirationFilter::Expiring,
+                Some(S::EXPIRED) => EntityExpirationFilter::Expired,
+                Some(S::EXPIRING_OR_EXPIRED) => EntityExpirationFilter::ExpiringOrExpired,
+                None => EntityExpirationFilter::All,
+                Some(_) => unreachable!(),
+            };
+
+        let selected_item_notify_id = imp
+            .entity_expiration_dropdown_selected_item_id
+            .get()
+            .unwrap();
+        imp.entity_expiration_dropdown
+            .block_signal(selected_item_notify_id);
+        imp.entity_expiration_dropdown
+            .set_selected(entity_expiration.model_position());
+        imp.entity_expiration_dropdown
             .unblock_signal(selected_item_notify_id);
 
         let dt_range = queries.dt_range(S::FROM, S::TO);
@@ -555,6 +658,43 @@ impl EntitiesView {
             }
         }
 
+        match entity_expiration {
+            EntityExpirationFilter::All => {}
+            EntityExpirationFilter::NoExpiration => {
+                every_filter.append(new_filter(move |entity: &Entity| {
+                    entity.expiration().is_none()
+                }));
+            }
+            EntityExpirationFilter::NotExpiring => {
+                every_filter.append(new_filter(move |entity: &Entity| {
+                    entity
+                        .expiration()
+                        .is_some_and(|e| matches!(e, EntityExpiration::NotExpiring))
+                }));
+            }
+            EntityExpirationFilter::Expiring => {
+                every_filter.append(new_filter(move |entity: &Entity| {
+                    entity
+                        .expiration()
+                        .is_some_and(|e| matches!(e, EntityExpiration::Expiring))
+                }));
+            }
+            EntityExpirationFilter::Expired => {
+                every_filter.append(new_filter(move |entity: &Entity| {
+                    entity
+                        .expiration()
+                        .is_some_and(|e| matches!(e, EntityExpiration::Expired))
+                }));
+            }
+            EntityExpirationFilter::ExpiringOrExpired => {
+                every_filter.append(new_filter(move |entity: &Entity| {
+                    entity.expiration().is_some_and(|e| {
+                        matches!(e, EntityExpiration::Expiring | EntityExpiration::Expired)
+                    })
+                }));
+            }
+        }
+
         let any_stock_filter = gtk::AnyFilter::new();
         for stock_id in queries.all_values(S::STOCK).into_iter().map(StockId::new) {
             any_stock_filter.append(new_filter(move |entity: &Entity| {
@@ -594,6 +734,49 @@ impl EntitiesView {
             }
             EntityZoneFilter::Outside => {
                 queries.replace_all_or_insert(S::IS, &[S::INSIDE], S::OUTSIDE);
+            }
+        }
+
+        imp.search_entry.set_queries(queries);
+    }
+
+    fn handle_entity_expiration_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
+        let imp = self.imp();
+
+        let selected_item = dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+
+        let mut queries = imp.search_entry.queries();
+
+        match selected_item.value().try_into().unwrap() {
+            EntityExpirationFilter::All => {
+                queries.remove_all(S::IS, S::NO_EXPIRATION);
+                queries.remove_all(S::IS, S::NOT_EXPIRING);
+                queries.remove_all(S::IS, S::EXPIRING);
+                queries.remove_all(S::IS, S::EXPIRED);
+                queries.remove_all(S::IS, S::EXPIRING_OR_EXPIRED);
+            }
+            EntityExpirationFilter::NoExpiration => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_EXPIRATION_VALUES, S::NO_EXPIRATION);
+            }
+            EntityExpirationFilter::NotExpiring => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_EXPIRATION_VALUES, S::NOT_EXPIRING);
+            }
+            EntityExpirationFilter::Expiring => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_EXPIRATION_VALUES, S::EXPIRING);
+            }
+            EntityExpirationFilter::Expired => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_EXPIRATION_VALUES, S::EXPIRED);
+            }
+            EntityExpirationFilter::ExpiringOrExpired => {
+                queries.replace_all_or_insert(
+                    S::IS,
+                    S::ENTITY_EXPIRATION_VALUES,
+                    S::EXPIRING_OR_EXPIRED,
+                );
             }
         }
 
@@ -655,7 +838,8 @@ impl EntitiesView {
             Some(S::STOCK_DESC) => EntitySort::StockDesc,
             Some(S::UPDATED_ASC) => EntitySort::UpdatedAsc,
             Some(S::UPDATED_DESC) => EntitySort::UpdatedDesc,
-            _ => EntitySort::default(),
+            None => EntitySort::default(),
+            Some(_) => unreachable!(),
         };
 
         let selected_item_notify_id = imp.entity_sort_dropdown_selected_item_id.get().unwrap();
@@ -686,6 +870,16 @@ impl EntitiesView {
             .unwrap()
             .sorter()
             .set_fallback_sorter(Some(sorter));
+    }
+
+    fn update_entity_expiration_dropdown_visibility(&self) {
+        let imp = self.imp();
+
+        let is_visible = Application::get()
+            .settings()
+            .operation_mode()
+            .is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt);
+        imp.entity_expiration_dropdown.set_visible(is_visible);
     }
 
     fn update_stack(&self) {

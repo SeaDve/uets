@@ -484,7 +484,8 @@ impl TimelineView {
         let item_kind = match queries.find_last_with_values(S::IS, &[S::ENTRY, S::EXIT]) {
             Some(S::ENTRY) => TimelineItemKindFilter::Entry,
             Some(S::EXIT) => TimelineItemKindFilter::Exit,
-            _ => TimelineItemKindFilter::All,
+            None => TimelineItemKindFilter::All,
+            Some(_) => unreachable!(),
         };
 
         let selected_item_notify_id = imp.item_kind_dropdown_selected_item_id.get().unwrap();

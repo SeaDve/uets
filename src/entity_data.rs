@@ -88,12 +88,6 @@ impl EntityData {
         Self(fields.into_iter().map(|f| (f.ty(), f)).collect())
     }
 
-    pub fn without_field(&self, field_ty: EntityDataFieldTy) -> Self {
-        let mut new = self.clone();
-        new.0.shift_remove(&field_ty);
-        new
-    }
-
     pub fn has_field(&self, field_ty: EntityDataFieldTy) -> bool {
         self.0.contains_key(&field_ty)
     }
@@ -102,7 +96,17 @@ impl EntityData {
         self.0.values()
     }
 
+    pub fn with_stock_id(self, stock_id: Option<StockId>) -> Self {
+        Self::from_fields(
+            self.0
+                .into_values()
+                .filter(|f| f.ty() != EntityDataFieldTy::StockId)
+                .chain(stock_id.map(EntityDataField::StockId)),
+        )
+    }
+
     entity_data_getter!(stock_id, StockId, &StockId);
+    entity_data_getter!(expiration_dt, ExpirationDt, &DateTime<Utc>);
     entity_data_getter!(photo, Photo, &JpegImage);
     entity_data_getter!(name, Name, &String);
 }

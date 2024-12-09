@@ -1,5 +1,4 @@
 use adw::{prelude::*, subclass::prelude::*};
-use chrono::Utc;
 use futures_channel::oneshot;
 use gtk::{
     gdk,
@@ -11,6 +10,7 @@ use crate::{
     date_time_range::DateTimeRange,
     entity::Entity,
     entity_data::{EntityDataField, EntityDataFieldTy},
+    entity_expiration::EntityExpiration,
     format,
     stock_id::StockId,
     ui::{entity_data_dialog::EntityDataDialog, information_row::InformationRow},
@@ -293,7 +293,9 @@ impl EntityDetailsPane {
                 let value = match field {
                     EntityDataField::ExpirationDt(dt) => {
                         let date_fmt = date_time::format::human_readable_date(*dt);
-                        if *dt < Utc::now() {
+                        if EntityExpiration::for_expiration_dt(*dt).is_some_and(|e| {
+                            matches!(e, EntityExpiration::Expiring | EntityExpiration::Expired)
+                        }) {
                             format::red_markup(&date_fmt)
                         } else {
                             glib::markup_escape_text(&date_fmt).to_string()

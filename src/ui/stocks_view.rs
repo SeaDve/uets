@@ -34,7 +34,7 @@ impl S {
 
     const IS: &str = "is";
 
-    const IS_LIMIT_REACHED_VALUES: &[&str] = &[
+    const LIMIT_REACHED_VALUES: &[&str] = &[
         Self::LIMIT_REACHED,
         Self::LOWER_LIMIT_REACHED,
         Self::UPPER_LIMIT_REACHED,
@@ -481,11 +481,12 @@ impl StocksView {
 
         let queries = entry.queries();
 
-        let limit_reached = match queries.find_last_with_values(S::IS, S::IS_LIMIT_REACHED_VALUES) {
+        let limit_reached = match queries.find_last_with_values(S::IS, S::LIMIT_REACHED_VALUES) {
             Some(S::LIMIT_REACHED) => LimitReachedFilter::LimitReached,
             Some(S::LOWER_LIMIT_REACHED) => LimitReachedFilter::LowerLimitReached,
             Some(S::UPPER_LIMIT_REACHED) => LimitReachedFilter::UpperLimitReached,
-            _ => LimitReachedFilter::All,
+            None => LimitReachedFilter::All,
+            Some(_) => unreachable!(),
         };
 
         let selected_item_notify_id = imp.limit_reached_dropdown_selected_item_id.get().unwrap();
@@ -588,19 +589,19 @@ impl StocksView {
                 queries.remove_all(S::IS, S::UPPER_LIMIT_REACHED);
             }
             LimitReachedFilter::LimitReached => {
-                queries.replace_all_or_insert(S::IS, S::IS_LIMIT_REACHED_VALUES, S::LIMIT_REACHED);
+                queries.replace_all_or_insert(S::IS, S::LIMIT_REACHED_VALUES, S::LIMIT_REACHED);
             }
             LimitReachedFilter::LowerLimitReached => {
                 queries.replace_all_or_insert(
                     S::IS,
-                    S::IS_LIMIT_REACHED_VALUES,
+                    S::LIMIT_REACHED_VALUES,
                     S::LOWER_LIMIT_REACHED,
                 );
             }
             LimitReachedFilter::UpperLimitReached => {
                 queries.replace_all_or_insert(
                     S::IS,
-                    S::IS_LIMIT_REACHED_VALUES,
+                    S::LIMIT_REACHED_VALUES,
                     S::UPPER_LIMIT_REACHED,
                 );
             }
@@ -706,7 +707,8 @@ impl StocksView {
             Some(S::COUNT_DESC) => StockSort::CountDesc,
             Some(S::UPDATED_ASC) => StockSort::UpdatedAsc,
             Some(S::UPDATED_DESC) => StockSort::UpdatedDesc,
-            _ => StockSort::default(),
+            None => StockSort::default(),
+            Some(_) => unreachable!(),
         };
 
         let selected_item_notify_id = imp.stock_sort_dropdown_selected_item_id.get().unwrap();

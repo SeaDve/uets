@@ -10,7 +10,7 @@ use crate::{
     date_time_range::DateTimeRange,
     db::{self, EnvExt},
     entity::Entity,
-    entity_data::{EntityData, EntityDataFieldTy},
+    entity_data::EntityData,
     entity_id::EntityId,
     entity_list::EntityList,
     log::Log,
@@ -430,13 +430,15 @@ impl Timeline {
 
     pub fn replace_entity_data(&self, id: &EntityId, data: EntityData) -> Result<()> {
         let entity = self.entity_list().get(id).context("Unknown entity")?;
-        entity.set_data(data.without_field(EntityDataFieldTy::StockId)); // FIXME Allow changing stock ID
+        entity.set_data(data.with_stock_id(entity.stock_id())); // FIXME Allow changing stock ID
 
         let (env, _, edb, _) = self.db();
         env.with_write_txn(|wtxn| {
             edb.put(wtxn, entity.id(), &entity.data())?;
             Ok(())
         })?;
+
+        self.entity_list().insert(entity);
 
         Ok(())
     }
@@ -453,7 +455,7 @@ impl Timeline {
             .into_iter()
             .map(|(id, data)| {
                 if let Some(entity) = self.entity_list().get(&id) {
-                    entity.set_data(data.without_field(EntityDataFieldTy::StockId)); // FIXME Allow changing stock ID
+                    entity.set_data(data.with_stock_id(entity.stock_id())); // FIXME Allow changing stock ID
                     entity
                 } else {
                     Entity::new(id, data)

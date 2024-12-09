@@ -8,14 +8,14 @@ UETS is a universal system that tracks entities using RFID tags. It is designed 
 
 - Filter by date range, entity ID, name, location, etc.
 - Visualize data in a graph.
-- Create report about depleting stocks, overflows, etc.
+- Create report about depleting stocks, overflows, nearly expiring items, etc.
 - Export as PDF or XLSX via QR code.
 
 ### Real-time Monitoring
 
 - View entities entering and exiting in real-time.
 - View real time statistics and graphs.
-- Notify on stock depletion or capacity overflow.
+- Notify on stock depletion, capacity overflow, or expiring items.
 
 ### Easy Data Handling
 
