@@ -34,7 +34,7 @@ impl OperationMode {
                 "Used for counting entities without data attached (e.g., mall entry counter)"
             }
             OperationMode::Attendance => {
-                "Used for tracking attendance, alerting when unauthorized entity is detected (e.g., meeting rooms, establishment entry)"
+                "Used for tracking people attendance, alerting when unauthorized entity is detected (e.g., meeting rooms, establishment entry)"
             },
             OperationMode::Parking => "Used for tracking parking spaces and vehicles (e.g., parking lots)",
             OperationMode::Inventory => "Used for tracking inventory items with lifetime, location, and quantity (e.g., stock rooms)",

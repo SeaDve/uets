@@ -333,7 +333,7 @@ impl AiChatDialog {
         match response.await {
             Ok(response) => {
                 if let Some(candidate) = response.candidates.first() {
-                    tracing::debug!(
+                    tracing::trace!(
                         "Received {} parts from candidate",
                         candidate.content.parts.len()
                     );
@@ -359,7 +359,7 @@ impl AiChatDialog {
                     ai_message.set_loaded(text.to_string());
                 }
 
-                tracing::debug!("Received {} candidates", response.candidates.len());
+                tracing::trace!("Received {} candidates", response.candidates.len());
             }
             Err(err) => {
                 ai_message.set_loaded(format!("Error: {:?}", err));

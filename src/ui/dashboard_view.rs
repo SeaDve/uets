@@ -32,9 +32,10 @@ You should act like the following:
 
 Take note of the following contexts:
 - The csv data is feed into you by the app; user cannot control the data, but can ask about it.
-- The data is retrieved from a system where entities can enter (inside zone) and exit (outside zone) a location.
+- The data is retrieved from a system where entities can enter and exit a location.
 - Entities refer to uniquely identified people, foods, vehicles, animals, or objects.
 - Stocks refer to a group of entities that are the same type.
+- Zone refers to whether the entity is inside or outside the location; don't refer to it as "zone", use different phrasings.
 
 Take note of the following instructions:
 - Use short sentences and avoid long paragraphs, breakdown into bullet points for each information,
@@ -137,6 +138,7 @@ mod imp {
                 None,
                 |obj, _, _| async move {
                     let app = Application::get();
+
                     let window = app.window();
                     let (timeline_csv, entities_csv, stocks_csv) = future::join3(
                         window.timeline_view().create_report(ReportKind::Csv),
@@ -145,13 +147,19 @@ mod imp {
                     )
                     .await;
 
-                    let operation_mode = app.settings().operation_mode();
+                    let settings = app.settings();
+                    let operation_mode = settings.operation_mode();
                     let instruction = vec![
                         Some(AI_CHAT_SYSTEM_INSTRUCTIONS.to_string()),
                         Some(format!(
-                            "For addition context, the system is currently operating as {} ({})",
+                            "For addition context, the system is currently operating as {} ({}),",
                             operation_mode,
                             operation_mode.description()
+                        )),
+                        Some(format!(
+                            "The lower and upper limit reached thresholds are {} and {}, respectively.",
+                            settings.lower_limit_reached_threshold(),
+                            settings.upper_limit_reached_threshold()
                         )),
                         Some(format!("The date today is {}", Local::now())),
                         Some(
@@ -165,6 +173,7 @@ mod imp {
                     let mut suggestions = vec![
                         "What can you do?",
                         "Provide useful insights",
+                        "Provide current data trends",
                         "Predict future trends",
                     ];
                     if operation_mode == OperationMode::Refrigerator {
