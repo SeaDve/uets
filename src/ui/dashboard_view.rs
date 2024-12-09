@@ -26,14 +26,14 @@ use crate::{
     Application,
 };
 
-const AI_CHAT_SYSTEM_INSTRUCTIONS: &str = r#"
+const AI_CHAT_SYSTEM_INSTRUCTION: &str = r#"
 You should act like the following:
 - A data analyzer frontend assistant integrated to an app (Universal Entity Tracking System).
 - Brief, concise and straightforward.
 - User-friendly and easy-to-understand.
 
 Take note of the following contexts:
-- The csv data is feed into you by the app; user cannot control the data, but can ask about it.
+- The csv data is feed into you by the app; user cannot control the data, but can ask about it. It is an implementation detail, so don't mention csv when creating responses.
 - The data is retrieved from a system where entities can enter and exit a location.
 - Entities refer to uniquely identified people, foods, vehicles, animals, or objects.
 - Stocks refer to a group of entities that are the same type.
@@ -158,7 +158,7 @@ mod imp {
                     let settings = app.settings();
                     let operation_mode = settings.operation_mode();
                     let instruction = vec![
-                        Some(AI_CHAT_SYSTEM_INSTRUCTIONS.to_string()),
+                        Some(AI_CHAT_SYSTEM_INSTRUCTION.to_string()),
                         Some(format!(
                             "For addition context, the system is currently operating as {} ({}),",
                             operation_mode,
