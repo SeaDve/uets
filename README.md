@@ -29,7 +29,7 @@ UETS is a universal system that tracks entities using RFID tags. It is designed 
 ### Security
 
 - Prevents unauthorized entities from entering.
-- Prevents overstay of entities.
+- Prevents overstay of entities. This is useful for parking lots, classrooms, arcade games, etc.
 
 ### AI Data Analysis
 
