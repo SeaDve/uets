@@ -14,7 +14,10 @@ pub enum AiChatMessageState {
     #[default]
     Idle,
     Loading,
-    Loaded(String),
+    Loaded {
+        text: String,
+        use_markup: bool,
+    },
 }
 
 mod imp {
@@ -68,16 +71,26 @@ impl AiChatMessage {
     }
 
     pub fn set_loaded(&self, text: impl Into<String>) {
-        self.set_state(AiChatMessageState::Loaded(text.into()));
+        self.set_state(AiChatMessageState::Loaded {
+            text: text.into(),
+            use_markup: false,
+        });
+    }
+
+    pub fn set_loaded_markup(&self, text: impl Into<String>) {
+        self.set_state(AiChatMessageState::Loaded {
+            text: text.into(),
+            use_markup: true,
+        });
     }
 
     pub fn is_loaded(&self) -> bool {
-        matches!(self.state(), AiChatMessageState::Loaded(_))
+        matches!(self.state(), AiChatMessageState::Loaded { .. })
     }
 
     pub fn text(&self) -> Option<String> {
         match self.state() {
-            AiChatMessageState::Loaded(text) => Some(text),
+            AiChatMessageState::Loaded { text, .. } => Some(text),
             _ => None,
         }
     }

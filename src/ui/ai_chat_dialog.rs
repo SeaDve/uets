@@ -208,23 +208,33 @@ impl AiChatDialog {
         match response.await {
             Ok(response) => {
                 if let Some(candidate) = response.candidates.first() {
-                    let text = candidate
+                    tracing::debug!(
+                        "Received {} parts from candidate",
+                        candidate.content.parts.len()
+                    );
+
+                    let text_markup = candidate
                         .content
                         .parts
                         .iter()
                         .flat_map(|part| {
                             if let Part::Text(text) = part {
-                                Some(text.as_str())
+                                let text_html = markdown::to_html(text);
+                                let text_markup = html2pango::markup_html(&text_html).unwrap();
+                                Some(text_markup)
                             } else {
                                 None
                             }
                         })
                         .collect::<Vec<_>>();
-                    ai_message.set_loaded(text.join("\n"));
+
+                    ai_message.set_loaded_markup(text_markup.join("\n"));
                 } else {
                     let text = "I'm sorry, I don't know how to respond to that.";
                     ai_message.set_loaded(text.to_string());
                 }
+
+                tracing::debug!("Received {} candidates", response.candidates.len());
             }
             Err(err) => {
                 ai_message.set_loaded(format!("Error: {:?}", err));

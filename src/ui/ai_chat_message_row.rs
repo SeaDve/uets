@@ -118,9 +118,17 @@ impl AiChatMessageRow {
                 imp.user_message_label.set_text("…");
                 imp.ai_message_label.set_text("…");
             }
-            AiChatMessageState::Loaded(message) => {
-                imp.user_message_label.set_text(&message);
-                imp.ai_message_label.set_text(&message);
+            AiChatMessageState::Loaded {
+                text: message,
+                use_markup,
+            } => {
+                if use_markup {
+                    imp.user_message_label.set_markup(&message);
+                    imp.ai_message_label.set_markup(&message);
+                } else {
+                    imp.user_message_label.set_text(&message);
+                    imp.ai_message_label.set_text(&message);
+                }
             }
         }
     }
