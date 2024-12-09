@@ -70,9 +70,13 @@
                 <child>
                   <object class="UetsDateTimeRangeButton" id="dt_range_button"/>
                 </child>
-                <child>
-                  <object class="GtkSeparator"/>
-                </child>
+              </object>
+            </child>
+            <child type="top">
+              <object class="GtkBox">
+                <style>
+                  <class name="toolbar"/>
+                </style>
                 <child>
                   <object class="GtkDropDown" id="entity_sort_dropdown"/>
                 </child>
