@@ -353,7 +353,7 @@ impl AiChatDialog {
                         })
                         .collect::<Vec<_>>();
 
-                    ai_message.set_loaded_markup(text_markup.join("\n"));
+                    ai_message.set_loaded_markup(text_markup.join("\n").trim());
                 } else {
                     let text = "I'm sorry, I don't know how to respond to that.";
                     ai_message.set_loaded(text.to_string());
