@@ -1,3 +1,20 @@
+entry.circular {
+    border-radius: 9999px;
+}
+
+/* AiChatDialog */
+
+.user-message-label {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+    border-radius: 9999px;
+    padding: 6px 12px;
+}
+
+.ai-message-label {
+    padding: 6px 12px;
+}
+
 /* CameraViewfinder */
 
 .camera-viewfinder {

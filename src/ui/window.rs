@@ -222,6 +222,18 @@ impl Window {
         }
     }
 
+    pub fn timeline_view(&self) -> &TimelineView {
+        &self.imp().timeline_view
+    }
+
+    pub fn entities_view(&self) -> &EntitiesView {
+        &self.imp().entities_view
+    }
+
+    pub fn stocks_view(&self) -> &StocksView {
+        &self.imp().stocks_view
+    }
+
     fn update_stocks_entities_stack_pages_display(&self) {
         let imp = self.imp();
 

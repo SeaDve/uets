@@ -180,7 +180,18 @@ mod imp {
                 Some(&ReportKind::static_variant_type()),
                 |obj, _, kind| async move {
                     let kind = kind.unwrap().get::<ReportKind>().unwrap();
-                    obj.handle_share_report(kind).await;
+
+                    if let Err(err) = SendDialog::send(
+                        &report::file_name("Stocks Report", kind),
+                        obj.create_report(kind),
+                        Some(&obj),
+                    )
+                    .await
+                    {
+                        tracing::error!("Failed to send report: {:?}", err);
+
+                        Application::get().add_message_toast("Failed to share report");
+                    }
                 },
             );
         }
@@ -446,6 +457,40 @@ impl StocksView {
             .unwrap();
     }
 
+    pub async fn create_report(&self, kind: ReportKind) -> Result<Vec<u8>> {
+        let imp = self.imp();
+
+        let stocks = imp
+            .selection_model
+            .iter::<glib::Object>()
+            .map(|o| o.unwrap().downcast::<Stock>().unwrap())
+            .collect::<Vec<_>>();
+
+        report::builder(kind, "Stocks Report")
+            .prop(
+                "Total Stock Count",
+                stocks
+                    .iter()
+                    .map(|s| s.n_inside_for_dt_range(&imp.dt_range.borrow()))
+                    .sum::<u32>(),
+            )
+            .prop("Search Query", imp.search_entry.queries())
+            .table(
+                report_table::builder("Stocks")
+                    .column("ID")
+                    .column("Count")
+                    .rows(stocks.iter().map(|stock| {
+                        report_table::row_builder()
+                            .cell(stock.id().to_string())
+                            .cell(stock.n_inside_for_dt_range(&imp.dt_range.borrow()))
+                            .build()
+                    }))
+                    .build(),
+            )
+            .build()
+            .await
+    }
+
     fn set_dt_range(&self, dt_range: DateTimeRange) {
         let imp = self.imp();
 
@@ -605,51 +650,6 @@ impl StocksView {
         }
 
         imp.search_entry.set_queries(queries);
-    }
-
-    async fn handle_share_report(&self, kind: ReportKind) {
-        let imp = self.imp();
-
-        let stocks = imp
-            .selection_model
-            .iter::<glib::Object>()
-            .map(|o| o.unwrap().downcast::<Stock>().unwrap())
-            .collect::<Vec<_>>();
-
-        let bytes_fut = report::builder(kind, "Stocks Report")
-            .prop(
-                "Total Stock Count",
-                stocks
-                    .iter()
-                    .map(|s| s.n_inside_for_dt_range(&imp.dt_range.borrow()))
-                    .sum::<u32>(),
-            )
-            .prop("Search Query", imp.search_entry.queries())
-            .table(
-                report_table::builder("Stocks")
-                    .column("ID")
-                    .column("Count")
-                    .rows(stocks.iter().map(|stock| {
-                        report_table::row_builder()
-                            .cell(stock.id().to_string())
-                            .cell(stock.n_inside_for_dt_range(&imp.dt_range.borrow()))
-                            .build()
-                    }))
-                    .build(),
-            )
-            .build();
-
-        if let Err(err) = SendDialog::send(
-            &report::file_name("Stocks Report", kind),
-            bytes_fut,
-            Some(self),
-        )
-        .await
-        {
-            tracing::error!("Failed to send report: {:?}", err);
-
-            Application::get().add_message_toast("Failed to share report");
-        }
     }
 
     fn handle_stock_sort_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {

@@ -16,6 +16,7 @@
         </child>
         <property name="content">
           <object class="GtkScrolledWindow">
+            <property name="hscrollbar-policy">never</property>
             <property name="propagate-natural-width">True</property>
             <property name="propagate-natural-height">True</property>
             <property name="child">

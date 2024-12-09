@@ -1,4 +1,6 @@
 use adw::{prelude::*, subclass::prelude::*};
+use anyhow::Result;
+use futures_util::future;
 use gtk::glib::{self, clone, closure_local};
 
 use crate::{
@@ -6,7 +8,9 @@ use crate::{
     date_time_range::DateTimeRange,
     entity_id::EntityId,
     limit_reached::{LabelExt, SettingsExt},
+    report::ReportKind,
     ui::{
+        ai_chat_dialog::AiChatDialog,
         camera_live_feed_dialog::CameraLiveFeedDialog,
         detected_wo_id_dialog::DetectedWoIdDialog,
         entity_photo_gallery_dialog::EntityPhotoGalleryDialog,
@@ -16,6 +20,21 @@ use crate::{
     },
     Application,
 };
+
+const AI_CHAT_SYSTEM_INSTRUCTIONS: &str = r#"
+You should act like the following:
+- A data analyzer frontend integrated to an app.
+- Very concise and precise.
+- User friendly.
+
+Context:
+- The csv data provided cannot be controlled by the user, and just provided by the app as is.
+
+Note:
+- Don't use markdown markup to create bold text (the use of asterisks, etc.).
+
+The user may ask you to create predictions or insights about the following csv documents:
+"#;
 
 mod imp {
     use std::sync::OnceLock;
@@ -63,7 +82,7 @@ mod imp {
             klass.install_action(
                 "dashboard-view.show-camera-live-feed-dialog",
                 None,
-                move |obj, _, _| {
+                |obj, _, _| {
                     let dialog = CameraLiveFeedDialog::new();
 
                     let camera = Application::get().camera().clone();
@@ -75,7 +94,7 @@ mod imp {
             klass.install_action(
                 "dashboard-view.show-detected-wo-id-dialog",
                 None,
-                move |obj, _, _| {
+                |obj, _, _| {
                     let dialog = DetectedWoIdDialog::new();
 
                     let app = Application::get();
@@ -88,7 +107,7 @@ mod imp {
             klass.install_action(
                 "dashboard-view.show-entity-gallery-dialog",
                 None,
-                move |obj, _, _| {
+                |obj, _, _| {
                     let dialog = EntityPhotoGalleryDialog::new();
 
                     let app = Application::get();
@@ -104,6 +123,35 @@ mod imp {
                     ));
 
                     dialog.present(Some(obj));
+                },
+            );
+            klass.install_action_async(
+                "dashboard-view.show-ai-chat-dialog",
+                None,
+                |obj, _, _| async move {
+                    let app = Application::get();
+                    let window = app.window();
+                    let (timeline_csv, entities_csv, stocks_csv) = future::join3(
+                        window.timeline_view().create_report(ReportKind::Csv),
+                        window.entities_view().create_report(ReportKind::Csv),
+                        window.stocks_view().create_report(ReportKind::Csv),
+                    )
+                    .await;
+
+                    let instruction = vec![
+                        Some(AI_CHAT_SYSTEM_INSTRUCTIONS.to_string()),
+                        csv_bytes_res_to_string("Timeline Data", timeline_csv),
+                        csv_bytes_res_to_string("Entities Data", entities_csv),
+                        csv_bytes_res_to_string("Stocks Data", stocks_csv),
+                    ];
+                    let dialog = AiChatDialog::new(Some(
+                        instruction
+                            .into_iter()
+                            .flatten()
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    ));
+                    dialog.present(Some(&obj));
                 },
             );
             klass.install_action_async(
@@ -344,4 +392,14 @@ impl DashboardView {
                 .unwrap_or_default(),
         );
     }
+}
+
+fn csv_bytes_res_to_string(title: &str, bytes: Result<Vec<u8>>) -> Option<String> {
+    bytes
+        .and_then(|b| String::from_utf8(b).map_err(|err| err.into()))
+        .inspect_err(|err| {
+            tracing::error!("Failed to convert timeline csv bytes to string: {:?}", err);
+        })
+        .map(|csv| format!("{title}:\n```\n{csv}\n```"))
+        .ok()
 }

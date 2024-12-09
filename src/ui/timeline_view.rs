@@ -119,7 +119,18 @@ mod imp {
                 Some(&ReportKind::static_variant_type()),
                 |obj, _, kind| async move {
                     let kind = kind.unwrap().get::<ReportKind>().unwrap();
-                    obj.handle_share_report(kind).await;
+
+                    if let Err(err) = SendDialog::send(
+                        &report::file_name("Timeline Report", kind),
+                        obj.create_report(kind),
+                        Some(&obj),
+                    )
+                    .await
+                    {
+                        tracing::error!("Failed to send report: {:?}", err);
+
+                        Application::get().add_message_toast("Failed to share report");
+                    }
                 },
             );
             klass.install_action("timeline-view.scroll-to-bottom", None, |obj, _, _| {
@@ -386,6 +397,61 @@ impl TimelineView {
         imp.search_entry.set_queries(queries);
     }
 
+    pub async fn create_report(&self, kind: ReportKind) -> Result<Vec<u8>> {
+        let imp = self.imp();
+
+        let items = imp
+            .selection_model
+            .iter::<glib::Object>()
+            .map(|o| o.unwrap().downcast::<TimelineItem>().unwrap())
+            .collect::<Vec<_>>();
+        let dt_range = *imp.dt_range.borrow();
+
+        let app = Application::get();
+        let timeline = app.timeline();
+
+        report::builder(kind, "Timeline Report")
+            .prop(
+                "Current Inside Count",
+                timeline.n_inside_for_dt_range(&dt_range),
+            )
+            .prop(
+                "Current Max Inside Count",
+                timeline.max_n_inside_for_dt_range(&dt_range),
+            )
+            .prop("Total Entries", timeline.n_entries_for_dt_range(&dt_range))
+            .prop("Total Exits", timeline.n_exits_for_dt_range(&dt_range))
+            .prop("Search Query", imp.search_entry.queries())
+            .table(
+                report_table::builder("Timeline")
+                    .column("Timestamp")
+                    .column("Action")
+                    .column("Entity ID")
+                    .column("Inside Count")
+                    .column("Max Inside Count")
+                    .column("Entry Count")
+                    .column("Exit Count")
+                    .rows(items.iter().map(|item| {
+                        report_table::row_builder()
+                            .cell(item.dt())
+                            .cell(item.kind().to_string())
+                            .cell(item.entity_id().to_string())
+                            .cell(timeline.n_inside_for_dt(item.dt()))
+                            .cell(timeline.max_n_inside_for_dt(item.dt()))
+                            .cell(timeline.n_entries_for_dt(item.dt()))
+                            .cell(timeline.n_exits_for_dt(item.dt()))
+                            .build()
+                    }))
+                    .graph("Inside Count Over Time", 0, 3)
+                    .graph("Max Inside Count Over Time", 0, 4)
+                    .graph("Entry Count Over Time", 0, 5)
+                    .graph("Exit Count Over Time", 0, 6)
+                    .build(),
+            )
+            .build()
+            .await
+    }
+
     fn set_dt_range(&self, dt_range: DateTimeRange) {
         let imp = self.imp();
 
@@ -406,75 +472,6 @@ impl TimelineView {
         let imp = self.imp();
         let vadj = imp.scrolled_window.vadjustment();
         vadj.value() + vadj.page_size() == vadj.upper()
-    }
-
-    async fn handle_share_report(&self, kind: ReportKind) {
-        let imp = self.imp();
-
-        let items = imp
-            .selection_model
-            .iter::<glib::Object>()
-            .map(|o| o.unwrap().downcast::<TimelineItem>().unwrap())
-            .collect::<Vec<_>>();
-        let dt_range = *imp.dt_range.borrow();
-
-        let app = Application::get();
-        let timeline = app.timeline();
-
-        let bytes_fut = async {
-            report::builder(kind, "Timeline Report")
-                .prop(
-                    "Current Inside Count",
-                    timeline.n_inside_for_dt_range(&dt_range),
-                )
-                .prop(
-                    "Current Max Inside Count",
-                    timeline.max_n_inside_for_dt_range(&dt_range),
-                )
-                .prop("Total Entries", timeline.n_entries_for_dt_range(&dt_range))
-                .prop("Total Exits", timeline.n_exits_for_dt_range(&dt_range))
-                .prop("Search Query", imp.search_entry.queries())
-                .table(
-                    report_table::builder("Timeline")
-                        .column("Timestamp")
-                        .column("Action")
-                        .column("Entity ID")
-                        .column("Inside Count")
-                        .column("Max Inside Count")
-                        .column("Entry Count")
-                        .column("Exit Count")
-                        .rows(items.iter().map(|item| {
-                            report_table::row_builder()
-                                .cell(item.dt())
-                                .cell(item.kind().to_string())
-                                .cell(item.entity_id().to_string())
-                                .cell(timeline.n_inside_for_dt(item.dt()))
-                                .cell(timeline.max_n_inside_for_dt(item.dt()))
-                                .cell(timeline.n_entries_for_dt(item.dt()))
-                                .cell(timeline.n_exits_for_dt(item.dt()))
-                                .build()
-                        }))
-                        .graph("Inside Count Over Time", 0, 3)
-                        .graph("Max Inside Count Over Time", 0, 4)
-                        .graph("Entry Count Over Time", 0, 5)
-                        .graph("Exit Count Over Time", 0, 6)
-                        .build(),
-                )
-                .build()
-                .await
-        };
-
-        if let Err(err) = SendDialog::send(
-            &report::file_name("Timeline Report", kind),
-            bytes_fut,
-            Some(self),
-        )
-        .await
-        {
-            tracing::error!("Failed to send report: {:?}", err);
-
-            Application::get().add_message_toast("Failed to share report");
-        }
     }
 
     fn handle_search_entry_search_changed(&self, entry: &SearchEntry) {

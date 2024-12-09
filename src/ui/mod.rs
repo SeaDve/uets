@@ -1,3 +1,5 @@
+mod ai_chat_dialog;
+mod ai_chat_message_row;
 mod camera_live_feed_dialog;
 mod camera_viewfinder;
 mod dashboard_view;

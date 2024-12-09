@@ -19,6 +19,8 @@ mod imp {
         pub(super) entity: RefCell<Option<Entity>>,
 
         #[template_child]
+        pub(super) overlay: TemplateChild<gtk::Overlay>, // Unused
+        #[template_child]
         pub(super) picture: TemplateChild<gtk::Picture>,
         #[template_child]
         pub(super) label: TemplateChild<gtk::Label>,

@@ -223,7 +223,18 @@ mod imp {
                 Some(&ReportKind::static_variant_type()),
                 |obj, _, kind| async move {
                     let kind = kind.unwrap().get::<ReportKind>().unwrap();
-                    obj.handle_share_report(kind).await;
+
+                    if let Err(err) = SendDialog::send(
+                        &report::file_name("Entities Report", kind),
+                        obj.create_report(kind),
+                        Some(&obj),
+                    )
+                    .await
+                    {
+                        tracing::error!("Failed to send report: {:?}", err);
+
+                        Application::get().add_message_toast("Failed to share report");
+                    }
                 },
             );
         }
@@ -553,18 +564,7 @@ impl EntitiesView {
         imp.search_entry.set_queries(queries);
     }
 
-    fn set_dt_range(&self, dt_range: DateTimeRange) {
-        let imp = self.imp();
-
-        imp.dt_range.replace(dt_range);
-
-        for row in imp.rows.borrow().iter().filter_map(|r| r.upgrade()) {
-            row.set_dt_range(dt_range);
-        }
-        imp.details_pane.set_dt_range(dt_range);
-    }
-
-    async fn handle_share_report(&self, kind: ReportKind) {
+    pub async fn create_report(&self, kind: ReportKind) -> Result<Vec<u8>> {
         let imp = self.imp();
 
         let entities = imp
@@ -573,7 +573,7 @@ impl EntitiesView {
             .map(|o| o.unwrap().downcast::<Entity>().unwrap())
             .collect::<Vec<_>>();
 
-        let bytes_fut = report::builder(kind, "Entities Report")
+        report::builder(kind, "Entities Report")
             .prop("Total Entities", entities.len())
             .prop("Search Query", imp.search_entry.queries())
             .table(
@@ -599,19 +599,19 @@ impl EntitiesView {
                     }))
                     .build(),
             )
-            .build();
+            .build()
+            .await
+    }
 
-        if let Err(err) = SendDialog::send(
-            &report::file_name("Entities Report", kind),
-            bytes_fut,
-            Some(self),
-        )
-        .await
-        {
-            tracing::error!("Failed to send report: {:?}", err);
+    fn set_dt_range(&self, dt_range: DateTimeRange) {
+        let imp = self.imp();
 
-            Application::get().add_message_toast("Failed to share report");
+        imp.dt_range.replace(dt_range);
+
+        for row in imp.rows.borrow().iter().filter_map(|r| r.upgrade()) {
+            row.set_dt_range(dt_range);
         }
+        imp.details_pane.set_dt_range(dt_range);
     }
 
     fn handle_search_entry_search_changed(&self, entry: &SearchEntry) {

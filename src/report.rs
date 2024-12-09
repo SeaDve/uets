@@ -63,7 +63,7 @@ impl ReportBuilder {
                 ReportKind::Csv => csv::build(self),
             };
 
-            tracing::debug!("Built {:?} report in {:?}", kind, now.elapsed());
+            tracing::trace!("Built {:?} report in {:?}", kind, now.elapsed());
 
             ret
         })
@@ -78,7 +78,7 @@ mod pdf {
     use anyhow::Result;
     use chrono::Local;
     use genpdf::{
-        elements::{Break, FrameCellDecorator, Image, Paragraph, TableLayout, Text},
+        elements::{Break, FrameCellDecorator, Image, Paragraph, TableLayout},
         fonts::{self, FontData, FontFamily},
         style::{self, StyledString},
         Alignment, Document, Element, Margins, SimplePageDecorator,
@@ -173,7 +173,7 @@ mod pdf {
                                 ReportTableCell::U32(u32) => u32.to_string(),
                                 ReportTableCell::String(string) => string,
                             };
-                            Text::new(cell_string)
+                            Paragraph::new(cell_string)
                                 .padded(Margins::trbl(
                                     TABLE_TOP_BOTTOM_PADDING_MM,
                                     TABLE_LEFT_RIGHT_PADDING_MM,

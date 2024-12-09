@@ -5,7 +5,7 @@
       <object class="GtkBinLayout"/>
     </property>
     <child>
-      <object class="GtkOverlay">
+      <object class="GtkOverlay" id="overlay">
         <property name="child">
           <object class="GtkPicture" id="picture">
             <property name="height-request">250</property>

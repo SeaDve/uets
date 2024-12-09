@@ -8,6 +8,8 @@
     clippy::todo
 )]
 
+mod ai_chat_message;
+mod ai_chat_message_list;
 mod application;
 mod camera;
 mod colors;
