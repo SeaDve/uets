@@ -55,9 +55,7 @@ entity_data_field! {
     StockId(StockId) => "Stock Name",
     Location(String) => "Location",
     ExpirationDt(DateTime<Utc>) => "Expiration Date",
-
     Photo(JpegImage) => "Photo",
-
     Name(String) => "Name",
     Sex(Sex) => "Sex",
     Email(String) => "Email",
@@ -106,9 +104,13 @@ impl EntityData {
     }
 
     entity_data_getter!(stock_id, StockId, &StockId);
+    entity_data_getter!(location, Location, &String);
     entity_data_getter!(expiration_dt, ExpirationDt, &DateTime<Utc>);
     entity_data_getter!(photo, Photo, &JpegImage);
     entity_data_getter!(name, Name, &String);
+    entity_data_getter!(sex, Sex, &Sex);
+    entity_data_getter!(email, Email, &String);
+    entity_data_getter!(program, Program, &String);
 }
 
 impl Serialize for EntityData {

@@ -402,10 +402,14 @@ mod imp {
 
             let fuzzy_filter = FuzzyFilter::new(|o| {
                 let entity = o.downcast_ref::<Entity>().unwrap();
+                let entity_data = entity.data();
                 [
                     Some(entity.id().to_string()),
                     entity.stock_id().map(|s| s.to_string()),
-                    entity.data().name().cloned(),
+                    entity_data.location().cloned(),
+                    entity_data.name().cloned(),
+                    entity_data.email().cloned(),
+                    entity_data.program().cloned(),
                 ]
                 .into_iter()
                 .flatten()
