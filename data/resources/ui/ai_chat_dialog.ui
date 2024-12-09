@@ -3,6 +3,7 @@
   <template class="UetsAiChatDialog" parent="AdwDialog">
     <property name="follows-content-size">True</property>
     <property name="presentation-mode">bottom-sheet</property>
+    <property name="focus-widget">message_entry</property>
     <property name="child">
       <object class="AdwToolbarView">
         <child type="top">
