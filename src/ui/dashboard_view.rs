@@ -5,6 +5,7 @@ use futures_util::future;
 use gtk::glib::{self, clone, closure_local};
 
 use crate::{
+    ai_chat_message_list::AiChatMessageList,
     date_time,
     date_time_range::DateTimeRange,
     entity_data::EntityDataFieldTy,
@@ -79,6 +80,8 @@ mod imp {
         pub(super) n_entries_graph: TemplateChild<TimeGraph>,
         #[template_child]
         pub(super) n_exits_graph: TemplateChild<TimeGraph>,
+
+        pub(super) ai_chat_message_list: AiChatMessageList,
     }
 
     #[glib::object_subclass]
@@ -140,6 +143,8 @@ mod imp {
                 "dashboard-view.show-ai-chat-dialog",
                 None,
                 |obj, _, _| async move {
+                    let imp = obj.imp();
+
                     let app = Application::get();
 
                     let window = app.window();
@@ -190,6 +195,7 @@ mod imp {
                     }
 
                     let dialog = AiChatDialog::new(
+                        &imp.ai_chat_message_list,
                         Some(
                             instruction
                                 .into_iter()

@@ -16,7 +16,7 @@ const MODEL_NAME: &str = "gemini-1.5-flash-latest";
 
 mod imp {
     use std::{
-        cell::{Cell, OnceCell},
+        cell::{Cell, OnceCell, RefCell},
         sync::OnceLock,
     };
 
@@ -24,9 +24,13 @@ mod imp {
 
     use super::*;
 
-    #[derive(Default, gtk::CompositeTemplate)]
+    #[derive(Default, glib::Properties, gtk::CompositeTemplate)]
+    #[properties(wrapper_type = super::AiChatDialog )]
     #[template(resource = "/io/github/seadve/Uets/ui/ai_chat_dialog.ui")]
     pub struct AiChatDialog {
+        #[property(get, set = Self::set_message_list, construct_only)]
+        pub(super) message_list: OnceCell<AiChatMessageList>,
+
         #[template_child]
         pub(super) stack: TemplateChild<gtk::Stack>,
         #[template_child]
@@ -44,7 +48,8 @@ mod imp {
         #[template_child]
         pub(super) message_entry: TemplateChild<gtk::Entry>,
 
-        pub(super) message_list: AiChatMessageList,
+        pub(super) message_list_items_changed_id: RefCell<Option<glib::SignalHandlerId>>,
+
         pub(super) system_instruction: OnceCell<Option<String>>,
 
         pub(super) is_sticky: Cell<bool>,
@@ -61,9 +66,7 @@ mod imp {
             klass.bind_template();
 
             klass.install_action("ai-chat-dialog.reset", None, |obj, _, _| {
-                let imp = obj.imp();
-
-                imp.message_list.clear();
+                obj.message_list().clear();
             });
             klass.install_action_async(
                 "ai-chat-dialog.send-message",
@@ -87,6 +90,7 @@ mod imp {
         }
     }
 
+    #[glib::derived_properties]
     impl ObjectImpl for AiChatDialog {
         fn constructed(&self) {
             self.parent_constructed();
@@ -144,30 +148,6 @@ mod imp {
                 }
             ));
 
-            self.message_list_box.bind_model(
-                Some(&self.message_list),
-                clone!(
-                    #[weak]
-                    obj,
-                    #[upgrade_or_panic]
-                    move |o| {
-                        let message = o.downcast_ref::<AiChatMessage>().unwrap();
-
-                        let row = AiChatMessageRow::new(message);
-                        row.connect_activate_link(clone!(
-                            #[weak]
-                            obj,
-                            #[upgrade_or_panic]
-                            move |_, uri| {
-                                obj.emit_by_name::<bool>("activate-link", &[&uri]).into()
-                            }
-                        ));
-
-                        row.upcast()
-                    }
-                ),
-            );
-
             self.scroll_to_bottom_revealer
                 .connect_child_revealed_notify(clone!(
                     #[weak]
@@ -205,14 +185,6 @@ mod imp {
                 }
             ));
 
-            self.message_list.connect_items_changed(clone!(
-                #[weak]
-                obj,
-                move |_, _, _, _| {
-                    obj.update_stack();
-                }
-            ));
-
             obj.update_stack();
             obj.update_send_message_action();
             obj.update_scroll_to_bottom_revealer_reveal_child();
@@ -221,6 +193,12 @@ mod imp {
 
         fn dispose(&self) {
             self.dispose_template();
+
+            let obj = self.obj();
+
+            if let Some(handler_id) = self.message_list_items_changed_id.take() {
+                obj.message_list().disconnect(handler_id);
+            }
         }
 
         fn signals() -> &'static [Signal] {
@@ -237,6 +215,45 @@ mod imp {
 
     impl WidgetImpl for AiChatDialog {}
     impl AdwDialogImpl for AiChatDialog {}
+
+    impl AiChatDialog {
+        fn set_message_list(&self, message_list: AiChatMessageList) {
+            let obj = self.obj();
+
+            self.message_list_box.bind_model(
+                Some(&message_list),
+                clone!(
+                    #[weak]
+                    obj,
+                    #[upgrade_or_panic]
+                    move |o| {
+                        let message = o.downcast_ref::<AiChatMessage>().unwrap();
+
+                        let row = AiChatMessageRow::new(message);
+                        row.connect_activate_link(clone!(
+                            #[weak]
+                            obj,
+                            #[upgrade_or_panic]
+                            move |_, uri| obj.emit_by_name::<bool>("activate-link", &[&uri]).into()
+                        ));
+
+                        row.upcast()
+                    }
+                ),
+            );
+
+            let handler_id = message_list.connect_items_changed(clone!(
+                #[weak]
+                obj,
+                move |_, _, _, _| {
+                    obj.update_stack();
+                }
+            ));
+            self.message_list_items_changed_id.replace(Some(handler_id));
+
+            self.message_list.set(message_list).unwrap();
+        }
+    }
 }
 
 glib::wrapper! {
@@ -246,10 +263,13 @@ glib::wrapper! {
 
 impl AiChatDialog {
     pub fn new(
+        message_list: &AiChatMessageList,
         system_instruction: Option<impl Into<String>>,
         suggestions: impl IntoIterator<Item = impl Into<String>>,
     ) -> Self {
-        let this = glib::Object::new::<Self>();
+        let this = glib::Object::builder::<Self>()
+            .property("message-list", message_list)
+            .build();
 
         let imp = this.imp();
         imp.system_instruction
@@ -313,14 +333,14 @@ impl AiChatDialog {
 
         let user_message = AiChatMessage::new(AiChatMessageTy::User);
         user_message.set_loaded(text);
-        imp.message_list.push(user_message);
+        self.message_list().push(user_message);
 
         self.update_send_message_action();
 
         let payload =
             GenerateContentRequest {
-                contents: imp
-                    .message_list
+                contents: self
+                    .message_list()
                     .iter()
                     .filter_map(|message| {
                         let text = message.text()?;
@@ -350,7 +370,7 @@ impl AiChatDialog {
             };
 
         let ai_message = AiChatMessage::new(AiChatMessageTy::Ai);
-        imp.message_list.push(ai_message.clone());
+        self.message_list().push(ai_message.clone());
         ai_message.set_loading();
 
         self.update_send_message_action();
@@ -418,7 +438,7 @@ impl AiChatDialog {
     fn update_stack(&self) {
         let imp = self.imp();
 
-        if imp.message_list.n_items() == 0 {
+        if self.message_list().n_items() == 0 {
             imp.stack.set_visible_child(&*imp.empty_page);
         } else {
             imp.stack.set_visible_child(&*imp.main_page);
@@ -429,8 +449,8 @@ impl AiChatDialog {
         let imp = self.imp();
 
         let is_enabled = !imp.message_entry.text().is_empty()
-            && imp
-                .message_list
+            && self
+                .message_list()
                 .last()
                 .map_or(true, |message| message.is_loaded());
         self.action_set_enabled("ai-chat-dialog.send-message", is_enabled);
