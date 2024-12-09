@@ -31,6 +31,10 @@ mod imp {
         #[template_child]
         pub(super) message_list_box: TemplateChild<gtk::ListBox>,
         #[template_child]
+        pub(super) suggestion_button: TemplateChild<gtk::MenuButton>,
+        #[template_child]
+        pub(super) suggestion_list_box: TemplateChild<gtk::ListBox>,
+        #[template_child]
         pub(super) message_entry: TemplateChild<gtk::Entry>,
 
         pub(super) message_list: AiChatMessageList,
@@ -61,9 +65,7 @@ mod imp {
                     let message = imp.message_entry.text();
                     imp.message_entry.set_text("");
 
-                    if let Err(err) = obj.handle_send_message(&message).await {
-                        tracing::error!("Failed to handle message: {:?}", err);
-                    }
+                    obj.handle_send_message(&message);
                 },
             );
         }
@@ -85,6 +87,19 @@ mod imp {
                     let row = AiChatMessageRow::new(message);
                     row.upcast()
                 });
+
+            self.suggestion_list_box.connect_row_activated(clone!(
+                #[weak]
+                obj,
+                move |_, row| {
+                    let imp = obj.imp();
+
+                    let label = row.child().unwrap().downcast::<gtk::Label>().unwrap();
+                    obj.handle_send_message(&label.text());
+
+                    imp.suggestion_button.popdown();
+                }
+            ));
 
             self.message_entry.connect_changed(clone!(
                 #[weak]
@@ -128,7 +143,10 @@ glib::wrapper! {
 }
 
 impl AiChatDialog {
-    pub fn new(system_instruction: Option<impl Into<String>>) -> Self {
+    pub fn new(
+        system_instruction: Option<impl Into<String>>,
+        suggestions: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
@@ -136,10 +154,31 @@ impl AiChatDialog {
             .set(system_instruction.map(|s| s.into()))
             .unwrap();
 
+        for suggestion in suggestions {
+            let button = gtk::Label::builder()
+                .label(suggestion.into())
+                .xalign(0.0)
+                .build();
+            imp.suggestion_list_box.append(&button);
+        }
+
         this
     }
 
-    async fn handle_send_message(&self, text: &str) -> Result<()> {
+    fn handle_send_message(&self, text: &str) {
+        let text = text.to_string();
+        glib::spawn_future_local(clone!(
+            #[weak(rename_to = obj)]
+            self,
+            async move {
+                if let Err(err) = obj.handle_send_message_inner(&text).await {
+                    tracing::error!("Failed to handle message: {:?}", err);
+                }
+            }
+        ));
+    }
+
+    async fn handle_send_message_inner(&self, text: &str) -> Result<()> {
         let imp = self.imp();
 
         let user_message = AiChatMessage::new(AiChatMessageTy::User);

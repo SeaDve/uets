@@ -57,6 +57,26 @@
               <class name="toolbar"/>
             </style>
             <child>
+              <object class="GtkMenuButton" id="suggestion_button">
+                <property name="icon-name">view-more-symbolic</property>
+                <property name="popover">
+                  <object class="GtkPopover">
+                    <property name="child">
+                      <object class="GtkListBox" id="suggestion_list_box">
+                        <property name="selection-mode">none</property>
+                      </object>
+                    </property>
+                    <style>
+                      <class name="menu"/>
+                    </style>
+                  </object>
+                </property>
+                <style>
+                  <class name="circular"/>
+                </style>
+              </object>
+            </child>
+            <child>
               <object class="GtkEntry" id="message_entry">
                 <property name="hexpand">True</property>
                 <property name="placeholder-text">Ask Anything</property>

@@ -7,9 +7,11 @@ use gtk::glib::{self, clone, closure_local};
 use crate::{
     date_time,
     date_time_range::DateTimeRange,
+    entity_data::EntityDataFieldTy,
     entity_id::EntityId,
     limit_reached::{LabelExt, SettingsExt},
     report::ReportKind,
+    settings::OperationMode,
     ui::{
         ai_chat_dialog::AiChatDialog,
         camera_live_feed_dialog::CameraLiveFeedDialog,
@@ -158,13 +160,29 @@ mod imp {
                         csv_bytes_res_to_string("Entities Data", entities_csv),
                         csv_bytes_res_to_string("Stocks Data", stocks_csv),
                     ];
-                    let dialog = AiChatDialog::new(Some(
-                        instruction
-                            .into_iter()
-                            .flatten()
-                            .collect::<Vec<_>>()
-                            .join("\n"),
-                    ));
+
+                    let mut suggestions = vec![
+                        "Provide useful insights based on current data",
+                        "Predict future trends based on current data",
+                    ];
+                    if operation_mode == OperationMode::Refrigerator {
+                        suggestions.push("Provide Filipino recipes based on the available stocks");
+                    }
+                    if operation_mode.is_valid_entity_data_field_ty(EntityDataFieldTy::StockId) {
+                        suggestions.push("Provide suggestions on replenishments");
+                        suggestions.push("Provide suggestions on stock management");
+                    }
+
+                    let dialog = AiChatDialog::new(
+                        Some(
+                            instruction
+                                .into_iter()
+                                .flatten()
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                        ),
+                        suggestions,
+                    );
                     dialog.present(Some(&obj));
                 },
             );
