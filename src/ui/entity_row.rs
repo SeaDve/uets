@@ -107,31 +107,6 @@ mod imp {
                 return;
             }
 
-            if let Some(entity) = &entity {
-                if let Some(name) = entity.data().name() {
-                    self.title_label.set_label(name);
-                    self.avatar.set_text(Some(name));
-                } else {
-                    let text = if let Some(stock_id) = entity.stock_id() {
-                        format!("{} ({})", entity.id(), stock_id)
-                    } else {
-                        entity.id().to_string()
-                    };
-                    self.title_label.set_label(&text);
-                    self.avatar.set_text(Some(&entity.id().to_string()));
-                }
-                self.avatar
-                    .set_custom_image(entity.data().photo().and_then(|p| {
-                        p.texture()
-                            .inspect_err(|err| tracing::error!("Failed to load texture: {:?}", err))
-                            .ok()
-                    }));
-            } else {
-                self.title_label.set_label("");
-                self.avatar.set_text(None);
-                self.avatar.set_custom_image(gdk::Paintable::NONE);
-            }
-
             self.entity_signals
                 .get()
                 .unwrap()
@@ -166,17 +141,17 @@ impl EntityRow {
 
         if let Some(entity) = self.entity() {
             if let Some(name) = entity.data().name() {
-                imp.title_label.set_label(name);
+                imp.title_label.set_text(name);
 
                 imp.avatar.set_text(Some(name));
                 imp.avatar.set_show_initials(true);
             } else {
-                let text = if let Some(stock_id) = entity.stock_id() {
-                    format!("{} ({})", entity.id(), stock_id)
+                if let Some(stock_id) = entity.stock_id() {
+                    imp.title_label
+                        .set_markup(&format!("{} (<i>{}</i>)", entity.id(), stock_id));
                 } else {
-                    entity.id().to_string()
+                    imp.title_label.set_text(&entity.id().to_string());
                 };
-                imp.title_label.set_label(&text);
 
                 imp.avatar.set_text(Some(&entity.id().to_string()));
                 imp.avatar.set_show_initials(false);
@@ -189,7 +164,7 @@ impl EntityRow {
                         .ok()
                 }));
         } else {
-            imp.title_label.set_label("");
+            imp.title_label.set_text("");
 
             imp.avatar.set_text(None);
             imp.avatar.set_custom_image(gdk::Paintable::NONE);
