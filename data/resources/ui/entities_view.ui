@@ -59,6 +59,9 @@
                   <object class="GtkDropDown" id="entity_zone_dropdown"/>
                 </child>
                 <child>
+                  <object class="GtkDropDown" id="entity_overstayed_dropdown"/>
+                </child>
+                <child>
                   <object class="GtkDropDown" id="entity_expiration_dropdown"/>
                 </child>
                 <child>

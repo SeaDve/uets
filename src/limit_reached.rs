@@ -22,11 +22,11 @@ impl LimitReached {
     }
 }
 
-pub trait LabelExt {
+pub trait LimitReachedLabelExt {
     fn set_label_from_limit_reached(&self, count: u32, settings: &Settings);
 }
 
-impl LabelExt for gtk::Label {
+impl LimitReachedLabelExt for gtk::Label {
     fn set_label_from_limit_reached(&self, count: u32, settings: &Settings) {
         if settings.compute_limit_reached(count).is_some() {
             self.set_use_markup(true);
@@ -38,11 +38,11 @@ impl LabelExt for gtk::Label {
     }
 }
 
-pub trait InformationRowExt {
+pub trait LimitReachedInformationRowExt {
     fn set_value_from_limit_reached(&self, count: u32, settings: &Settings);
 }
 
-impl InformationRowExt for InformationRow {
+impl LimitReachedInformationRowExt for InformationRow {
     fn set_value_from_limit_reached(&self, count: u32, settings: &Settings) {
         if settings.compute_limit_reached(count).is_some() {
             self.set_value_use_markup(true);
@@ -54,7 +54,7 @@ impl InformationRowExt for InformationRow {
     }
 }
 
-pub trait SettingsExt {
+pub trait LimitReachedSettingsExt {
     fn compute_limit_reached(&self, count: u32) -> Option<LimitReached>;
     fn connect_limit_reached_threshold_changed(
         &self,
@@ -62,7 +62,7 @@ pub trait SettingsExt {
     ) -> SignalHandlerIdGroup;
 }
 
-impl SettingsExt for Settings {
+impl LimitReachedSettingsExt for Settings {
     fn compute_limit_reached(&self, count: u32) -> Option<LimitReached> {
         let lower = self.lower_limit_reached_threshold();
         let upper = self.upper_limit_reached_threshold();

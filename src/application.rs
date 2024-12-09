@@ -14,10 +14,10 @@ use crate::{
     detected_wo_id_list::DetectedWoIdList,
     detector::Detector,
     entity_data::EntityData,
-    entity_entry_tracker::Overstayed,
+    entity_entry_tracker::EntityIdSet,
     entity_id::EntityId,
     jpeg_image::JpegImage,
-    limit_reached::{LimitReached, SettingsExt},
+    limit_reached::{LimitReached, LimitReachedSettingsExt},
     relay::{Relay, RelayState},
     rfid_reader::RfidReader,
     settings::{OperationMode, Settings},
@@ -244,7 +244,7 @@ mod imp {
                 .connect_overstayed(clone!(
                     #[weak]
                     obj,
-                    move |_, Overstayed(entity_ids)| {
+                    move |_, EntityIdSet(entity_ids)| {
                         if entity_ids.is_empty() {
                             return;
                         }

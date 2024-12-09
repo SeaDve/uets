@@ -37,6 +37,9 @@ impl S {
     const INSIDE: &str = "inside";
     const OUTSIDE: &str = "outside";
 
+    const ENTITY_OVERSTAYED_VALUES: &[&str] = &[Self::OVERSTAYED];
+    const OVERSTAYED: &str = "overstayed";
+
     const ENTITY_SEX_VALUES: &[&str] = &[Self::MALE, Self::FEMALE];
     const MALE: &str = "male";
     const FEMALE: &str = "female";
@@ -86,6 +89,15 @@ enum EntityZoneFilter {
 }
 
 list_model_enum!(EntityZoneFilter);
+
+#[derive(Debug, Clone, Copy, glib::Enum)]
+#[enum_type(name = "UetsEntityOverstayedFilter")]
+enum EntityOverstayedFilter {
+    All,
+    Overstayed,
+}
+
+list_model_enum!(EntityOverstayedFilter);
 
 #[derive(Debug, Clone, Copy, glib::Enum)]
 #[enum_type(name = "UetsEntityExpirationStateFilter")]
@@ -177,6 +189,8 @@ mod imp {
         #[template_child]
         pub(super) entity_zone_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
+        pub(super) entity_overstayed_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
         pub(super) entity_expiration_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
         pub(super) entity_sex_dropdown: TemplateChild<gtk::DropDown>,
@@ -200,6 +214,7 @@ mod imp {
         pub(super) dt_range: RefCell<DateTimeRange>,
 
         pub(super) entity_zone_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
+        pub(super) entity_overstayed_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) entity_expiration_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) entity_sex_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) dt_range_button_range_notify_id: OnceCell<glib::SignalHandlerId>,
@@ -285,6 +300,23 @@ mod imp {
                 ));
             self.entity_zone_dropdown_selected_item_id
                 .set(entity_zone_dropdown_selected_item_notify_id)
+                .unwrap();
+
+            self.entity_overstayed_dropdown
+                .set_expression(Some(&adw::EnumListItem::this_expression("name")));
+            self.entity_overstayed_dropdown
+                .set_model(Some(&EntityOverstayedFilter::new_model()));
+            let entity_overstayed_dropdown_selected_item_notify_id = self
+                .entity_overstayed_dropdown
+                .connect_selected_item_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |dropdown| {
+                        obj.handle_entity_overstayed_dropdown_selected_item_notify(dropdown);
+                    }
+                ));
+            self.entity_overstayed_dropdown_selected_item_id
+                .set(entity_overstayed_dropdown_selected_item_notify_id)
                 .unwrap();
 
             self.entity_expiration_dropdown
@@ -662,7 +694,7 @@ impl EntitiesView {
 
         let queries = entry.queries();
 
-        let entity_zone = match queries.find_last_with_values(S::IS, &[S::INSIDE, S::OUTSIDE]) {
+        let entity_zone = match queries.find_last_with_values(S::IS, S::ENTITY_ZONE_VALUES) {
             Some(S::INSIDE) => EntityZoneFilter::Inside,
             Some(S::OUTSIDE) => EntityZoneFilter::Outside,
             None => EntityZoneFilter::All,
@@ -675,6 +707,24 @@ impl EntitiesView {
         imp.entity_zone_dropdown
             .set_selected(entity_zone.model_position());
         imp.entity_zone_dropdown
+            .unblock_signal(selected_item_notify_id);
+
+        let entity_overstayed =
+            match queries.find_last_with_values(S::IS, S::ENTITY_OVERSTAYED_VALUES) {
+                Some(S::OVERSTAYED) => EntityOverstayedFilter::Overstayed,
+                None => EntityOverstayedFilter::All,
+                Some(_) => unreachable!(),
+            };
+
+        let selected_item_notify_id = imp
+            .entity_overstayed_dropdown_selected_item_id
+            .get()
+            .unwrap();
+        imp.entity_overstayed_dropdown
+            .block_signal(selected_item_notify_id);
+        imp.entity_overstayed_dropdown
+            .set_selected(entity_overstayed.model_position());
+        imp.entity_overstayed_dropdown
             .unblock_signal(selected_item_notify_id);
 
         let entity_expiration =
@@ -756,36 +806,46 @@ impl EntitiesView {
             }
         }
 
+        match entity_overstayed {
+            EntityOverstayedFilter::All => {}
+            EntityOverstayedFilter::Overstayed => {
+                every_filter.append(new_filter(|entity: &Entity| {
+                    Application::get()
+                        .timeline()
+                        .entity_entry_tracker()
+                        .is_overstayed(entity.id())
+                }));
+            }
+        }
+
         match entity_expiration {
             EntityExpirationFilter::All => {}
             EntityExpirationFilter::NoExpiration => {
-                every_filter.append(new_filter(move |entity: &Entity| {
-                    entity.expiration().is_none()
-                }));
+                every_filter.append(new_filter(|entity: &Entity| entity.expiration().is_none()));
             }
             EntityExpirationFilter::NotExpiring => {
-                every_filter.append(new_filter(move |entity: &Entity| {
+                every_filter.append(new_filter(|entity: &Entity| {
                     entity
                         .expiration()
                         .is_some_and(|e| matches!(e, EntityExpiration::NotExpiring))
                 }));
             }
             EntityExpirationFilter::Expiring => {
-                every_filter.append(new_filter(move |entity: &Entity| {
+                every_filter.append(new_filter(|entity: &Entity| {
                     entity
                         .expiration()
                         .is_some_and(|e| matches!(e, EntityExpiration::Expiring))
                 }));
             }
             EntityExpirationFilter::Expired => {
-                every_filter.append(new_filter(move |entity: &Entity| {
+                every_filter.append(new_filter(|entity: &Entity| {
                     entity
                         .expiration()
                         .is_some_and(|e| matches!(e, EntityExpiration::Expired))
                 }));
             }
             EntityExpirationFilter::ExpiringOrExpired => {
-                every_filter.append(new_filter(move |entity: &Entity| {
+                every_filter.append(new_filter(|entity: &Entity| {
                     entity.expiration().is_some_and(|e| {
                         matches!(e, EntityExpiration::Expiring | EntityExpiration::Expired)
                     })
@@ -796,12 +856,12 @@ impl EntitiesView {
         match entity_sex {
             EntitySexFilter::All => {}
             EntitySexFilter::Male => {
-                every_filter.append(new_filter(move |entity: &Entity| {
+                every_filter.append(new_filter(|entity: &Entity| {
                     entity.data().sex().is_some_and(|s| s.is_male())
                 }));
             }
             EntitySexFilter::Female => {
-                every_filter.append(new_filter(move |entity: &Entity| {
+                every_filter.append(new_filter(|entity: &Entity| {
                     entity.data().sex().is_some_and(|s| s.is_female())
                 }));
             }
@@ -823,6 +883,29 @@ impl EntitiesView {
 
         self.update_fallback_sorter();
         self.update_n_results_label();
+    }
+
+    fn handle_entity_overstayed_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
+        let imp = self.imp();
+
+        let selected_item = dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+
+        let mut queries = imp.search_entry.queries();
+
+        match selected_item.value().try_into().unwrap() {
+            EntityOverstayedFilter::All => {
+                queries.remove_all(S::IS, S::ENTITY_OVERSTAYED_VALUES);
+            }
+            EntityOverstayedFilter::Overstayed => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_OVERSTAYED_VALUES, S::OVERSTAYED);
+            }
+        }
+
+        imp.search_entry.set_queries(queries);
     }
 
     fn handle_entity_zone_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {

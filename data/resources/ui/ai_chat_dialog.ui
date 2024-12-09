@@ -15,7 +15,7 @@
             </child>
             <property name="title-widget">
               <object class="AdwWindowTitle">
-                <property name="title">Data Analyer and Assistant</property>
+                <property name="title">Data Analyzer and Assistant</property>
               </object>
             </property>
           </object>

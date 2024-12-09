@@ -4,7 +4,10 @@ use gtk::{
     glib::{self, clone},
 };
 
-use crate::{date_time_range::DateTimeRange, entity::Entity, Application};
+use crate::{
+    date_time_range::DateTimeRange, entity::Entity, entity_entry_tracker::EntityIdSet, format,
+    Application,
+};
 
 mod imp {
     use std::cell::{OnceCell, RefCell};
@@ -84,6 +87,18 @@ mod imp {
                     obj,
                     move |_| {
                         obj.update_avatar_icon_name();
+                    }
+                ));
+            Application::get()
+                .timeline()
+                .entity_entry_tracker()
+                .connect_overstayed_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_, EntityIdSet(entity_ids)| {
+                        if obj.entity().is_some_and(|e| entity_ids.contains(e.id())) {
+                            obj.update_subtitle_label();
+                        }
                     }
                 ));
 
@@ -181,9 +196,17 @@ impl EntityRow {
             } else {
                 "Outside"
             };
-            imp.subtitle_label.set_label(text);
+            if Application::get()
+                .timeline()
+                .entity_entry_tracker()
+                .is_overstayed(entity.id())
+            {
+                imp.subtitle_label.set_markup(&format::red_markup(text));
+            } else {
+                imp.subtitle_label.set_text(text);
+            }
         } else {
-            imp.subtitle_label.set_label("");
+            imp.subtitle_label.set_text("");
         }
     }
 

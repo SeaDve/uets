@@ -1,17 +1,17 @@
 use std::{collections::HashSet, time::Duration};
 
-use chrono::Utc;
+use chrono::{TimeDelta, Utc};
 use gtk::{
     glib::{self, clone, closure_local},
     prelude::*,
     subclass::prelude::*,
 };
 
-use crate::{application::Application, entity_id::EntityId};
+use crate::{application::Application, entity_id::EntityId, settings::Settings};
 
 #[derive(Clone, glib::Boxed)]
 #[boxed_type(name = "UetsOverstayed")]
-pub struct Overstayed(pub HashSet<EntityId>);
+pub struct EntityIdSet(pub HashSet<EntityId>);
 
 mod imp {
     use std::{cell::RefCell, sync::OnceLock};
@@ -23,6 +23,8 @@ mod imp {
     #[derive(Default)]
     pub struct EntityEntryTracker {
         pub(crate) inside_entities: RefCell<HashSet<EntityId>>,
+        pub(crate) overstayed_entities: RefCell<HashSet<EntityId>>,
+
         pub(crate) emitted_overstayed: RefCell<HashSet<EntityId>>,
 
         pub(crate) check_overstayed_timeout_id: RefCell<Option<glib::SourceId>>,
@@ -64,9 +66,14 @@ mod imp {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
 
             SIGNALS.get_or_init(|| {
-                vec![Signal::builder("overstayed")
-                    .param_types([Overstayed::static_type()])
-                    .build()]
+                vec![
+                    Signal::builder("overstayed")
+                        .param_types([EntityIdSet::static_type()])
+                        .build(),
+                    Signal::builder("overstayed-changed")
+                        .param_types([EntityIdSet::static_type()])
+                        .build(),
+                ]
             })
         }
     }
@@ -83,12 +90,23 @@ impl EntityEntryTracker {
 
     pub fn connect_overstayed<F>(&self, f: F) -> glib::SignalHandlerId
     where
-        F: Fn(&Self, &Overstayed) + 'static,
+        F: Fn(&Self, &EntityIdSet) + 'static,
     {
         self.connect_closure(
             "overstayed",
             false,
-            closure_local!(|obj: &Self, id: &Overstayed| f(obj, id)),
+            closure_local!(|obj: &Self, id: &EntityIdSet| f(obj, id)),
+        )
+    }
+
+    pub fn connect_overstayed_changed<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &EntityIdSet) + 'static,
+    {
+        self.connect_closure(
+            "overstayed-changed",
+            false,
+            closure_local!(|obj: &Self, id: &EntityIdSet| f(obj, id)),
         )
     }
 
@@ -106,16 +124,20 @@ impl EntityEntryTracker {
         imp.emitted_overstayed.borrow_mut().remove(entity_id);
     }
 
+    pub fn is_overstayed(&self, entity_id: &EntityId) -> bool {
+        self.imp().emitted_overstayed.borrow().contains(entity_id)
+    }
+
     fn check_overstayed(&self) {
         let imp = self.imp();
 
         let app = Application::get();
+        let settings = app.settings();
 
-        let max_entry_to_exit_duration_secs = app.settings().max_entry_to_exit_duration_secs();
         let entity_list = app.timeline().entity_list();
         let dt_now = Utc::now();
 
-        let mut overstayed = Overstayed(HashSet::new());
+        let mut overstayed_entities = HashSet::new();
         for entity_id in imp.inside_entities.borrow().iter() {
             let entity = entity_list.get(entity_id).expect("entity must be known");
 
@@ -123,16 +145,39 @@ impl EntityEntryTracker {
                 .last_action_dt()
                 .expect("entity must have last action dt");
 
-            if (dt_now - last_action_dt).num_seconds().unsigned_abs()
-                > max_entry_to_exit_duration_secs as u64
-                && !imp.emitted_overstayed.borrow().contains(entity_id)
-            {
-                overstayed.0.insert(entity_id.clone());
+            if settings.compute_overstayed(dt_now - last_action_dt) {
+                overstayed_entities.insert(entity_id.clone());
             }
         }
 
-        self.emit_by_name::<()>("overstayed", &[&overstayed]);
-        imp.emitted_overstayed.borrow_mut().extend(overstayed.0);
+        if overstayed_entities == *imp.overstayed_entities.borrow() {
+            return;
+        }
+
+        imp.emitted_overstayed
+            .borrow_mut()
+            .retain(|id| overstayed_entities.contains(id));
+
+        let unemitted_overstayed = overstayed_entities
+            .iter()
+            .filter(|id| !imp.emitted_overstayed.borrow().contains(id))
+            .cloned()
+            .collect::<HashSet<_>>();
+        self.emit_by_name::<()>("overstayed", &[&EntityIdSet(unemitted_overstayed.clone())]);
+        imp.emitted_overstayed
+            .borrow_mut()
+            .extend(unemitted_overstayed);
+
+        let prev_overstayed_entities = imp.overstayed_entities.replace(overstayed_entities.clone());
+        self.emit_by_name::<()>(
+            "overstayed-changed",
+            &[&EntityIdSet(
+                overstayed_entities
+                    .symmetric_difference(&prev_overstayed_entities)
+                    .cloned()
+                    .collect::<HashSet<_>>(),
+            )],
+        );
     }
 
     fn update_check_overstayed_timeout(&self) {
@@ -167,5 +212,15 @@ impl EntityEntryTracker {
 impl Default for EntityEntryTracker {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub trait EntityEntryTrackerSettingsExt {
+    fn compute_overstayed(&self, duration: TimeDelta) -> bool;
+}
+
+impl EntityEntryTrackerSettingsExt for Settings {
+    fn compute_overstayed(&self, duration: TimeDelta) -> bool {
+        duration.num_seconds().unsigned_abs() > self.max_entry_to_exit_duration_secs() as u64
     }
 }

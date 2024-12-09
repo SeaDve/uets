@@ -8,7 +8,7 @@ use gtk::{
 use crate::{
     date_time_range::DateTimeRange,
     fuzzy_filter::FuzzyFilter,
-    limit_reached::SettingsExt,
+    limit_reached::LimitReachedSettingsExt,
     list_model_enum,
     report::{self, ReportKind},
     report_table,

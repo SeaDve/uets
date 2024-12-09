@@ -5,8 +5,9 @@ use gtk::{
 };
 
 use crate::{
-    date_time, entity::Entity, entity_id::EntityId, format, stock_id::StockId,
-    timeline_item::TimelineItem, timeline_item_kind::TimelineItemKind, Application,
+    date_time, entity::Entity, entity_entry_tracker::EntityEntryTrackerSettingsExt,
+    entity_id::EntityId, format, stock_id::StockId, timeline_item::TimelineItem,
+    timeline_item_kind::TimelineItemKind, Application,
 };
 
 mod imp {
@@ -248,7 +249,6 @@ impl TimelineRow {
 
             let settings = app.settings();
             let operation_mode = settings.operation_mode();
-            let max_entry_to_exit_duration_secs = settings.max_entry_to_exit_duration_secs();
 
             let text = match item.kind() {
                 TimelineItemKind::Entry => {
@@ -263,9 +263,7 @@ impl TimelineRow {
                         "<b>{}</b> {} after <i>{}</i> {}",
                         title,
                         operation_mode.exit_verb(),
-                        if entry_to_exit_duration.num_seconds().unsigned_abs()
-                            > max_entry_to_exit_duration_secs as u64
-                        {
+                        if settings.compute_overstayed(entry_to_exit_duration) {
                             format::red_markup(&entry_to_exit_duration_formatted)
                         } else {
                             entry_to_exit_duration_formatted

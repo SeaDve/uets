@@ -2,7 +2,12 @@ use std::{collections::HashMap, time::Instant};
 
 use anyhow::{bail, Context, Result};
 use chrono::{DateTime, Utc};
-use gtk::{gio, glib, prelude::*, subclass::prelude::*};
+use gtk::{
+    gio,
+    glib::{self, clone},
+    prelude::*,
+    subclass::prelude::*,
+};
 use indexmap::IndexMap;
 
 use crate::{
@@ -11,7 +16,7 @@ use crate::{
     db::{self, EnvExt},
     entity::Entity,
     entity_data::EntityData,
-    entity_entry_tracker::EntityEntryTracker,
+    entity_entry_tracker::{EntityEntryTracker, EntityIdSet},
     entity_id::EntityId,
     entity_list::EntityList,
     log::Log,
@@ -79,7 +84,27 @@ mod imp {
     }
 
     #[glib::derived_properties]
-    impl ObjectImpl for Timeline {}
+    impl ObjectImpl for Timeline {
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            let obj = self.obj();
+
+            self.entity_entry_tracker.connect_overstayed_changed(clone!(
+                #[weak]
+                obj,
+                move |_, EntityIdSet(entity_ids)| {
+                    let entities = entity_ids
+                        .iter()
+                        .map(|id| obj.entity_list().get(id).expect("entity must be known"))
+                        .collect::<Vec<_>>();
+
+                    // Update entities, so filters and sorters also update
+                    obj.entity_list().insert_many(entities);
+                }
+            ));
+        }
+    }
 
     impl ListModelImpl for Timeline {
         fn item_type(&self) -> glib::Type {

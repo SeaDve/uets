@@ -7,7 +7,7 @@ use gtk::{
 use crate::{
     date_time,
     date_time_range::DateTimeRange,
-    limit_reached::{InformationRowExt, SettingsExt},
+    limit_reached::{LimitReachedInformationRowExt, LimitReachedSettingsExt},
     report::{self, ReportKind},
     report_table,
     stock::Stock,
@@ -186,13 +186,14 @@ mod imp {
                 }
             ));
 
-            app.settings().connect_limit_reached_threshold_changed(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.update_n_inside_row();
-                }
-            ));
+            app.settings()
+                .connect_limit_reached_threshold_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_n_inside_row();
+                    }
+                ));
 
             obj.update_n_inside_row();
             obj.update_max_n_inside_row();

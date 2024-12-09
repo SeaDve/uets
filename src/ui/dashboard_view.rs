@@ -9,7 +9,7 @@ use crate::{
     date_time_range::DateTimeRange,
     entity_data::EntityDataFieldTy,
     entity_id::EntityId,
-    limit_reached::{LabelExt, SettingsExt},
+    limit_reached::{LimitReachedLabelExt, LimitReachedSettingsExt},
     report::ReportKind,
     settings::OperationMode,
     ui::{

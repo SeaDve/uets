@@ -10,6 +10,7 @@ use crate::{
     date_time_range::DateTimeRange,
     entity::Entity,
     entity_data::{EntityDataField, EntityDataFieldTy},
+    entity_entry_tracker::EntityIdSet,
     entity_expiration::EntityExpiration,
     format,
     stock_id::StockId,
@@ -112,6 +113,19 @@ mod imp {
             self.parent_constructed();
 
             let obj = self.obj();
+
+            Application::get()
+                .timeline()
+                .entity_entry_tracker()
+                .connect_overstayed_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_, EntityIdSet(entity_ids)| {
+                        if obj.entity().is_some_and(|e| entity_ids.contains(e.id())) {
+                            obj.update_is_inside_row();
+                        }
+                    }
+                ));
 
             let gesture_click = gtk::GestureClick::new();
             gesture_click.connect_released(clone!(
@@ -340,8 +354,19 @@ impl EntityDetailsPane {
             } else {
                 "No"
             };
-            imp.is_inside_row.set_value(value);
+            if Application::get()
+                .timeline()
+                .entity_entry_tracker()
+                .is_overstayed(entity.id())
+            {
+                imp.is_inside_row.set_value_use_markup(true);
+                imp.is_inside_row.set_value(format::red_markup(value));
+            } else {
+                imp.is_inside_row.set_value_use_markup(false);
+                imp.is_inside_row.set_value(value);
+            }
         } else {
+            imp.is_inside_row.set_value_use_markup(false);
             imp.is_inside_row.set_value("");
         }
     }

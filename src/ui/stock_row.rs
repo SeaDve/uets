@@ -6,7 +6,7 @@ use gtk::{
 
 use crate::{
     date_time_range::DateTimeRange,
-    limit_reached::{LabelExt, SettingsExt},
+    limit_reached::{LimitReachedLabelExt, LimitReachedSettingsExt},
     stock::Stock,
     Application,
 };
