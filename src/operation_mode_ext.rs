@@ -1,9 +1,47 @@
+use std::fmt;
+
 use crate::{
     entity_data::{EntityData, EntityDataFieldTy, ValidEntityFields},
     settings::OperationMode,
 };
 
+impl fmt::Display for OperationMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            OperationMode::Counter => write!(f, "Counter"),
+            OperationMode::Attendance => write!(f, "Attendance"),
+            OperationMode::Parking => write!(f, "Parking"),
+            OperationMode::Inventory => write!(f, "Inventory"),
+            OperationMode::Refrigerator => write!(f, "Refrigerator"),
+        }
+    }
+}
+
 impl OperationMode {
+    pub fn all() -> &'static [OperationMode] {
+        &[
+            OperationMode::Counter,
+            OperationMode::Attendance,
+            OperationMode::Parking,
+            OperationMode::Inventory,
+            OperationMode::Refrigerator,
+        ]
+    }
+
+    pub fn description(&self) -> &str {
+        match self {
+            OperationMode::Counter => {
+                "Used for counting entities without data attached (e.g., mall entry counter)"
+            }
+            OperationMode::Attendance => {
+                "Used for tracking attendance, alerting when unauthorized entity is detected (e.g., meeting rooms, establishment entry)"
+            },
+            OperationMode::Parking => "Used for tracking parking spaces and vehicles (e.g., parking lots)",
+            OperationMode::Inventory => "Used for tracking inventory items with lifetime, location, and quantity (e.g., stock rooms)",
+            OperationMode::Refrigerator => "Used for tracking food items with lifetime, quantity, and recipe suggestions",
+        }
+    }
+
     pub fn is_valid_entity_data_field_ty(&self, entity_field: EntityDataFieldTy) -> bool {
         ValidEntityFields::for_operation_mode(*self).contains(entity_field)
     }

@@ -7,7 +7,7 @@ use gtk::{
 };
 use std::process::Command;
 
-use crate::{remote::Remote, Application};
+use crate::{remote::Remote, settings::OperationMode, Application};
 
 mod imp {
     use super::*;
@@ -17,6 +17,8 @@ mod imp {
     pub struct SettingsView {
         #[template_child]
         pub(super) page: TemplateChild<adw::PreferencesPage>, // Unused
+        #[template_child]
+        pub(super) operation_mode_group: TemplateChild<adw::PreferencesGroup>,
         #[template_child]
         pub(super) enable_n_inside_hook_row: TemplateChild<adw::ExpanderRow>,
         #[template_child]
@@ -120,6 +122,23 @@ mod imp {
             settings
                 .bind_n_inside_hook_threshold(&*self.n_inside_hook_threshold_row, "value")
                 .build();
+
+            for operation_mode in OperationMode::all() {
+                let button = gtk::CheckButton::builder()
+                    .valign(gtk::Align::Center)
+                    .action_name("settings-view.operation-mode")
+                    .action_target(&operation_mode.to_variant())
+                    .build();
+
+                let action_row = adw::ActionRow::builder()
+                    .title(operation_mode.to_string())
+                    .subtitle(operation_mode.description())
+                    .activatable_widget(&button)
+                    .build();
+                action_row.add_prefix(&button);
+
+                self.operation_mode_group.add(&action_row);
+            }
 
             self.fullscreen_window_button.connect_clicked(|_| {
                 Application::get().window().fullscreen();

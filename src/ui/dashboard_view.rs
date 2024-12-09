@@ -1,5 +1,6 @@
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::Result;
+use chrono::Local;
 use futures_util::future;
 use gtk::glib::{self, clone, closure_local};
 
@@ -23,17 +24,20 @@ use crate::{
 
 const AI_CHAT_SYSTEM_INSTRUCTIONS: &str = r#"
 You should act like the following:
-- A data analyzer frontend integrated to an app.
-- Very concise and precise.
-- User friendly.
+- A data analyzer frontend assistant integrated to an app (Universal Entity Tracking System).
+- Brief, concise and straightforward.
+- User-friendly and easy-to-understand.
 
-Context:
+Take note of the following contexts:
 - The csv data provided cannot be controlled by the user, and just provided by the app as is.
+- The data is retrieved from a system where entities can enter (inside zone) and exit (outside zone) a location.
+- Entities refer to uniquely identified people, foods, vehicles, animals, or objects.
+- Stocks refer to a group of entities that are the same type.
 
-Note:
-- Don't use markdown markup to create bold text (the use of asterisks, etc.).
-
-The user may ask you to create predictions or insights about the following csv documents:
+Take note of the following instructions:
+- Use short sentences and avoid long paragraphs, breakdown into bullet points for each information,
+- When providing a response, consider the context of the data provided.
+- All given csv data are connected to each other, so make sure to consider all of them.
 "#;
 
 mod imp {
@@ -138,8 +142,18 @@ mod imp {
                     )
                     .await;
 
+                    let operation_mode = app.settings().operation_mode();
                     let instruction = vec![
                         Some(AI_CHAT_SYSTEM_INSTRUCTIONS.to_string()),
+                        Some(format!(
+                            "For addition context, the system is currently operating as {} ({})",
+                            operation_mode,
+                            operation_mode.description()
+                        )),
+                        Some(format!("The date today is {}", Local::now())),
+                        Some(
+                            "Your response should be based on the following csv documents:".into(),
+                        ),
                         csv_bytes_res_to_string("Timeline Data", timeline_csv),
                         csv_bytes_res_to_string("Entities Data", entities_csv),
                         csv_bytes_res_to_string("Stocks Data", stocks_csv),
