@@ -356,8 +356,8 @@ impl AiChatDialog {
                 generation_config: Some(GenerationConfig {
                     max_output_tokens: Some(2048),
                     temperature: Some(0.4),
-                    top_p: Some(1.0),
-                    top_k: Some(32),
+                    top_p: Some(0.2),
+                    top_k: Some(1),
                     ..Default::default()
                 }),
                 system_instruction: imp.system_instruction.get().unwrap().clone().map(

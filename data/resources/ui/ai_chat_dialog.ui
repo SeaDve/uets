@@ -29,7 +29,7 @@
                 <child>
                   <object class="AdwStatusPage" id="empty_page">
                     <property name="title">Start Asking Queries</property>
-                    <property name="description">This chat is powered by AI and provides information and assistance based on programmed knowledge and algorithms. It is not a substitute for professional advice. Always verify critical information independently.</property>
+                    <property name="description">This chat is powered by AI and provides information and assistance based on programmed knowledge and algorithms, which may be inaccurate. It is &lt;b&gt;not&lt;/b&gt; a substitute for professional advice. Always verify critical information independently.</property>
                     <style>
                       <class name="compact"/>
                     </style>
