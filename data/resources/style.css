@@ -7,7 +7,7 @@ entry.circular {
 .user-message-label {
     background-color: @accent_bg_color;
     color: @accent_fg_color;
-    border-radius: 9999px;
+    border-radius: 18px;
     padding: 6px 12px;
 }
 
