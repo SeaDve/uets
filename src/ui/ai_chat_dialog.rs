@@ -355,7 +355,7 @@ impl AiChatDialog {
                     .collect(),
                 generation_config: Some(GenerationConfig {
                     max_output_tokens: Some(2048),
-                    temperature: Some(0.0),
+                    temperature: Some(0.2),
                     top_p: Some(0.5),
                     top_k: Some(8),
                     ..Default::default()
