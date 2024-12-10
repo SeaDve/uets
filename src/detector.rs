@@ -6,7 +6,7 @@ use gtk::{
     prelude::*,
     subclass::prelude::*,
 };
-use heck::ToTitleCase;
+use inflections::case;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -410,8 +410,8 @@ fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
 
     let mut fields = vec![EntityDataField::Name(format!(
         "{}, {} {}",
-        data.subject.last_name.to_title_case(),
-        data.subject.first_name.to_title_case(),
+        case::to_title_case(&data.subject.last_name),
+        case::to_title_case(&data.subject.first_name),
         data.subject
             .middle_name
             .chars()

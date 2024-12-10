@@ -23,11 +23,11 @@ gsettings-macro = "0.2.1"
 gst = { package = "gstreamer", version = "0.23.3" }
 gst-plugin-gtk4 = "0.13"
 gvdb = { version = "0.7", features = ["gresource"] }
-heck = "0.5.0"
 heed = "0.21"
 html2pango = "0.6.0"
 image = "0.23"
 indexmap = { version = "2.7", features = ["serde"] }
+inflections = "1.1.1"
 markdown = "0.3"
 plotters = "0.3.7"
 plotters-cairo = "0.7.0"

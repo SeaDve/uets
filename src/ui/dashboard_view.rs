@@ -3,6 +3,7 @@ use anyhow::Result;
 use chrono::Local;
 use futures_util::future;
 use gtk::glib::{self, clone, closure_local};
+use inflections::case;
 
 use crate::{
     ai_chat_message_list::AiChatMessageList,
@@ -45,6 +46,7 @@ Take note of the following instructions:
 - All given csv data are connected to each other, so make sure to consider all of them.
 - Don't refer to the entity as "entities", refer to them as "people", "item", "foods", "vehicles", "animals", or "objects", depending on the context or operation mode.
 - When mentioning any entity ids or stock ids, always make them a link via markdown format: `[entity_id](entity:entity_id)` or `[stock_id](stock:stock_id)`.
+- If the user asked about what can you do, provide a list of suggestions that you can do and always make them a link via markdown format: `[Suggestion in sentence case](suggestion:suggestion_in_snake_case)`.
 "#;
 
 mod imp {
@@ -211,7 +213,7 @@ mod imp {
                         #[weak]
                         obj,
                         #[upgrade_or_panic]
-                        move |_, uri| {
+                        move |dialog, uri| {
                             match uri.split_once(":") {
                                 Some(("entity", raw_id)) => {
                                     let entity_id = EntityId::new(raw_id);
@@ -221,6 +223,11 @@ mod imp {
                                 Some(("stock", raw_id)) => {
                                     let stock_id = StockId::new(raw_id);
                                     obj.emit_by_name::<()>("show-stock-request", &[&stock_id]);
+                                    glib::Propagation::Stop
+                                }
+                                Some(("suggestion", raw_suggestion)) => {
+                                    let suggestion = case::to_sentence_case(raw_suggestion);
+                                    dialog.send_message(&suggestion);
                                     glib::Propagation::Stop
                                 }
                                 _ => glib::Propagation::Proceed,

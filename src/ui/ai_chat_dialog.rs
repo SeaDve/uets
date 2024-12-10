@@ -299,6 +299,10 @@ impl AiChatDialog {
         )
     }
 
+    pub fn send_message(&self, text: &str) {
+        self.handle_send_message(text);
+    }
+
     fn scroll_to_bottom(&self) {
         let imp = self.imp();
 
