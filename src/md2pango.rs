@@ -69,6 +69,8 @@ static STYLES: LazyLock<Vec<Style>> = LazyLock::new(|| {
     ]
 });
 
+static RE_COMMENT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s*<!--.*-->\s*$").unwrap());
+
 #[derive(Clone)]
 struct Section {
     name: &'static str,
@@ -90,13 +92,11 @@ fn escape_line(line: &str, escapes: &[(Regex, &str)]) -> String {
 pub fn convert(text: &str) -> String {
     let lines: Vec<&str> = text.lines().collect();
 
-    let re_comment = Regex::new(r"^\s*<!--.*-->\s*$").unwrap();
-
     let mut output: Vec<String> = Vec::new();
     let mut is_code = false;
 
     for line in lines {
-        if re_comment.is_match(line) {
+        if RE_COMMENT.is_match(line) {
             continue;
         }
 

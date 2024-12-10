@@ -413,8 +413,7 @@ impl AiChatDialog {
                         .iter()
                         .flat_map(|part| {
                             if let Part::Text(text) = part {
-                                tracing::debug!("Text: {}", text);
-
+                                tracing::trace!("Text: {}", text);
                                 Some(md2pango::convert(text))
                             } else {
                                 None
