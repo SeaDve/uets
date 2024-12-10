@@ -185,9 +185,10 @@ mod imp {
                         "Predict future trends",
                     ];
                     if operation_mode == OperationMode::Refrigerator {
-                        suggestions.push("Provide Filipino recipes based on the available stocks");
+                        suggestions.push("Suggest snacks I can eat");
+                        suggestions.push("Suggest recipes I can make");
                         suggestions
-                            .push("Which items should now be consumed or disposed immediately?");
+                            .push("Which should now be consumed or disposed immediately?");
                     }
                     if operation_mode.is_valid_entity_data_field_ty(EntityDataFieldTy::StockId) {
                         suggestions.push("Provide suggestions on replenishments");
