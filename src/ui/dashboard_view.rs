@@ -178,7 +178,10 @@ mod imp {
                         ),
                         csv_bytes_res_to_string("Timeline Data", timeline_csv),
                         csv_bytes_res_to_string("Entities Data", entities_csv),
-                        csv_bytes_res_to_string("Stocks Data", stocks_csv),
+                        operation_mode
+                            .is_valid_entity_data_field_ty(EntityDataFieldTy::StockId)
+                            .then(|| csv_bytes_res_to_string("Stocks Data", stocks_csv))
+                            .flatten(),
                     ];
 
                     let mut suggestions = vec![
@@ -191,8 +194,7 @@ mod imp {
                     if operation_mode == OperationMode::Refrigerator {
                         suggestions.push("Suggest snacks I can eat based on stocks");
                         suggestions.push("Suggest recipes I can make based on stocks");
-                        suggestions
-                            .push("Which should now be consumed or disposed immediately?");
+                        suggestions.push("Which should now be consumed or disposed immediately?");
                     }
                     if operation_mode.is_valid_entity_data_field_ty(EntityDataFieldTy::StockId) {
                         suggestions.push("Provide suggestions on replenishments");
