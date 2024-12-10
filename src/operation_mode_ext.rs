@@ -9,6 +9,7 @@ use crate::{
     entity_data::{EntityData, EntityDataFieldTy, ValidEntityFields},
     format,
     settings::OperationMode,
+    timeline_item_kind::TimelineItemKind,
 };
 
 impl fmt::Display for OperationMode {
@@ -134,8 +135,8 @@ impl OperationModeEntityExt for Entity {
         operation_mode: OperationMode,
         use_red_markup_on_entry_to_exit_duration: bool,
     ) -> String {
-        match self.is_inside_for_dt_range_full(for_dt_range) {
-            Some((dt, true)) => {
+        match self.action_for_dt_range(for_dt_range) {
+            Some((dt, TimelineItemKind::Entry)) => {
                 let verb = match operation_mode {
                     OperationMode::Counter | OperationMode::Attendance => "Entered",
                     OperationMode::Parking => "Drove in",
@@ -169,7 +170,7 @@ impl OperationModeEntityExt for Entity {
                     },
                 )
             }
-            Some((dt, false)) => {
+            Some((dt, TimelineItemKind::Exit)) => {
                 let verb = match operation_mode {
                     OperationMode::Counter | OperationMode::Attendance => "Exited",
                     OperationMode::Parking => "Drove out",

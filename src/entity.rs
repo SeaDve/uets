@@ -3,7 +3,7 @@ use gtk::{glib, prelude::*, subclass::prelude::*};
 
 use crate::{
     date_time_range::DateTimeRange, entity_data::EntityData, entity_id::EntityId, log::Log,
-    stock_id::StockId,
+    stock_id::StockId, timeline_item_kind::TimelineItemKind,
 };
 
 mod imp {
@@ -24,7 +24,7 @@ mod imp {
 
         pub(super) id: OnceCell<EntityId>,
 
-        pub(super) is_inside_log: RefCell<Log<bool>>,
+        pub(super) action_log: RefCell<Log<TimelineItemKind>>,
     }
 
     #[glib::object_subclass]
@@ -49,11 +49,10 @@ mod imp {
         }
 
         fn is_inside(&self) -> bool {
-            self.is_inside_log
+            self.action_log
                 .borrow()
                 .latest()
-                .copied()
-                .unwrap_or(false)
+                .is_some_and(|kind| kind.is_entry())
         }
     }
 }
@@ -84,11 +83,10 @@ impl Entity {
 
     pub fn is_inside_for_dt(&self, dt: DateTime<Utc>) -> bool {
         self.imp()
-            .is_inside_log
+            .action_log
             .borrow()
             .for_dt(dt)
-            .copied()
-            .unwrap_or(false)
+            .is_some_and(|kind| kind.is_entry())
     }
 
     pub fn is_inside_for_dt_range(&self, dt_range: &DateTimeRange) -> bool {
@@ -99,33 +97,33 @@ impl Entity {
         }
     }
 
-    pub fn is_inside_for_dt_range_full(
+    pub fn action_for_dt_range(
         &self,
         dt_range: &DateTimeRange,
-    ) -> Option<(DateTime<Utc>, bool)> {
+    ) -> Option<(DateTime<Utc>, TimelineItemKind)> {
         let imp = self.imp();
 
         if let Some(end) = dt_range.end {
-            imp.is_inside_log
+            imp.action_log
                 .borrow()
                 .for_dt_full(end)
-                .map(|(dt, is_inside)| (dt, *is_inside))
+                .map(|(dt, kind)| (dt, *kind))
         } else {
-            imp.is_inside_log
+            imp.action_log
                 .borrow()
                 .latest_full()
-                .map(|(dt, is_inside)| (dt, *is_inside))
+                .map(|(dt, kind)| (dt, *kind))
         }
     }
 
     pub fn last_action_dt(&self) -> Option<DateTime<Utc>> {
-        self.imp().is_inside_log.borrow().latest_dt()
+        self.imp().action_log.borrow().latest_dt()
     }
 
-    pub fn with_is_inside_log_mut(&self, f: impl FnOnce(&mut Log<bool>)) {
+    pub fn with_action_log_mut(&self, f: impl FnOnce(&mut Log<TimelineItemKind>)) {
         let prev_is_inside = self.is_inside();
 
-        f(&mut self.imp().is_inside_log.borrow_mut());
+        f(&mut self.imp().action_log.borrow_mut());
 
         if prev_is_inside != self.is_inside() {
             self.notify_is_inside();

@@ -418,8 +418,8 @@ impl Timeline {
             self.set_last_entry_dt(Some(DateTimeBoxed(now_dt)));
         }
 
-        entity.with_is_inside_log_mut(|map| {
-            map.insert(now_dt, !is_exit);
+        entity.with_action_log_mut(|map| {
+            map.insert(now_dt, item_kind);
         });
 
         if let Some(stock) = &stock {
@@ -662,7 +662,7 @@ impl Timeline {
         let mut n_entries_log = Log::<u32>::new();
         let mut n_exits_log = Log::<u32>::new();
 
-        let mut entity_is_inside_logs = HashMap::<EntityId, Log<bool>>::new();
+        let mut entity_action_logs = HashMap::<EntityId, Log<TimelineItemKind>>::new();
         let mut stock_logs: HashMap<StockId, StockLogs> = HashMap::new();
 
         for item in imp.list.borrow().values() {
@@ -677,7 +677,7 @@ impl Timeline {
 
                 n_exits_log.insert(item.dt(), n_exits);
 
-                let last_entry_dt = entity_is_inside_logs
+                let last_entry_dt = entity_action_logs
                     .get(item.entity_id())
                     .expect("entity must be known")
                     .latest_dt()
@@ -699,10 +699,10 @@ impl Timeline {
                 max_n_inside_log.insert(item.dt(), max_n_inside);
             }
 
-            entity_is_inside_logs
+            entity_action_logs
                 .entry(item.entity_id().clone())
                 .or_default()
-                .insert(item.dt(), item.kind().is_entry());
+                .insert(item.dt(), item.kind());
 
             if let Some(stock_id) = entity.stock_id() {
                 let logs = stock_logs.entry(stock_id.clone()).or_default();
@@ -760,9 +760,9 @@ impl Timeline {
         self.set_last_entry_dt(last_entry_dt.map(DateTimeBoxed));
         self.set_last_exit_dt(last_exit_dt.map(DateTimeBoxed));
 
-        for (entity_id, log) in entity_is_inside_logs {
+        for (entity_id, log) in entity_action_logs {
             let entity = self.entity_list().get(&entity_id).unwrap();
-            entity.with_is_inside_log_mut(|l| {
+            entity.with_action_log_mut(|l| {
                 *l = log;
             });
         }
