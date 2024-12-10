@@ -447,28 +447,28 @@ impl DashboardView {
         let imp = self.imp();
 
         let max_n_inside = Application::get().timeline().max_n_inside();
-        imp.max_n_inside_row.set_value(max_n_inside.to_string());
+        imp.max_n_inside_row.set_text(max_n_inside.to_string());
     }
 
     fn update_n_entries_label(&self) {
         let imp = self.imp();
 
         let n_entries = Application::get().timeline().n_entries();
-        imp.n_entries_row.set_value(n_entries.to_string());
+        imp.n_entries_row.set_text(n_entries.to_string());
     }
 
     fn update_n_exits_label(&self) {
         let imp = self.imp();
 
         let n_exits = Application::get().timeline().n_exits();
-        imp.n_exits_row.set_value(n_exits.to_string());
+        imp.n_exits_row.set_text(n_exits.to_string());
     }
 
     fn update_last_entry_dt_row(&self) {
         let imp = self.imp();
 
         let last_entry_dt = Application::get().timeline().last_entry_dt();
-        imp.last_entry_dt_row.set_value(
+        imp.last_entry_dt_row.set_text(
             last_entry_dt
                 .map(|dt_boxed| date_time::format::fuzzy(dt_boxed.0))
                 .unwrap_or_default(),
@@ -479,7 +479,7 @@ impl DashboardView {
         let imp = self.imp();
 
         let last_exit_dt = Application::get().timeline().last_exit_dt();
-        imp.last_exit_dt_row.set_value(
+        imp.last_exit_dt_row.set_text(
             last_exit_dt
                 .map(|dt_boxed| date_time::format::fuzzy(dt_boxed.0))
                 .unwrap_or_default(),

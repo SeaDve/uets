@@ -629,7 +629,7 @@ impl TimelineView {
             format!("Results: {}", n_total)
         };
 
-        imp.n_results_label.set_label(&text);
+        imp.n_results_label.set_text(&text);
     }
 
     fn update_scroll_to_bottom_revealer_reveal_child(&self) {

@@ -139,17 +139,17 @@ impl SendDialog {
     ) -> Result<()> {
         let imp = self.imp();
 
-        imp.file_name_label.set_label(dest_file_name);
+        imp.file_name_label.set_text(dest_file_name);
 
         imp.stack.set_visible_child(&*imp.loading_page);
-        imp.title_label.set_label("Loading Data");
+        imp.title_label.set_text("Loading Data");
         imp.close_button.set_label("Cancel");
 
         let bytes = gio::CancellableFuture::new(bytes_fut, imp.cancellable.clone()).await??;
 
-        imp.title_label.set_label("Loading Code");
+        imp.title_label.set_text("Loading Code");
 
-        imp.file_name_label.set_label(&format!(
+        imp.file_name_label.set_text(&format!(
             "{dest_file_name} ({})",
             glib::format_size(bytes.len() as u64)
         ));
@@ -168,10 +168,10 @@ impl SendDialog {
 
         let qrcode_texture = qrcode_texture_for_uri(&uri)?;
         imp.qrcode_image.set_paintable(Some(&qrcode_texture));
-        imp.code_label.set_label(connection.code().as_str());
+        imp.code_label.set_text(connection.code().as_str());
 
         imp.stack.set_visible_child(&*imp.loaded_page);
-        imp.title_label.set_label("Scan or Type Code");
+        imp.title_label.set_text("Scan or Type Code");
 
         let wormhole =
             gio::CancellableFuture::new(Wormhole::connect(connection), imp.cancellable.clone())
@@ -182,7 +182,7 @@ impl SendDialog {
         imp.sending_page
             .set_text(Some(&format::transfer_progress(0, bytes.len() as u64)));
         imp.stack.set_visible_child(&*imp.sending_page);
-        imp.title_label.set_label("Sending Report");
+        imp.title_label.set_text("Sending Report");
 
         gio::CancellableFuture::new(
             transfer::send_file(
@@ -213,7 +213,7 @@ impl SendDialog {
         )
         .await??;
 
-        imp.title_label.set_label("Report Sent");
+        imp.title_label.set_text("Report Sent");
         imp.stack.set_visible(false);
         imp.close_button.set_label("Close");
         imp.close_button.add_css_class("suggested-action");

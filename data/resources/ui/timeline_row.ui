@@ -33,7 +33,6 @@
               <object class="GtkLabel" id="status_label">
                 <property name="hexpand">True</property>
                 <property name="xalign">0</property>
-                <property name="use-markup">True</property>
                 <property name="wrap">True</property>
                 <property name="wrap-mode">char</property>
               </object>

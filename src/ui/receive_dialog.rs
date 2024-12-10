@@ -112,8 +112,8 @@ impl ReceiveDialog {
         let imp = self.imp();
 
         imp.stack.set_visible_child(&*imp.code_page);
-        imp.title_label.set_label("Starting Camera");
-        imp.file_name_label.set_label(&format!(
+        imp.title_label.set_text("Starting Camera");
+        imp.file_name_label.set_markup(&format!(
             "Valid file extensions: {}",
             valid_file_extensions
                 .iter()
@@ -126,7 +126,7 @@ impl ReceiveDialog {
         let (tx, rx) = oneshot::channel();
         let tx = Rc::new(RefCell::new(Some(tx)));
 
-        imp.title_label.set_label("Show or Enter Code");
+        imp.title_label.set_text("Show or Enter Code");
 
         let code_detected_id = Application::get().camera().connect_code_detected(clone!(
             #[strong]
@@ -153,7 +153,7 @@ impl ReceiveDialog {
         self.camera_disconnect_code_detected();
 
         imp.stack.set_visible_child(&*imp.receiving_page);
-        imp.title_label.set_label("Receiving");
+        imp.title_label.set_text("Receiving");
 
         let app_config = wormhole_ext::app_config();
         let connection = gio::CancellableFuture::new(
@@ -188,10 +188,10 @@ impl ReceiveDialog {
             return Err(InvalidFileExtension.into());
         }
 
-        imp.file_name_label.set_label(&format!(
+        imp.file_name_label.set_text(&format!(
             "{} ({})",
-            glib::markup_escape_text(&request_file_name),
-            glib::markup_escape_text(&glib::format_size(request_file_size))
+            &request_file_name,
+            &glib::format_size(request_file_size)
         ));
 
         let mut bytes = Vec::new();
@@ -224,7 +224,7 @@ impl ReceiveDialog {
             "Received file size mismatch"
         );
 
-        imp.title_label.set_label("File Received");
+        imp.title_label.set_text("File Received");
         imp.stack.set_visible(false);
         imp.close_button.set_label("Close");
         imp.close_button.add_css_class("suggested-action");

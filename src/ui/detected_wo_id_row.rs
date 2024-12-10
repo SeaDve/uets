@@ -65,8 +65,7 @@ mod imp {
             }
 
             if let Some(item) = &item {
-                self.dt_label
-                    .set_label(&date_time::format::fuzzy(item.dt()));
+                self.dt_label.set_text(&date_time::format::fuzzy(item.dt()));
                 self.picture
                     .set_paintable(item.image().as_ref().and_then(|i| {
                         i.texture()
@@ -76,7 +75,7 @@ mod imp {
                             .ok()
                     }));
             } else {
-                self.dt_label.set_label("");
+                self.dt_label.set_text("");
                 self.picture.set_paintable(gdk::Paintable::NONE);
             }
 

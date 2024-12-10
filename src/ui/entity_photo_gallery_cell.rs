@@ -132,6 +132,6 @@ impl EntityPhotoGalleryCell {
                     .map_or_else(|| e.id().to_string(), |n| n.clone())
             })
             .unwrap_or_default();
-        imp.label.set_label(&text);
+        imp.label.set_text(&text);
     }
 }

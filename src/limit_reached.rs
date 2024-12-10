@@ -29,11 +29,9 @@ pub trait LimitReachedLabelExt {
 impl LimitReachedLabelExt for gtk::Label {
     fn set_label_from_limit_reached(&self, count: u32, settings: &Settings) {
         if settings.compute_limit_reached(count).is_some() {
-            self.set_use_markup(true);
-            self.set_label(&format::red_markup(&count.to_string()))
+            self.set_markup(&format::red_markup(&count.to_string()))
         } else {
-            self.set_use_markup(false);
-            self.set_label(&count.to_string());
+            self.set_text(&count.to_string());
         }
     }
 }
@@ -45,11 +43,9 @@ pub trait LimitReachedInformationRowExt {
 impl LimitReachedInformationRowExt for InformationRow {
     fn set_value_from_limit_reached(&self, count: u32, settings: &Settings) {
         if settings.compute_limit_reached(count).is_some() {
-            self.set_value_use_markup(true);
-            self.set_value(format::red_markup(&count.to_string()))
+            self.set_markup(format::red_markup(&count.to_string()));
         } else {
-            self.set_value_use_markup(false);
-            self.set_value(count.to_string());
+            self.set_text(count.to_string());
         }
     }
 }

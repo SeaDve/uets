@@ -758,7 +758,7 @@ impl StocksView {
             format!("Results: {}", n_total)
         };
 
-        imp.n_results_label.set_label(&text);
+        imp.n_results_label.set_text(&text);
     }
 
     fn update_stack(&self) {

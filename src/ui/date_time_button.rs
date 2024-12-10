@@ -169,9 +169,9 @@ impl DateTimeButton {
             } else {
                 date_time::format::human_readable_date(dt.0)
             };
-            imp.label.set_label(&label);
+            imp.label.set_text(&label);
         } else {
-            imp.label.set_label("None");
+            imp.label.set_text("None");
         }
     }
 
@@ -184,7 +184,7 @@ impl DateTimeButton {
         } else {
             date_time::format::human_readable_date(dt_unboxed)
         };
-        imp.dt_label.set_label(&label);
+        imp.dt_label.set_text(&label);
     }
 
     fn update_dt_picker_show_time(&self) {

@@ -615,11 +615,11 @@ impl EntitiesView {
             .column("ID")
             .column("Status")
             .rows(entities.iter().map(|entity| {
-                let status = entity.status_display(&imp.dt_range.borrow(), operation_mode, false);
+                let status_text = entity.status_text(&imp.dt_range.borrow(), operation_mode);
 
                 let mut cells = report_table::row_builder()
                     .cell(entity.id().to_string())
-                    .cell(status.to_string())
+                    .cell(status_text)
                     .build();
 
                 let data = entity.data();
@@ -1118,6 +1118,6 @@ impl EntitiesView {
             format!("Results: {}", n_total)
         };
 
-        imp.n_results_label.set_label(&text);
+        imp.n_results_label.set_text(&text);
     }
 }

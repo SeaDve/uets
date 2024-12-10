@@ -149,7 +149,7 @@ mod imp {
 
             if let Some(item) = &item {
                 let dt_fuzzy_text = date_time::format::fuzzy(item.dt());
-                self.dt_label.set_label(&dt_fuzzy_text);
+                self.dt_label.set_text(&dt_fuzzy_text);
 
                 match item.kind() {
                     TimelineItemKind::Entry => {
@@ -164,7 +164,7 @@ mod imp {
                     }
                 }
             } else {
-                self.dt_label.set_label("");
+                self.dt_label.set_text("");
             }
 
             let entity = item.as_ref().map(|item| {
@@ -272,9 +272,9 @@ impl TimelineRow {
                     )
                 }
             };
-            imp.status_label.set_label(&text);
+            imp.status_label.set_markup(&text);
         } else {
-            imp.status_label.set_label("");
+            imp.status_label.set_text("");
         }
     }
 }

@@ -253,10 +253,10 @@ impl DateTimeRangeDialog {
         let range = self.range();
 
         if range.is_empty() {
-            imp.range_label.set_label("<b>Invalid Range</b>");
+            imp.range_label.set_markup("<b>Invalid Range</b>");
             imp.range_label.add_css_class("error");
         } else {
-            imp.range_label.set_label(&range.label_markup());
+            imp.range_label.set_markup(&range.label_markup());
             imp.range_label.remove_css_class("error");
         }
     }

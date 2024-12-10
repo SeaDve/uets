@@ -131,7 +131,15 @@ impl Entity {
         }
     }
 
-    pub fn status_display(
+    pub fn status_text(
+        &self,
+        for_dt_range: &DateTimeRange,
+        operation_mode: OperationMode,
+    ) -> String {
+        self.status_markup(for_dt_range, operation_mode, false)
+    }
+
+    pub fn status_markup(
         &self,
         for_dt_range: &DateTimeRange,
         operation_mode: OperationMode,

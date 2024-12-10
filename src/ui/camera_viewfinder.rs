@@ -217,17 +217,17 @@ impl CameraViewfinder {
 
         match imp.camera.borrow().as_ref().map(|c| c.state()) {
             None => {
-                imp.message_label_page.set_label("No camera");
+                imp.message_label_page.set_text("No camera");
                 imp.stack.set_visible_child(&*imp.message_label_page)
             }
             Some(CameraState::Idle) => {
-                imp.message_label_page.set_label("Camera is idle");
+                imp.message_label_page.set_text("Camera is idle");
                 imp.stack.set_visible_child(&*imp.message_label_page)
             }
             Some(CameraState::Loading) => imp.stack.set_visible_child(&*imp.spinner_page),
             Some(CameraState::Loaded) => imp.stack.set_visible_child(&*imp.loaded_page),
             Some(CameraState::Error { message }) => {
-                imp.message_label_page.set_label(&message);
+                imp.message_label_page.set_text(&message);
                 imp.stack.set_visible_child(&*imp.message_label_page)
             }
         }

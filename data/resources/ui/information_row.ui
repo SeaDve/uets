@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template class="UetsInformationRow" parent="AdwActionRow">
-    <child type="suffix">
-      <object class="GtkLabel" id="value_label">
-        <property name="xalign">1</property>
-        <property name="ellipsize">end</property>
-        <property name="selectable">True</property>
-      </object>
-    </child>
+    <style>
+      <class name="property"/>
+    </style>
   </template>
 </interface>

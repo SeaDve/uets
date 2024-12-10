@@ -196,8 +196,9 @@ impl EntityRow {
                 .entity_entry_tracker()
                 .is_overstayed(entity.id());
 
-            let text = entity.status_display(&imp.dt_range.borrow(), operation_mode, is_overstayed);
-            imp.subtitle_label.set_markup(&text);
+            let status_markup =
+                entity.status_markup(&imp.dt_range.borrow(), operation_mode, is_overstayed);
+            imp.subtitle_label.set_markup(&status_markup);
         } else {
             imp.subtitle_label.set_text("");
         }

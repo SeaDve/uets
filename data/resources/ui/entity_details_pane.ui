@@ -31,13 +31,17 @@
                 <child>
                   <object class="UetsInformationRow" id="stock_id_row">
                     <property name="title">Stock Name</property>
-                    <property name="value-use-markup">True</property>
+                    <property name="activatable">True</property>
+                    <child type="suffix">
+                      <object class="GtkImage">
+                        <property name="icon-name">go-next-symbolic</property>
+                      </object>
+                    </child>
                   </object>
                 </child>
                 <child>
                   <object class="UetsInformationRow" id="status_row">
                     <property name="title">Status</property>
-                    <property name="value-use-markup">True</property>
                   </object>
                 </child>
                 <child>

@@ -29,9 +29,7 @@
               </object>
             </child>
             <child>
-              <object class="GtkLabel" id="range_label">
-                <property name="use-markup">True</property>
-              </object>
+              <object class="GtkLabel" id="range_label"/>
             </child>
             <child>
               <object class="AdwPreferencesGroup">

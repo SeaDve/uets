@@ -231,7 +231,7 @@ mod imp {
                 return;
             }
 
-            self.id_row.set_value(
+            self.id_row.set_text(
                 stock
                     .as_ref()
                     .map(|s| s.id().to_string())
@@ -374,7 +374,7 @@ impl StockDetailsPane {
             imp.n_inside_row
                 .set_value_from_limit_reached(n_inside, Application::get().settings());
         } else {
-            imp.n_inside_row.set_value("");
+            imp.n_inside_row.set_text("");
         }
     }
 
@@ -386,7 +386,7 @@ impl StockDetailsPane {
             .as_ref()
             .map(|s| s.max_n_inside_for_dt_range(&imp.dt_range.borrow()))
             .unwrap_or_default();
-        imp.max_n_inside_row.set_value(max_n_inside.to_string());
+        imp.max_n_inside_row.set_text(max_n_inside.to_string());
     }
 
     fn update_n_entries_row(&self) {
@@ -397,7 +397,7 @@ impl StockDetailsPane {
             .as_ref()
             .map(|s| s.n_entries_for_dt_range(&imp.dt_range.borrow()))
             .unwrap_or_default();
-        imp.n_entries_row.set_value(n_entries.to_string());
+        imp.n_entries_row.set_text(n_entries.to_string());
     }
 
     fn update_n_exits_row(&self) {
@@ -408,7 +408,7 @@ impl StockDetailsPane {
             .as_ref()
             .map(|s| s.n_exits_for_dt_range(&imp.dt_range.borrow()))
             .unwrap_or_default();
-        imp.n_exits_row.set_value(n_exits.to_string());
+        imp.n_exits_row.set_text(n_exits.to_string());
     }
 
     fn update_last_entry_dt_row(&self) {
@@ -419,7 +419,7 @@ impl StockDetailsPane {
             .as_ref()
             .map(|s| s.last_entry_dt_for_dt_range(&imp.dt_range.borrow()))
             .unwrap_or_default();
-        imp.last_entry_dt_row.set_value(
+        imp.last_entry_dt_row.set_text(
             last_entry_dt
                 .map(date_time::format::fuzzy)
                 .unwrap_or_default(),
@@ -434,7 +434,7 @@ impl StockDetailsPane {
             .as_ref()
             .map(|s| s.last_exit_dt_for_dt_range(&imp.dt_range.borrow()))
             .unwrap_or_default();
-        imp.last_exit_dt_row.set_value(
+        imp.last_exit_dt_row.set_text(
             last_exit_dt
                 .map(date_time::format::fuzzy)
                 .unwrap_or_default(),

@@ -13,7 +13,6 @@ use crate::{
     entity_entry_tracker::EntityIdSet,
     entity_expiration::EntityExpiration,
     format,
-    stock_id::StockId,
     ui::{entity_data_dialog::EntityDataDialog, information_row::InformationRow},
     Application,
 };
@@ -146,18 +145,11 @@ mod imp {
             ));
             self.close_image.add_controller(gesture_click);
 
-            self.stock_id_row.connect_activate_value_link(clone!(
+            self.stock_id_row.connect_activated(clone!(
                 #[weak]
                 obj,
-                #[upgrade_or_panic]
-                move |_, raw_stock_id| {
-                    debug_assert_eq!(
-                        obj.entity().unwrap().stock_id(),
-                        Some(StockId::new(raw_stock_id))
-                    );
-
+                move |_| {
                     obj.emit_by_name::<()>("show-stock-request", &[]);
-                    glib::Propagation::Stop
                 }
             ));
 
@@ -217,19 +209,16 @@ mod imp {
                 return;
             }
 
-            self.id_row.set_value(
+            self.id_row.set_text(
                 entity
                     .as_ref()
                     .map(|s| s.id().to_string())
                     .unwrap_or_default(),
             );
-            self.stock_id_row.set_value(
+            self.stock_id_row.set_text(
                 entity
                     .as_ref()
-                    .and_then(|s| {
-                        s.stock_id()
-                            .map(|s_id| format!("<a href=\"{s_id}\">{s_id}</a>",))
-                    })
+                    .and_then(|s| s.stock_id().map(|s_id| s_id.to_string()))
                     .unwrap_or_default(),
             );
 
@@ -320,21 +309,19 @@ impl EntityDetailsPane {
                 let row = InformationRow::new();
                 row.set_title(&field.ty().to_string());
 
-                let value = match field {
+                match field {
                     EntityDataField::ExpirationDt(dt) => {
                         let date_fmt = date_time::format::human_readable_date(*dt);
                         if EntityExpiration::for_expiration_dt(*dt).is_some_and(|e| {
                             matches!(e, EntityExpiration::Expiring | EntityExpiration::Expired)
                         }) {
-                            format::red_markup(&date_fmt)
+                            row.set_markup(format::red_markup(&date_fmt));
                         } else {
-                            glib::markup_escape_text(&date_fmt).to_string()
+                            row.set_text(date_fmt);
                         }
                     }
-                    _ => glib::markup_escape_text(&field.to_string()).to_string(),
+                    _ => row.set_text(field.to_string()),
                 };
-                row.set_value_use_markup(true);
-                row.set_value(value);
 
                 imp.data_group.add(&row);
                 imp.data_group_rows.borrow_mut().push(row);
@@ -372,11 +359,11 @@ impl EntityDetailsPane {
                 .entity_entry_tracker()
                 .is_overstayed(entity.id());
 
-            let value =
-                entity.status_display(&imp.dt_range.borrow(), operation_mode, is_overstayed);
-            imp.status_row.set_value(value);
+            let status_markup =
+                entity.status_markup(&imp.dt_range.borrow(), operation_mode, is_overstayed);
+            imp.status_row.set_markup(status_markup);
         } else {
-            imp.status_row.set_value("");
+            imp.status_row.set_text("");
         }
     }
 }

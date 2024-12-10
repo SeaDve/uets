@@ -110,11 +110,11 @@ mod imp {
             }
 
             if let Some(stock) = &stock {
-                self.title_label.set_label(&stock.id().to_string());
+                self.title_label.set_text(&stock.id().to_string());
 
                 self.avatar.set_text(Some(&stock.id().to_string()));
             } else {
-                self.title_label.set_label("");
+                self.title_label.set_text("");
 
                 self.avatar.set_text(None);
             }
@@ -152,7 +152,7 @@ impl StockRow {
             imp.n_inside_label
                 .set_label_from_limit_reached(n_inside, Application::get().settings());
         } else {
-            imp.n_inside_label.set_label("");
+            imp.n_inside_label.set_text("");
         }
     }
 
