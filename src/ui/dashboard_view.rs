@@ -193,7 +193,7 @@ mod imp {
                     ];
                     if operation_mode == OperationMode::Refrigerator {
                         suggestions.push("Suggest snacks I can eat based on stocks");
-                        suggestions.push("Suggest recipes I can make based on stocks");
+                        suggestions.push("Suggest Filipino recipes I can make based on stocks");
                         suggestions.push("Which should now be consumed or disposed immediately?");
                     }
                     if operation_mode.is_valid_entity_data_field_ty(EntityDataFieldTy::StockId) {
