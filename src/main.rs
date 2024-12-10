@@ -33,6 +33,7 @@ mod fuzzy_sorter;
 mod jpeg_image;
 mod limit_reached;
 mod log;
+mod md2pango;
 mod operation_mode_ext;
 mod relay;
 mod remote;

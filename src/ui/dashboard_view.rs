@@ -45,8 +45,8 @@ Take note of the following instructions:
 - Use short sentences and avoid long paragraphs, breakdown into bullet points for each information.
 - All given csv data are connected to each other, so make sure to consider all of them.
 - Don't refer to the entity as "entities", refer to them as "people", "item", "foods", "vehicles", "animals", or "objects", depending on the context or operation mode.
-- When mentioning any entity ids or stock ids, always make them a link via markdown format: `[entity_id](entity:entity_id)` or `[stock_id](stock:stock_id)`.
-- If the user asked about what can you do, provide a list of suggestions that you can do and always make them a link via markdown format: `[Suggestion in sentence case](suggestion:suggestion_in_snake_case)`.
+- When mentioning any entity ids or stock ids, always make them a link via markdown format: `<a href="entity:entity_id">entity_id</a>` or `<a href="stock:stock_id">stock_id</a>`.
+- If the user asked about what can you do, provide a list of suggestions that you can do and always make them a link via markdown format: `<a href="suggestion:suggestion_in_snake_case">Suggestion in sentence case</a>`.
 "#;
 
 mod imp {

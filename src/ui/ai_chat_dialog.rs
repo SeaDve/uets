@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ai_chat_message::{AiChatMessage, AiChatMessageTy},
     ai_chat_message_list::AiChatMessageList,
+    md2pango,
     ui::ai_chat_message_row::AiChatMessageRow,
 };
 
@@ -359,9 +360,9 @@ impl AiChatDialog {
                     .collect(),
                 generation_config: Some(GenerationConfig {
                     max_output_tokens: Some(2048),
-                    temperature: Some(0.2),
+                    temperature: Some(0.4),
                     top_p: Some(0.5),
-                    top_k: Some(8),
+                    top_k: Some(32),
                     ..Default::default()
                 }),
                 system_instruction: imp.system_instruction.get().unwrap().clone().map(
@@ -412,16 +413,16 @@ impl AiChatDialog {
                         .iter()
                         .flat_map(|part| {
                             if let Part::Text(text) = part {
-                                let text_html = markdown::to_html(text);
-                                let text_markup = html2pango::markup_html(&text_html).unwrap();
-                                Some(text_markup)
+                                tracing::debug!("Text: {}", text);
+
+                                Some(md2pango::convert(text))
                             } else {
                                 None
                             }
                         })
                         .collect::<Vec<_>>();
 
-                    ai_message.set_loaded_markup(text_markup.join("\n").trim());
+                    ai_message.set_loaded_markup(text_markup.join("\n"));
                 } else {
                     let text = "I'm sorry, I don't know how to respond to that.";
                     ai_message.set_loaded(text.to_string());
