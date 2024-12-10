@@ -13,9 +13,7 @@
                 <property name="orientation">vertical</property>
                 <property name="halign">center</property>
                 <child>
-                  <object class="GtkLabel">
-                    <property name="label">Inside Count</property>
-                  </object>
+                  <object class="GtkLabel" id="n_inside_title_label"/>
                 </child>
                 <child>
                   <object class="GtkLabel" id="n_inside_label">

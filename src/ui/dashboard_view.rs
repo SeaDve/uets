@@ -62,6 +62,8 @@ mod imp {
         #[template_child]
         pub(super) page: TemplateChild<adw::PreferencesPage>, // Unused
         #[template_child]
+        pub(super) n_inside_title_label: TemplateChild<gtk::Label>,
+        #[template_child]
         pub(super) n_inside_label: TemplateChild<gtk::Label>,
         #[template_child]
         pub(super) max_n_inside_row: TemplateChild<InformationRow>,
@@ -285,14 +287,21 @@ mod imp {
 
             let app = Application::get();
 
-            app.settings()
-                .connect_limit_reached_threshold_changed(clone!(
-                    #[weak]
-                    obj,
-                    move |_| {
-                        obj.update_n_inside_label();
-                    }
-                ));
+            let settings = app.settings();
+            settings.connect_operation_mode_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_n_inside_title_label();
+                }
+            ));
+            settings.connect_limit_reached_threshold_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_n_inside_label();
+                }
+            ));
 
             let timeline = app.timeline();
             timeline.connect_items_changed(clone!(
@@ -346,6 +355,7 @@ mod imp {
             ));
 
             obj.update_graphs_data();
+            obj.update_n_inside_title_label();
             obj.update_n_inside_label();
             obj.update_max_n_inside_row();
             obj.update_n_entries_label();
@@ -438,6 +448,14 @@ impl DashboardView {
             .map(|item| (item.dt(), timeline.n_exits_for_dt(item.dt())))
             .collect::<Vec<_>>();
         imp.n_exits_graph.set_data(data);
+    }
+
+    fn update_n_inside_title_label(&self) {
+        let imp = self.imp();
+
+        let operation_mode = Application::get().settings().operation_mode();
+        imp.n_inside_title_label
+            .set_text(operation_mode.n_inside_term());
     }
 
     fn update_n_inside_label(&self) {

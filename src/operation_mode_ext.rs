@@ -87,6 +87,16 @@ impl OperationMode {
         ret
     }
 
+    pub fn n_inside_term(&self) -> &str {
+        match self {
+            OperationMode::Counter => "Inside Count",
+            OperationMode::Attendance => "Total People Inside",
+            OperationMode::Parking => "Total Vehicles Inside",
+            OperationMode::Inventory => "Total Stocks Count",
+            OperationMode::Refrigerator => "Total Food Items Count",
+        }
+    }
+
     pub fn enter_verb(&self) -> &str {
         match self {
             OperationMode::Counter | OperationMode::Attendance => "enters",
