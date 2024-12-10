@@ -69,7 +69,7 @@
             </child>
             <child>
               <object class="AdwSpinRow" id="max_entry_to_exit_duration_row">
-                <property name="title">Maximum Duration of Stay (Seconds)</property>
+                <property name="title">Maximum Duration of Stay</property>
                 <property name="adjustment">
                   <object class="GtkAdjustment">
                     <property name="lower">1</property>

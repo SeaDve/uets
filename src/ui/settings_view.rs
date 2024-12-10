@@ -1,5 +1,6 @@
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::Result;
+use chrono::TimeDelta;
 use gtk::{
     gio,
     glib::{self, clone},
@@ -7,7 +8,7 @@ use gtk::{
 };
 use std::process::Command;
 
-use crate::{remote::Remote, settings::OperationMode, Application};
+use crate::{format, remote::Remote, settings::OperationMode, Application};
 
 mod imp {
     use super::*;
@@ -123,6 +124,14 @@ mod imp {
                     &*self.max_entry_to_exit_duration_row,
                     "value",
                 )
+                .build();
+
+            self.max_entry_to_exit_duration_row
+                .bind_property("value", &*self.max_entry_to_exit_duration_row, "subtitle")
+                .transform_to(|_, value: f64| {
+                    Some(format::duration(TimeDelta::seconds(value as i64)))
+                })
+                .sync_create()
                 .build();
 
             settings
