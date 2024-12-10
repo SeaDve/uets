@@ -35,8 +35,9 @@
                   </object>
                 </child>
                 <child>
-                  <object class="UetsInformationRow" id="is_inside_row">
-                    <property name="title">Inside</property>
+                  <object class="UetsInformationRow" id="status_row">
+                    <property name="title">Status</property>
+                    <property name="value-use-markup">True</property>
                   </object>
                 </child>
                 <child>

@@ -1,5 +1,4 @@
 use anyhow::Result;
-use chrono::Utc;
 use gtk::{
     glib::{self, clone, closure, closure_local},
     prelude::*,
@@ -14,9 +13,9 @@ use crate::{
     entity_expiration::{EntityExpiration, EntityExpirationEntityExt},
     entity_id::EntityId,
     entity_list::EntityList,
-    format,
     fuzzy_filter::FuzzyFilter,
     list_model_enum,
+    operation_mode_ext::OperationModeEntityExt,
     report::{self, ReportKind},
     report_table,
     search_query::SearchQueries,
@@ -610,49 +609,18 @@ impl EntitiesView {
         let operation_mode = Application::get().settings().operation_mode();
         let valid_entity_field_tys = ValidEntityFields::for_operation_mode(operation_mode)
             .iter()
-            .filter(|field_ty| {
-                !matches!(
-                    field_ty,
-                    EntityDataFieldTy::StockId | EntityDataFieldTy::Photo
-                )
-            })
+            .filter(|field_ty| !matches!(field_ty, EntityDataFieldTy::Photo))
             .collect::<Vec<_>>();
 
         let mut table = report_table::builder("Entities")
             .column("ID")
-            .column("Stock ID")
-            .column("Zone")
+            .column("Status")
             .rows(entities.iter().map(|entity| {
-                let stock_id = entity
-                    .stock_id()
-                    .map(|id| id.to_string())
-                    .unwrap_or_default();
-                let zone = if entity.is_inside_for_dt_range(&imp.dt_range.borrow()) {
-                    let last_action_dt = entity.last_action_dt().expect("last action must exist");
-                    let duration_start = if let Some(start) = imp.dt_range.borrow().start {
-                        start.max(last_action_dt)
-                    } else {
-                        last_action_dt
-                    };
-
-                    let duration_end = if let Some(end) = imp.dt_range.borrow().end {
-                        end
-                    } else {
-                        Utc::now()
-                    };
-
-                    format!(
-                        "Inside ({})",
-                        format::duration(duration_end - duration_start)
-                    )
-                } else {
-                    "Outside".into()
-                };
+                let status = entity.status_display(&imp.dt_range.borrow(), operation_mode, false);
 
                 let mut cells = report_table::row_builder()
                     .cell(entity.id().to_string())
-                    .cell(stock_id)
-                    .cell(zone.to_string())
+                    .cell(status.to_string())
                     .build();
 
                 let data = entity.data();
@@ -660,7 +628,7 @@ impl EntitiesView {
                     match data.get(*field_ty) {
                         Some(field) => {
                             let string = match field {
-                                EntityDataField::StockId(_) => unreachable!(),
+                                EntityDataField::StockId(i) => i.to_string(),
                                 EntityDataField::Location(l) => l.to_owned(),
                                 EntityDataField::ExpirationDt(dt) => {
                                     date_time::format::human_readable_date(*dt)

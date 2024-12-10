@@ -1,7 +1,13 @@
 use std::fmt;
 
+use chrono::Utc;
+
 use crate::{
+    date_time,
+    date_time_range::DateTimeRange,
+    entity::Entity,
     entity_data::{EntityData, EntityDataFieldTy, ValidEntityFields},
+    format,
     settings::OperationMode,
 };
 
@@ -108,6 +114,70 @@ impl OperationMode {
             OperationMode::Counter | OperationMode::Attendance => "of stay",
             OperationMode::Parking => "of parking",
             OperationMode::Inventory | OperationMode::Refrigerator => "of being kept",
+        }
+    }
+}
+
+pub trait OperationModeEntityExt {
+    fn status_display(
+        &self,
+        for_dt_range: &DateTimeRange,
+        operation_mode: OperationMode,
+        use_red_markup_on_entry_to_exit_duration: bool,
+    ) -> String;
+}
+
+impl OperationModeEntityExt for Entity {
+    fn status_display(
+        &self,
+        for_dt_range: &DateTimeRange,
+        operation_mode: OperationMode,
+        use_red_markup_on_entry_to_exit_duration: bool,
+    ) -> String {
+        match self.is_inside_for_dt_range_full(for_dt_range) {
+            Some((dt, true)) => {
+                let verb = match operation_mode {
+                    OperationMode::Counter | OperationMode::Attendance => "Entered",
+                    OperationMode::Parking => "Drove in",
+                    OperationMode::Inventory | OperationMode::Refrigerator => "Added",
+                };
+                let entry_to_exit_duration_prefix = match operation_mode {
+                    OperationMode::Counter | OperationMode::Attendance => "stayed",
+                    OperationMode::Parking => "parked",
+                    OperationMode::Inventory | OperationMode::Refrigerator => "kept",
+                };
+
+                let duration_start = if let Some(start) = for_dt_range.start {
+                    start.max(dt)
+                } else {
+                    dt
+                };
+                let duration_end = if let Some(end) = for_dt_range.end {
+                    end
+                } else {
+                    Utc::now()
+                };
+                let formatted_duration = format::duration(duration_end - duration_start);
+
+                format!(
+                    "{verb} {} and {entry_to_exit_duration_prefix} for {}",
+                    date_time::format::fuzzy(dt),
+                    if use_red_markup_on_entry_to_exit_duration {
+                        format::red_markup(&formatted_duration)
+                    } else {
+                        formatted_duration
+                    },
+                )
+            }
+            Some((dt, false)) => {
+                let verb = match operation_mode {
+                    OperationMode::Counter | OperationMode::Attendance => "Exited",
+                    OperationMode::Parking => "Drove out",
+                    OperationMode::Inventory | OperationMode::Refrigerator => "Removed",
+                };
+                format!("{verb} {}", date_time::format::fuzzy(dt))
+            }
+            None => "Never entered".to_string(),
         }
     }
 }

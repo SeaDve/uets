@@ -13,6 +13,7 @@ use crate::{
     entity_entry_tracker::EntityIdSet,
     entity_expiration::EntityExpiration,
     format,
+    operation_mode_ext::OperationModeEntityExt,
     stock_id::StockId,
     ui::{entity_data_dialog::EntityDataDialog, information_row::InformationRow},
     Application,
@@ -44,7 +45,7 @@ mod imp {
         #[template_child]
         pub(super) stock_id_row: TemplateChild<InformationRow>,
         #[template_child]
-        pub(super) is_inside_row: TemplateChild<InformationRow>,
+        pub(super) status_row: TemplateChild<InformationRow>,
         #[template_child]
         pub(super) data_group: TemplateChild<adw::PreferencesGroup>,
         #[template_child]
@@ -114,15 +115,22 @@ mod imp {
 
             let obj = self.obj();
 
-            Application::get()
-                .timeline()
+            let app = Application::get();
+            app.settings().connect_operation_mode_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_status_row();
+                }
+            ));
+            app.timeline()
                 .entity_entry_tracker()
                 .connect_overstayed_changed(clone!(
                     #[weak]
                     obj,
                     move |_, EntityIdSet(entity_ids)| {
                         if obj.entity().is_some_and(|e| entity_ids.contains(e.id())) {
-                            obj.update_is_inside_row();
+                            obj.update_status_row();
                         }
                     }
                 ));
@@ -172,7 +180,7 @@ mod imp {
                     #[weak]
                     obj,
                     move |_, _| {
-                        obj.update_is_inside_row();
+                        obj.update_status_row();
                     }
                 ),
             );
@@ -180,7 +188,7 @@ mod imp {
 
             obj.update_data_group_rows();
             obj.update_photo_picture_group();
-            obj.update_is_inside_row();
+            obj.update_status_row();
         }
 
         fn dispose(&self) {
@@ -234,7 +242,7 @@ mod imp {
             self.entity.replace(entity);
             obj.update_data_group_rows();
             obj.update_photo_picture_group();
-            obj.update_is_inside_row();
+            obj.update_status_row();
             obj.notify_entity();
         }
     }
@@ -282,7 +290,7 @@ impl EntityDetailsPane {
     pub fn set_dt_range(&self, dt_range: DateTimeRange) {
         let imp = self.imp();
         imp.dt_range.replace(dt_range);
-        self.update_is_inside_row();
+        self.update_status_row();
     }
 
     fn update_data_group_rows(&self) {
@@ -354,29 +362,22 @@ impl EntityDetailsPane {
         }
     }
 
-    fn update_is_inside_row(&self) {
+    fn update_status_row(&self) {
         let imp = self.imp();
 
         if let Some(entity) = self.entity() {
-            let value = if entity.is_inside_for_dt_range(&imp.dt_range.borrow()) {
-                "Yes"
-            } else {
-                "No"
-            };
-            if Application::get()
+            let app = Application::get();
+            let operation_mode = app.settings().operation_mode();
+            let is_overstayed = app
                 .timeline()
                 .entity_entry_tracker()
-                .is_overstayed(entity.id())
-            {
-                imp.is_inside_row.set_value_use_markup(true);
-                imp.is_inside_row.set_value(format::red_markup(value));
-            } else {
-                imp.is_inside_row.set_value_use_markup(false);
-                imp.is_inside_row.set_value(value);
-            }
+                .is_overstayed(entity.id());
+
+            let value =
+                entity.status_display(&imp.dt_range.borrow(), operation_mode, is_overstayed);
+            imp.status_row.set_value(value);
         } else {
-            imp.is_inside_row.set_value_use_markup(false);
-            imp.is_inside_row.set_value("");
+            imp.status_row.set_value("");
         }
     }
 }

@@ -5,8 +5,8 @@ use gtk::{
 };
 
 use crate::{
-    date_time_range::DateTimeRange, entity::Entity, entity_entry_tracker::EntityIdSet, format,
-    Application,
+    date_time_range::DateTimeRange, entity::Entity, entity_entry_tracker::EntityIdSet,
+    operation_mode_ext::OperationModeEntityExt, Application,
 };
 
 mod imp {
@@ -80,17 +80,16 @@ mod imp {
             );
             self.entity_signals.set(entity_signals).unwrap();
 
-            Application::get()
-                .settings()
-                .connect_operation_mode_changed(clone!(
-                    #[weak]
-                    obj,
-                    move |_| {
-                        obj.update_avatar_icon_name();
-                    }
-                ));
-            Application::get()
-                .timeline()
+            let app = Application::get();
+            app.settings().connect_operation_mode_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_subtitle_label();
+                    obj.update_avatar_icon_name();
+                }
+            ));
+            app.timeline()
                 .entity_entry_tracker()
                 .connect_overstayed_changed(clone!(
                     #[weak]
@@ -191,20 +190,15 @@ impl EntityRow {
         let imp = self.imp();
 
         if let Some(entity) = self.entity() {
-            let text = if entity.is_inside_for_dt_range(&imp.dt_range.borrow()) {
-                "Inside"
-            } else {
-                "Outside"
-            };
-            if Application::get()
+            let app = Application::get();
+            let operation_mode = app.settings().operation_mode();
+            let is_overstayed = app
                 .timeline()
                 .entity_entry_tracker()
-                .is_overstayed(entity.id())
-            {
-                imp.subtitle_label.set_markup(&format::red_markup(text));
-            } else {
-                imp.subtitle_label.set_text(text);
-            }
+                .is_overstayed(entity.id());
+
+            let text = entity.status_display(&imp.dt_range.borrow(), operation_mode, is_overstayed);
+            imp.subtitle_label.set_markup(&text);
         } else {
             imp.subtitle_label.set_text("");
         }

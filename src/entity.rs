@@ -99,6 +99,25 @@ impl Entity {
         }
     }
 
+    pub fn is_inside_for_dt_range_full(
+        &self,
+        dt_range: &DateTimeRange,
+    ) -> Option<(DateTime<Utc>, bool)> {
+        let imp = self.imp();
+
+        if let Some(end) = dt_range.end {
+            imp.is_inside_log
+                .borrow()
+                .for_dt_full(end)
+                .map(|(dt, is_inside)| (dt, *is_inside))
+        } else {
+            imp.is_inside_log
+                .borrow()
+                .latest_full()
+                .map(|(dt, is_inside)| (dt, *is_inside))
+        }
+    }
+
     pub fn last_action_dt(&self) -> Option<DateTime<Utc>> {
         self.imp().is_inside_log.borrow().latest_dt()
     }
