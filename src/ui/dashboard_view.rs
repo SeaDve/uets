@@ -185,8 +185,8 @@ mod imp {
                         "Predict future trends",
                     ];
                     if operation_mode == OperationMode::Refrigerator {
-                        suggestions.push("Suggest snacks I can eat");
-                        suggestions.push("Suggest recipes I can make");
+                        suggestions.push("Suggest snacks I can eat based on stocks");
+                        suggestions.push("Suggest recipes I can make based on stocks");
                         suggestions
                             .push("Which should now be consumed or disposed immediately?");
                     }
