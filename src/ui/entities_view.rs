@@ -15,7 +15,6 @@ use crate::{
     entity_list::EntityList,
     fuzzy_filter::FuzzyFilter,
     list_model_enum,
-    operation_mode_ext::OperationModeEntityExt,
     report::{self, ReportKind},
     report_table,
     search_query::SearchQueries,

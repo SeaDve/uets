@@ -5,8 +5,7 @@ use gtk::{
 };
 
 use crate::{
-    date_time_range::DateTimeRange, entity::Entity, entity_entry_tracker::EntityIdSet,
-    operation_mode_ext::OperationModeEntityExt, Application,
+    date_time_range::DateTimeRange, entity::Entity, entity_entry_tracker::EntityIdSet, Application,
 };
 
 mod imp {

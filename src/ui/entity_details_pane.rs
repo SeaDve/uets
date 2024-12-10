@@ -13,7 +13,6 @@ use crate::{
     entity_entry_tracker::EntityIdSet,
     entity_expiration::EntityExpiration,
     format,
-    operation_mode_ext::OperationModeEntityExt,
     stock_id::StockId,
     ui::{entity_data_dialog::EntityDataDialog, information_row::InformationRow},
     Application,

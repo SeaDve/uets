@@ -2,8 +2,9 @@ use chrono::{DateTime, Utc};
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
 use crate::{
-    date_time_range::DateTimeRange, entity_data::EntityData, entity_id::EntityId, log::Log,
-    stock_id::StockId, timeline_item_kind::TimelineItemKind,
+    date_time, date_time_range::DateTimeRange, entity_data::EntityData, entity_id::EntityId,
+    format, log::Log, settings::OperationMode, stock_id::StockId,
+    timeline_item_kind::TimelineItemKind,
 };
 
 mod imp {
@@ -127,6 +128,63 @@ impl Entity {
 
         if prev_is_inside != self.is_inside() {
             self.notify_is_inside();
+        }
+    }
+
+    pub fn status_display(
+        &self,
+        for_dt_range: &DateTimeRange,
+        operation_mode: OperationMode,
+        use_red_markup_on_entry_to_exit_duration: bool,
+    ) -> String {
+        match self.action_for_dt_range(for_dt_range) {
+            Some((dt, TimelineItemKind::Entry)) => {
+                let verb = match operation_mode {
+                    OperationMode::Counter | OperationMode::Attendance => "Entered",
+                    OperationMode::Parking => "Drove in",
+                    OperationMode::Inventory | OperationMode::Refrigerator => "Added",
+                };
+                let entry_to_exit_duration_prefix = match operation_mode {
+                    OperationMode::Counter | OperationMode::Attendance => "stayed",
+                    OperationMode::Parking => "parked",
+                    OperationMode::Inventory | OperationMode::Refrigerator => "kept",
+                };
+
+                let duration_start = if let Some(start) = for_dt_range.start {
+                    start.max(dt)
+                } else {
+                    dt
+                };
+                let duration_end = if let Some(end) = for_dt_range.end {
+                    end
+                } else {
+                    Utc::now()
+                };
+                let formatted_duration = format::duration(duration_end - duration_start);
+
+                format!(
+                    "{verb} {} and {entry_to_exit_duration_prefix} for {}",
+                    date_time::format::fuzzy(dt),
+                    if use_red_markup_on_entry_to_exit_duration {
+                        format::red_markup(&formatted_duration)
+                    } else {
+                        formatted_duration
+                    },
+                )
+            }
+            Some((dt, TimelineItemKind::Exit)) => {
+                let verb = match operation_mode {
+                    OperationMode::Counter | OperationMode::Attendance => "Exited",
+                    OperationMode::Parking => "Drove out",
+                    OperationMode::Inventory | OperationMode::Refrigerator => "Removed",
+                };
+                format!("{verb} {}", date_time::format::fuzzy(dt))
+            }
+            None => match operation_mode {
+                OperationMode::Counter | OperationMode::Attendance => "Never entered".into(),
+                OperationMode::Parking => "Never drove in".into(),
+                OperationMode::Inventory | OperationMode::Refrigerator => "Never added".into(),
+            },
         }
     }
 }
