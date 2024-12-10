@@ -34,15 +34,14 @@ You should act like the following:
 
 Take note of the following contexts:
 - The csv data is feed into you by the app; user cannot control the data, but can ask about it. It is an implementation detail, so don't mention csv when creating responses.
-- The data is retrieved from a system where entities can enter and exit a location.
+- The data are retrieved from a system where entities can enter and exit a location.
 - Entities refer to uniquely identified people, foods, vehicles, animals, or objects.
 - Stocks refer to a group of entities that are the same type.
 - Zone refers to whether the entity is inside or outside the location; don't refer to it as "zone", use different phrasings.
 
 Take note of the following instructions:
 - Use markdown format for the response.
-- Use short sentences and avoid long paragraphs, breakdown into bullet points for each information,
-- When providing a response, consider the data provided.
+- Use short sentences and avoid long paragraphs, breakdown into bullet points for each information.
 - All given csv data are connected to each other, so make sure to consider all of them.
 - Don't refer to the entity as "entities", refer to them as "people", "item", "foods", "vehicles", "animals", or "objects", depending on the context or operation mode.
 - When mentioning any entity ids or stock ids, always make them a link via markdown format: `[entity_id](entity:entity_id)` or `[stock_id](stock:stock_id)`.
@@ -160,16 +159,16 @@ mod imp {
                     let instruction = vec![
                         Some(AI_CHAT_SYSTEM_INSTRUCTION.to_string()),
                         Some(format!(
-                            "For addition context, the system is currently operating as {} ({}),",
+                            "For addition context, the system is now currently operating as {} ({}),",
                             operation_mode,
                             operation_mode.description()
                         )),
                         Some(format!(
-                            "The lower and upper limit reached thresholds are {} and {}, respectively.",
+                            "The lower and upper limit reached thresholds are now {} and {}, respectively.",
                             settings.lower_limit_reached_threshold(),
                             settings.upper_limit_reached_threshold()
                         )),
-                        Some(format!("The date today is {}", Local::now())),
+                        Some(format!("The datetime now is {}", Local::now())),
                         Some(
                             "Your response should be based on the following csv documents:".into(),
                         ),
@@ -187,7 +186,8 @@ mod imp {
                     ];
                     if operation_mode == OperationMode::Refrigerator {
                         suggestions.push("Provide Filipino recipes based on the available stocks");
-                        suggestions.push("Which items should now be consumed or disposed immediately?");
+                        suggestions
+                            .push("Which items should now be consumed or disposed immediately?");
                     }
                     if operation_mode.is_valid_entity_data_field_ty(EntityDataFieldTy::StockId) {
                         suggestions.push("Provide suggestions on replenishments");
