@@ -85,6 +85,7 @@
                 <property name="icon-name">view-more-symbolic</property>
                 <property name="popover">
                   <object class="GtkPopover">
+                    <property name="has-arrow">False</property>
                     <property name="child">
                       <object class="GtkListBox" id="suggestion_list_box">
                         <property name="selection-mode">none</property>
