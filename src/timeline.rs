@@ -17,12 +17,14 @@ use crate::{
     entity::Entity,
     entity_data::EntityData,
     entity_entry_tracker::{EntityEntryTracker, EntityIdSet},
+    entity_expired_tracker::EntityExpiredTracker,
     entity_id::EntityId,
     entity_list::EntityList,
     log::Log,
     stock::{Stock, StockLogs},
     stock_data::StockData,
     stock_id::StockId,
+    stock_limit_reached_tracker::StockLimitReachedTracker,
     stock_list::StockList,
     timeline_item::TimelineItem,
     timeline_item_kind::TimelineItemKind,
@@ -69,6 +71,8 @@ mod imp {
         pub(super) entity_list: OnceCell<EntityList>,
         pub(super) stock_list: OnceCell<StockList>,
         pub(super) entity_entry_tracker: EntityEntryTracker,
+        pub(super) stock_limit_reached_tracker: StockLimitReachedTracker,
+        pub(super) entity_expired_tracker: EntityExpiredTracker,
 
         pub(super) n_inside_log: RefCell<Log<u32>>,
         pub(super) max_n_inside_log: RefCell<Log<u32>>,
@@ -204,6 +208,11 @@ impl Timeline {
 
         this.setup_data();
 
+        imp.stock_limit_reached_tracker
+            .bind_stock_list(this.stock_list());
+        imp.entity_expired_tracker
+            .bind_entity_list(this.entity_list());
+
         for entity in this.entity_list().iter() {
             if entity.is_inside() {
                 imp.entity_entry_tracker.handle_entry(entity.id());
@@ -227,6 +236,14 @@ impl Timeline {
 
     pub fn entity_entry_tracker(&self) -> &EntityEntryTracker {
         &self.imp().entity_entry_tracker
+    }
+
+    pub fn stock_limit_reached_tracker(&self) -> &StockLimitReachedTracker {
+        &self.imp().stock_limit_reached_tracker
+    }
+
+    pub fn entity_expired_tracker(&self) -> &EntityExpiredTracker {
+        &self.imp().entity_expired_tracker
     }
 
     pub fn get(&self, dt: &DateTime<Utc>) -> Option<TimelineItem> {

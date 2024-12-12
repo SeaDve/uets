@@ -14,14 +14,18 @@ use crate::{application::Application, entity_id::EntityId, settings::Settings};
 pub struct EntityIdSet(pub HashSet<EntityId>);
 
 mod imp {
-    use std::{cell::RefCell, sync::OnceLock};
+    use std::{cell::RefCell, marker::PhantomData, sync::OnceLock};
 
     use glib::subclass::Signal;
 
     use super::*;
 
-    #[derive(Default)]
+    #[derive(Default, glib::Properties)]
+    #[properties(wrapper_type = super::EntityEntryTracker)]
     pub struct EntityEntryTracker {
+        #[property(get = Self::n_overstayed_entities)]
+        pub(super) n_overstayed: PhantomData<u32>,
+
         pub(crate) inside_entities: RefCell<HashSet<EntityId>>,
         pub(crate) overstayed_entities: RefCell<HashSet<EntityId>>,
 
@@ -36,6 +40,7 @@ mod imp {
         type Type = super::EntityEntryTracker;
     }
 
+    #[glib::derived_properties]
     impl ObjectImpl for EntityEntryTracker {
         fn constructed(&self) {
             self.parent_constructed();
@@ -75,6 +80,12 @@ mod imp {
                         .build(),
                 ]
             })
+        }
+    }
+
+    impl EntityEntryTracker {
+        fn n_overstayed_entities(&self) -> u32 {
+            self.overstayed_entities.borrow().len() as u32
         }
     }
 }
@@ -178,6 +189,8 @@ impl EntityEntryTracker {
                     .collect::<HashSet<_>>(),
             )],
         );
+
+        self.notify_n_overstayed();
     }
 
     fn update_check_overstayed_timeout(&self) {

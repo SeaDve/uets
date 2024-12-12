@@ -11,7 +11,7 @@ use crate::{
     date_time_range::DateTimeRange,
     entity_data::EntityDataFieldTy,
     entity_id::EntityId,
-    limit_reached::{LimitReachedLabelExt, LimitReachedSettingsExt},
+    limit_reached::{LimitReached, LimitReachedLabelExt, LimitReachedSettingsExt},
     report::ReportKind,
     settings::OperationMode,
     stock_id::StockId,
@@ -56,7 +56,10 @@ pub enum DashboardViewShowRequest {
     Entity(EntityId),
     Stock(StockId),
     TimelineItems(TimelineItemKind),
-    EntitiesInside,
+    InsideEntities,
+    OverstayedEntities,
+    LimitReachedStocks(LimitReached),
+    ExpiredEntities,
 }
 
 mod imp {
@@ -86,6 +89,14 @@ mod imp {
         #[template_child]
         pub(super) last_exit_dt_row: TemplateChild<InformationRow>,
         #[template_child]
+        pub(super) n_overstayed_entities_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) n_lower_limit_reached_stocks_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) n_upper_limit_reached_stocks_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) n_expired_entities_row: TemplateChild<InformationRow>,
+        #[template_child]
         pub(super) n_inside_graph: TemplateChild<TimeGraph>,
         #[template_child]
         pub(super) max_n_inside_graph: TemplateChild<TimeGraph>,
@@ -106,8 +117,8 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
 
-            klass.install_action("dashboard-view.show-entities-inside", None, |obj, _, _| {
-                obj.emit_show_request(DashboardViewShowRequest::EntitiesInside);
+            klass.install_action("dashboard-view.show-inside-entities", None, |obj, _, _| {
+                obj.emit_show_request(DashboardViewShowRequest::InsideEntities);
             });
             klass.install_action("dashboard-view.show-entries", None, |obj, _, _| {
                 obj.emit_show_request(DashboardViewShowRequest::TimelineItems(
@@ -118,6 +129,34 @@ mod imp {
                 obj.emit_show_request(DashboardViewShowRequest::TimelineItems(
                     TimelineItemKind::Exit,
                 ));
+            });
+            klass.install_action(
+                "dashboard-view.show-overstayed-entities",
+                None,
+                |obj, _, _| {
+                    obj.emit_show_request(DashboardViewShowRequest::OverstayedEntities);
+                },
+            );
+            klass.install_action(
+                "dashboard-view.show-lower-limit-reached-stocks",
+                None,
+                |obj, _, _| {
+                    obj.emit_show_request(DashboardViewShowRequest::LimitReachedStocks(
+                        LimitReached::Lower,
+                    ));
+                },
+            );
+            klass.install_action(
+                "dashboard-view.show-upper-limit-reached-stocks",
+                None,
+                |obj, _, _| {
+                    obj.emit_show_request(DashboardViewShowRequest::LimitReachedStocks(
+                        LimitReached::Upper,
+                    ));
+                },
+            );
+            klass.install_action("dashboard-view.show-expired-entities", None, |obj, _, _| {
+                obj.emit_show_request(DashboardViewShowRequest::ExpiredEntities);
             });
             klass.install_action(
                 "dashboard-view.show-camera-live-feed-dialog",
@@ -318,6 +357,8 @@ mod imp {
                 obj,
                 move |_| {
                     obj.update_n_inside_title_label();
+                    obj.update_n_limit_reached_stocks_rows_visibility();
+                    obj.update_n_expired_entities_row_visibility();
                 }
             ));
             settings.connect_limit_reached_threshold_changed(clone!(
@@ -379,6 +420,43 @@ mod imp {
                 }
             ));
 
+            timeline
+                .entity_entry_tracker()
+                .connect_overstayed_changed(clone!(
+                    #[weak]
+                    obj,
+                    move |_, _| {
+                        obj.update_n_overstayed_entities_row();
+                    }
+                ));
+            timeline
+                .stock_limit_reached_tracker()
+                .connect_n_lower_limit_reached_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_n_lower_limit_reached_stocks_row();
+                    }
+                ));
+            timeline
+                .stock_limit_reached_tracker()
+                .connect_n_upper_limit_reached_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_n_upper_limit_reached_stocks_row();
+                    }
+                ));
+            timeline
+                .entity_expired_tracker()
+                .connect_n_expired_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |_| {
+                        obj.update_n_expired_entities_row();
+                    }
+                ));
+
             obj.update_graphs_data();
             obj.update_n_inside_title_label();
             obj.update_n_inside_label();
@@ -387,6 +465,12 @@ mod imp {
             obj.update_n_exits_label();
             obj.update_last_entry_dt_row();
             obj.update_last_exit_dt_row();
+            obj.update_n_overstayed_entities_row();
+            obj.update_n_lower_limit_reached_stocks_row();
+            obj.update_n_upper_limit_reached_stocks_row();
+            obj.update_n_limit_reached_stocks_rows_visibility();
+            obj.update_n_expired_entities_row();
+            obj.update_n_expired_entities_row_visibility();
         }
 
         fn dispose(&self) {
@@ -525,6 +609,70 @@ impl DashboardView {
                 .map(|dt_boxed| date_time::format::fuzzy(dt_boxed.0))
                 .unwrap_or_default(),
         );
+    }
+
+    fn update_n_overstayed_entities_row(&self) {
+        let imp = self.imp();
+
+        let n_overstayed = Application::get()
+            .timeline()
+            .entity_entry_tracker()
+            .n_overstayed();
+        imp.n_overstayed_entities_row
+            .set_text(n_overstayed.to_string());
+    }
+
+    fn update_n_lower_limit_reached_stocks_row(&self) {
+        let imp = self.imp();
+
+        let n_lower_limit_reached = Application::get()
+            .timeline()
+            .stock_limit_reached_tracker()
+            .n_lower_limit_reached();
+        imp.n_lower_limit_reached_stocks_row
+            .set_text(n_lower_limit_reached.to_string());
+    }
+
+    fn update_n_upper_limit_reached_stocks_row(&self) {
+        let imp = self.imp();
+
+        let n_upper_limit_reached = Application::get()
+            .timeline()
+            .stock_limit_reached_tracker()
+            .n_upper_limit_reached();
+        imp.n_upper_limit_reached_stocks_row
+            .set_text(n_upper_limit_reached.to_string());
+    }
+
+    fn update_n_limit_reached_stocks_rows_visibility(&self) {
+        let imp = self.imp();
+
+        let is_visible = Application::get()
+            .settings()
+            .operation_mode()
+            .is_valid_entity_data_field_ty(EntityDataFieldTy::StockId);
+        imp.n_lower_limit_reached_stocks_row.set_visible(is_visible);
+        imp.n_upper_limit_reached_stocks_row.set_visible(is_visible);
+    }
+
+    fn update_n_expired_entities_row(&self) {
+        let imp = self.imp();
+
+        let n_expired = Application::get()
+            .timeline()
+            .entity_expired_tracker()
+            .n_expired();
+        imp.n_expired_entities_row.set_text(n_expired.to_string());
+    }
+
+    fn update_n_expired_entities_row_visibility(&self) {
+        let imp = self.imp();
+
+        let is_visible = Application::get()
+            .settings()
+            .operation_mode()
+            .is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt);
+        imp.n_expired_entities_row.set_visible(is_visible);
     }
 }
 

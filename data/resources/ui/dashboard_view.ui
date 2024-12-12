@@ -11,7 +11,7 @@
             <child>
               <object class="GtkButton">
                 <property name="halign">center</property>
-                <property name="action-name">dashboard-view.show-entities-inside</property>
+                <property name="action-name">dashboard-view.show-inside-entities</property>
                 <property name="child">
                   <object class="GtkBox">
                     <property name="orientation">vertical</property>
@@ -74,6 +74,54 @@
             <child>
               <object class="UetsInformationRow" id="last_exit_dt_row">
                 <property name="title">Last Exit Time</property>
+              </object>
+            </child>
+            <child>
+              <object class="UetsInformationRow" id="n_overstayed_entities_row">
+                <property name="title">Overstayed Entities</property>
+                <property name="action-name">dashboard-view.show-overstayed-entities</property>
+                <property name="activatable">True</property>
+                <child type="suffix">
+                  <object class="GtkImage">
+                    <property name="icon-name">go-next-symbolic</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="UetsInformationRow" id="n_lower_limit_reached_stocks_row">
+                <property name="title">Amount Depleted Stocks</property>
+                <property name="action-name">dashboard-view.show-lower-limit-reached-stocks</property>
+                <property name="activatable">True</property>
+                <child type="suffix">
+                  <object class="GtkImage">
+                    <property name="icon-name">go-next-symbolic</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="UetsInformationRow" id="n_upper_limit_reached_stocks_row">
+                <property name="title">Capacity Exceeded Stocks</property>
+                <property name="action-name">dashboard-view.show-upper-limit-reached-stocks</property>
+                <property name="activatable">True</property>
+                <child type="suffix">
+                  <object class="GtkImage">
+                    <property name="icon-name">go-next-symbolic</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="UetsInformationRow" id="n_expired_entities_row">
+                <property name="title">Expired Items</property>
+                <property name="action-name">dashboard-view.show-expired-entities</property>
+                <property name="activatable">True</property>
+                <child type="suffix">
+                  <object class="GtkImage">
+                    <property name="icon-name">go-next-symbolic</property>
+                  </object>
+                </child>
               </object>
             </child>
           </object>

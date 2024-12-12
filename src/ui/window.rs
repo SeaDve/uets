@@ -99,8 +99,20 @@ mod imp {
                             imp.timeline_view.show_items(*kind);
                             imp.view_stack.set_visible_child_name("timeline");
                         }
-                        DashboardViewShowRequest::EntitiesInside => {
+                        DashboardViewShowRequest::InsideEntities => {
                             imp.entities_view.show_entities_inside();
+                            imp.view_stack.set_visible_child_name("entities");
+                        }
+                        DashboardViewShowRequest::OverstayedEntities => {
+                            imp.entities_view.show_entities_overstayed();
+                            imp.view_stack.set_visible_child_name("entities");
+                        }
+                        DashboardViewShowRequest::LimitReachedStocks(limit_reached) => {
+                            imp.stocks_view.show_stocks_limit_reached(*limit_reached);
+                            imp.view_stack.set_visible_child_name("stocks");
+                        }
+                        DashboardViewShowRequest::ExpiredEntities => {
+                            imp.entities_view.show_entities_expired();
                             imp.view_stack.set_visible_child_name("entities");
                         }
                     }

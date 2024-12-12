@@ -8,7 +8,7 @@ use gtk::{
 use crate::{
     date_time_range::DateTimeRange,
     fuzzy_filter::FuzzyFilter,
-    limit_reached::LimitReachedSettingsExt,
+    limit_reached::{LimitReached, LimitReachedSettingsExt},
     list_model_enum,
     report::{self, ReportKind},
     report_table,
@@ -454,6 +454,21 @@ impl StocksView {
         imp.list_view
             .activate_action("list.scroll-to-item", Some(&(position as u32).to_variant()))
             .unwrap();
+    }
+
+    pub fn show_stocks_limit_reached(&self, limit_reached: LimitReached) {
+        let imp = self.imp();
+
+        let value = match limit_reached {
+            LimitReached::Lower => S::LOWER_LIMIT_REACHED,
+            LimitReached::Upper => S::UPPER_LIMIT_REACHED,
+        };
+
+        let mut queries = imp.search_entry.queries();
+        queries.remove_all_standalones();
+        queries.remove_all_iden(S::IS);
+        queries.replace_all_or_insert(S::IS, S::LIMIT_REACHED_VALUES, value);
+        imp.search_entry.set_queries(queries);
     }
 
     pub async fn create_report(&self, kind: ReportKind) -> Result<Vec<u8>> {

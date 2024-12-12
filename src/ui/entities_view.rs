@@ -601,7 +601,31 @@ impl EntitiesView {
 
         let mut queries = imp.search_entry.queries();
         queries.remove_all_standalones();
+        queries.remove_all_iden(S::IS);
+        queries.remove_all_iden(S::STOCK);
         queries.replace_all_or_insert(S::IS, S::ENTITY_ZONE_VALUES, S::INSIDE);
+        imp.search_entry.set_queries(queries);
+    }
+
+    pub fn show_entities_overstayed(&self) {
+        let imp = self.imp();
+
+        let mut queries = imp.search_entry.queries();
+        queries.remove_all_standalones();
+        queries.remove_all_iden(S::IS);
+        queries.remove_all_iden(S::STOCK);
+        queries.replace_all_or_insert(S::IS, S::ENTITY_OVERSTAYED_VALUES, S::OVERSTAYED);
+        imp.search_entry.set_queries(queries);
+    }
+
+    pub fn show_entities_expired(&self) {
+        let imp = self.imp();
+
+        let mut queries = imp.search_entry.queries();
+        queries.remove_all_standalones();
+        queries.remove_all_iden(S::IS);
+        queries.remove_all_iden(S::STOCK);
+        queries.replace_all_or_insert(S::IS, S::ENTITY_EXPIRATION_VALUES, S::EXPIRED);
         imp.search_entry.set_queries(queries);
     }
 

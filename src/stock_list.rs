@@ -70,6 +70,10 @@ impl StockList {
         self.imp().list.borrow().get(id).cloned()
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = Stock> + '_ {
+        ListModelExtManual::iter(self).map(|item| item.unwrap())
+    }
+
     pub fn insert(&self, stock: Stock) -> bool {
         let imp = self.imp();
 
