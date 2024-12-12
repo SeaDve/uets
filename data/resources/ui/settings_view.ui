@@ -44,6 +44,7 @@
             <child>
               <object class="AdwSpinRow" id="lower_limit_reached_threshold_row">
                 <property name="title">Amount Depleted Threshold</property>
+                <property name="climb-rate">9999999999</property>
                 <property name="adjustment">
                   <object class="GtkAdjustment">
                     <property name="lower">0</property>
@@ -57,6 +58,7 @@
             <child>
               <object class="AdwSpinRow" id="upper_limit_reached_threshold_row">
                 <property name="title">Capacity Exceeded Threshold</property>
+                <property name="climb-rate">9999999999</property>
                 <property name="adjustment">
                   <object class="GtkAdjustment">
                     <property name="lower">0</property>
@@ -70,6 +72,7 @@
             <child>
               <object class="AdwSpinRow" id="max_entry_to_exit_duration_row">
                 <property name="title">Maximum Duration of Stay</property>
+                <property name="climb-rate">9999999999</property>
                 <property name="adjustment">
                   <object class="GtkAdjustment">
                     <property name="lower">1</property>
