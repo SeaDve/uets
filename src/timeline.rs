@@ -622,6 +622,8 @@ impl Timeline {
         self.entity_list().clear();
         self.stock_list().clear();
 
+        self.entity_entry_tracker().reset();
+
         self.notify_n_inside();
         self.notify_max_n_inside();
         self.notify_n_entries();
