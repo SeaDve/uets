@@ -239,13 +239,13 @@ impl SettingsView {
             self,
             async move {
                 obj.action_set_enabled("settings-view.reload-remote-status", false);
-                obj.update_remote_status_inner().await;
+                obj.update_remote_status_box_inner().await;
                 obj.action_set_enabled("settings-view.reload-remote-status", true);
             }
         ));
     }
 
-    async fn update_remote_status_inner(&self) {
+    async fn update_remote_status_box_inner(&self) {
         struct RemoteStatus {
             name: &'static str,
             ip_addr: String,
