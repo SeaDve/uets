@@ -8,7 +8,7 @@ use gtk::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{jpeg_image::JpegImage, remote::Remote};
+use crate::{jpeg_image::JpegImage, remote::Remote, utils};
 
 const GTK_SINK_NAME: &str = "gtksink";
 const RTSP_SRC_NAME: &str = "rtspsrc";
@@ -161,7 +161,7 @@ impl Camera {
 
         if is_enabled {
             if imp.sensor_request_handle.borrow().is_none() {
-                let handle = glib::spawn_future_local(clone!(
+                let handle = utils::spawn_future_local_idle(clone!(
                     #[weak(rename_to = obj)]
                     self,
                     async move {
