@@ -143,13 +143,8 @@ impl EntityEntryTracker {
         let imp = self.imp();
 
         imp.inside_entities.borrow_mut().clear();
-        let prev_overstayed_entities = imp.overstayed_entities.take();
+        imp.overstayed_entities.borrow_mut().clear();
         imp.emitted_overstayed.borrow_mut().clear();
-
-        self.emit_by_name::<()>(
-            "overstayed-changed",
-            &[&EntityIdSet(prev_overstayed_entities)],
-        );
 
         self.notify_n_overstayed();
     }
