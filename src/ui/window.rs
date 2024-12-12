@@ -4,8 +4,11 @@ use gtk::glib::{self, clone};
 use crate::{
     entity_data::EntityDataFieldTy,
     ui::{
-        dashboard_view::DashboardView, entities_view::EntitiesView, settings_view::SettingsView,
-        stocks_view::StocksView, timeline_view::TimelineView,
+        dashboard_view::{DashboardView, DashboardViewShowRequest},
+        entities_view::EntitiesView,
+        settings_view::SettingsView,
+        stocks_view::StocksView,
+        timeline_view::TimelineView,
     },
     Application,
 };
@@ -78,31 +81,25 @@ mod imp {
                 }
             ));
 
-            self.dashboard_view.connect_show_entity_request(clone!(
+            self.dashboard_view.connect_show_request(clone!(
                 #[weak]
                 obj,
-                move |_, entity_id| {
+                move |_, show_request| {
                     let imp = obj.imp();
-                    imp.entities_view.show_entity(entity_id);
-                    imp.view_stack.set_visible_child_name("entities");
-                }
-            ));
-            self.dashboard_view.connect_show_stock_request(clone!(
-                #[weak]
-                obj,
-                move |_, stock_id| {
-                    let imp = obj.imp();
-                    imp.stocks_view.show_stock(stock_id);
-                    imp.view_stack.set_visible_child_name("stocks");
-                }
-            ));
-            self.dashboard_view.connect_timeline_items_request(clone!(
-                #[weak]
-                obj,
-                move |_, kind| {
-                    let imp = obj.imp();
-                    imp.timeline_view.show_items(kind);
-                    imp.view_stack.set_visible_child_name("timeline");
+                    match show_request {
+                        DashboardViewShowRequest::Entity(entity_id) => {
+                            imp.entities_view.show_entity(entity_id);
+                            imp.view_stack.set_visible_child_name("entities");
+                        }
+                        DashboardViewShowRequest::Stock(stock_id) => {
+                            imp.stocks_view.show_stock(stock_id);
+                            imp.view_stack.set_visible_child_name("stocks");
+                        }
+                        DashboardViewShowRequest::TimelineItems(kind) => {
+                            imp.timeline_view.show_items(*kind);
+                            imp.view_stack.set_visible_child_name("timeline");
+                        }
+                    }
                 }
             ));
 

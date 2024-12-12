@@ -50,6 +50,14 @@ Take note of the following instructions:
 - If the user asked about what can you do, provide a list of suggestions that you can do and always make them a link via markdown format: `<a href="suggestion:suggestion_in_snake_case">Suggestion in sentence case</a>`.
 "#;
 
+#[derive(Debug, Clone, glib::Boxed)]
+#[boxed_type(name = "UetsDashboardViewShowRequest")]
+pub enum DashboardViewShowRequest {
+    Entity(EntityId),
+    Stock(StockId),
+    TimelineItems(TimelineItemKind),
+}
+
 mod imp {
     use std::sync::OnceLock;
 
@@ -98,10 +106,14 @@ mod imp {
             klass.bind_template();
 
             klass.install_action("dashboard-view.show-entries", None, |obj, _, _| {
-                obj.emit_by_name::<()>("show-timeline-items-request", &[&TimelineItemKind::Entry]);
+                obj.emit_show_request(DashboardViewShowRequest::TimelineItems(
+                    TimelineItemKind::Entry,
+                ));
             });
             klass.install_action("dashboard-view.show-exits", None, |obj, _, _| {
-                obj.emit_by_name::<()>("show-timeline-items-request", &[&TimelineItemKind::Exit]);
+                obj.emit_show_request(DashboardViewShowRequest::TimelineItems(
+                    TimelineItemKind::Exit,
+                ));
             });
             klass.install_action(
                 "dashboard-view.show-camera-live-feed-dialog",
@@ -142,7 +154,7 @@ mod imp {
                         #[weak]
                         obj,
                         move |_, id| {
-                            obj.emit_by_name::<()>("show-entity-request", &[id]);
+                            obj.emit_show_request(DashboardViewShowRequest::Entity(id.clone()));
                         }
                     ));
 
@@ -228,12 +240,12 @@ mod imp {
                             match uri.split_once(":") {
                                 Some(("entity", raw_id)) => {
                                     let entity_id = EntityId::new(raw_id);
-                                    obj.emit_by_name::<()>("show-entity-request", &[&entity_id]);
+                                    obj.emit_show_request(DashboardViewShowRequest::Entity(entity_id));
                                     glib::Propagation::Stop
                                 }
                                 Some(("stock", raw_id)) => {
                                     let stock_id = StockId::new(raw_id);
-                                    obj.emit_by_name::<()>("show-stock-request", &[&stock_id]);
+                                    obj.emit_show_request(DashboardViewShowRequest::Stock(stock_id));
                                     glib::Propagation::Stop
                                 }
                                 Some(("suggestion", raw_suggestion)) => {
@@ -381,17 +393,9 @@ mod imp {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
 
             SIGNALS.get_or_init(|| {
-                vec![
-                    Signal::builder("show-entity-request")
-                        .param_types([EntityId::static_type()])
-                        .build(),
-                    Signal::builder("show-stock-request")
-                        .param_types([StockId::static_type()])
-                        .build(),
-                    Signal::builder("show-timeline-items-request")
-                        .param_types([TimelineItemKind::static_type()])
-                        .build(),
-                ]
+                vec![Signal::builder("show-request")
+                    .param_types([DashboardViewShowRequest::static_type()])
+                    .build()]
             })
         }
     }
@@ -409,37 +413,22 @@ impl DashboardView {
         glib::Object::new()
     }
 
-    pub fn connect_show_entity_request<F>(&self, f: F) -> glib::SignalHandlerId
+    pub fn connect_show_request<F>(&self, f: F) -> glib::SignalHandlerId
     where
-        F: Fn(&Self, &EntityId) + 'static,
+        F: Fn(&Self, &DashboardViewShowRequest) + 'static,
     {
         self.connect_closure(
-            "show-entity-request",
+            "show-request",
             false,
-            closure_local!(|obj: &Self, id: &EntityId| f(obj, id)),
+            closure_local!(|obj: &Self, show_request: &DashboardViewShowRequest| f(
+                obj,
+                show_request
+            )),
         )
     }
 
-    pub fn connect_show_stock_request<F>(&self, f: F) -> glib::SignalHandlerId
-    where
-        F: Fn(&Self, &StockId) + 'static,
-    {
-        self.connect_closure(
-            "show-stock-request",
-            false,
-            closure_local!(|obj: &Self, id: &StockId| f(obj, id)),
-        )
-    }
-
-    pub fn connect_timeline_items_request<F>(&self, f: F) -> glib::SignalHandlerId
-    where
-        F: Fn(&Self, TimelineItemKind) + 'static,
-    {
-        self.connect_closure(
-            "show-timeline-items-request",
-            false,
-            closure_local!(|obj: &Self, kind: TimelineItemKind| f(obj, kind)),
-        )
+    fn emit_show_request(&self, request: DashboardViewShowRequest) {
+        self.emit_by_name::<()>("show-request", &[&request]);
     }
 
     fn update_graphs_data(&self) {
