@@ -96,6 +96,15 @@ mod imp {
                     imp.view_stack.set_visible_child_name("stocks");
                 }
             ));
+            self.dashboard_view.connect_timeline_items_request(clone!(
+                #[weak]
+                obj,
+                move |_, kind| {
+                    let imp = obj.imp();
+                    imp.timeline_view.show_items(kind);
+                    imp.view_stack.set_visible_child_name("timeline");
+                }
+            ));
 
             self.stocks_view.connect_show_timeline_request(clone!(
                 #[weak]

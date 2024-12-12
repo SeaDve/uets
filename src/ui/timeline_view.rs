@@ -17,6 +17,7 @@ use crate::{
     stock_id::StockId,
     timeline::Timeline,
     timeline_item::TimelineItem,
+    timeline_item_kind::TimelineItemKind,
     ui::{
         date_time_range_button::DateTimeRangeButton, search_entry::SearchEntry,
         send_dialog::SendDialog, timeline_row::TimelineRow,
@@ -377,6 +378,22 @@ impl TimelineView {
         let imp = self.imp();
 
         imp.filter_list_model.set_model(Some(timeline));
+    }
+
+    pub fn show_items(&self, kind: TimelineItemKind) {
+        let imp = self.imp();
+
+        let value = match kind {
+            TimelineItemKind::Entry => S::ENTRY,
+            TimelineItemKind::Exit => S::EXIT,
+        };
+
+        let mut queries = imp.search_entry.queries();
+        queries.remove_all_standalones();
+        queries.remove_all_iden(S::ENTITY);
+        queries.remove_all_iden(S::STOCK);
+        queries.replace_all_or_insert(S::IS, S::ITEM_KIND_VALUES, value);
+        imp.search_entry.set_queries(queries);
     }
 
     pub fn show_entity(&self, entity_id: &EntityId) {

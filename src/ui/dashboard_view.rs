@@ -15,6 +15,7 @@ use crate::{
     report::ReportKind,
     settings::OperationMode,
     stock_id::StockId,
+    timeline_item_kind::TimelineItemKind,
     ui::{
         ai_chat_dialog::AiChatDialog,
         camera_live_feed_dialog::CameraLiveFeedDialog,
@@ -96,6 +97,12 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
 
+            klass.install_action("dashboard-view.show-entries", None, |obj, _, _| {
+                obj.emit_by_name::<()>("show-timeline-items-request", &[&TimelineItemKind::Entry]);
+            });
+            klass.install_action("dashboard-view.show-exits", None, |obj, _, _| {
+                obj.emit_by_name::<()>("show-timeline-items-request", &[&TimelineItemKind::Exit]);
+            });
             klass.install_action(
                 "dashboard-view.show-camera-live-feed-dialog",
                 None,
@@ -381,6 +388,9 @@ mod imp {
                     Signal::builder("show-stock-request")
                         .param_types([StockId::static_type()])
                         .build(),
+                    Signal::builder("show-timeline-items-request")
+                        .param_types([TimelineItemKind::static_type()])
+                        .build(),
                 ]
             })
         }
@@ -418,6 +428,17 @@ impl DashboardView {
             "show-stock-request",
             false,
             closure_local!(|obj: &Self, id: &StockId| f(obj, id)),
+        )
+    }
+
+    pub fn connect_timeline_items_request<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, TimelineItemKind) + 'static,
+    {
+        self.connect_closure(
+            "show-timeline-items-request",
+            false,
+            closure_local!(|obj: &Self, kind: TimelineItemKind| f(obj, kind)),
         )
     }
 

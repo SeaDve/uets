@@ -1,6 +1,9 @@
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use gtk::glib;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, glib::Enum)]
+#[enum_type(name = "UetsTimelineItemKind")]
 pub enum TimelineItemKind {
     Entry,
     Exit,
