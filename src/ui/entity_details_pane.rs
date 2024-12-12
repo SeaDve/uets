@@ -114,6 +114,13 @@ mod imp {
             let obj = self.obj();
 
             let app = Application::get();
+            app.date_time_updater().connect_update(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_status_row();
+                }
+            ));
             app.settings().connect_operation_mode_changed(clone!(
                 #[weak]
                 obj,

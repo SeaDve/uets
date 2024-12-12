@@ -9,6 +9,7 @@ use gtk::{
 use crate::{
     camera::Camera,
     date_time_boxed::DateTimeBoxed,
+    date_time_updater::DateTimeUpdater,
     db,
     detected_wo_id_item::DetectedWoIdItem,
     detected_wo_id_list::DetectedWoIdList,
@@ -37,6 +38,8 @@ mod imp {
     #[derive(Default)]
     pub struct Application {
         pub(super) settings: Settings,
+
+        pub(super) date_time_updater: DateTimeUpdater,
 
         pub(super) camera: OnceCell<Camera>,
         pub(super) rfid_reader: OnceCell<RfidReader>,
@@ -348,6 +351,10 @@ impl Application {
 
     pub fn settings(&self) -> &Settings {
         &self.imp().settings
+    }
+
+    pub fn date_time_updater(&self) -> &DateTimeUpdater {
+        &self.imp().date_time_updater
     }
 
     pub fn camera(&self) -> &Camera {

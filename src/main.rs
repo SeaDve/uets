@@ -17,6 +17,7 @@ mod config;
 mod date_time;
 mod date_time_boxed;
 mod date_time_range;
+mod date_time_updater;
 mod db;
 mod detected_wo_id_item;
 mod detected_wo_id_list;

@@ -99,6 +99,13 @@ mod imp {
                         }
                     }
                 ));
+            app.date_time_updater().connect_update(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_subtitle_label();
+                }
+            ));
 
             obj.update_title_label_and_avatar();
             obj.update_subtitle_label();
