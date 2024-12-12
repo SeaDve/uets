@@ -596,6 +596,15 @@ impl EntitiesView {
         imp.search_entry.set_queries(queries);
     }
 
+    pub fn show_entities_inside(&self) {
+        let imp = self.imp();
+
+        let mut queries = imp.search_entry.queries();
+        queries.remove_all_standalones();
+        queries.replace_all_or_insert(S::IS, S::ENTITY_ZONE_VALUES, S::INSIDE);
+        imp.search_entry.set_queries(queries);
+    }
+
     pub async fn create_report(&self, kind: ReportKind) -> Result<Vec<u8>> {
         let imp = self.imp();
 

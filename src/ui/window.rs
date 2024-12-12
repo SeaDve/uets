@@ -99,6 +99,10 @@ mod imp {
                             imp.timeline_view.show_items(*kind);
                             imp.view_stack.set_visible_child_name("timeline");
                         }
+                        DashboardViewShowRequest::EntitiesInside => {
+                            imp.entities_view.show_entities_inside();
+                            imp.view_stack.set_visible_child_name("entities");
+                        }
                     }
                 }
             ));

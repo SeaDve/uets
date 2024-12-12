@@ -56,6 +56,7 @@ pub enum DashboardViewShowRequest {
     Entity(EntityId),
     Stock(StockId),
     TimelineItems(TimelineItemKind),
+    EntitiesInside,
 }
 
 mod imp {
@@ -105,6 +106,9 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
 
+            klass.install_action("dashboard-view.show-entities-inside", None, |obj, _, _| {
+                obj.emit_show_request(DashboardViewShowRequest::EntitiesInside);
+            });
             klass.install_action("dashboard-view.show-entries", None, |obj, _, _| {
                 obj.emit_show_request(DashboardViewShowRequest::TimelineItems(
                     TimelineItemKind::Entry,

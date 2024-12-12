@@ -9,19 +9,27 @@
         <child>
           <object class="AdwPreferencesGroup">
             <child>
-              <object class="GtkBox">
-                <property name="orientation">vertical</property>
+              <object class="GtkButton">
                 <property name="halign">center</property>
-                <child>
-                  <object class="GtkLabel" id="n_inside_title_label"/>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="n_inside_label">
-                    <style>
-                      <class name="n-inside"/>
-                    </style>
+                <property name="action-name">dashboard-view.show-entities-inside</property>
+                <property name="child">
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkLabel" id="n_inside_title_label"/>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="n_inside_label">
+                        <style>
+                          <class name="n-inside"/>
+                        </style>
+                      </object>
+                    </child>
                   </object>
-                </child>
+                </property>
+                <style>
+                  <class name="flat"/>
+                </style>
               </object>
             </child>
           </object>
