@@ -84,6 +84,16 @@ ATTRS{name}=="wch.cn USB2IIC_CTP_CONTROL", ENV{LIBINPUT_CALIBRATION_MATRIX}="0 1
 
 2. Reboot the system.
 
+## 🖊️ Planned Features
+
+1. Override timeline items for errors
+2. Show license of all libraries
+3. Implement local transfer wormhole
+4. Support changing stock id
+5. Considerentity name on sorter, etc.
+6. Ability to filter entity data on report generation
+
+
 ## 🔃 Syncing code to the Pi
 
 ```sh
