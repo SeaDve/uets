@@ -12,7 +12,7 @@ use crate::{
     ui::ai_chat_message_row::AiChatMessageRow,
 };
 
-const API_KEY: &str = "AIzaSyD6aJhtX0rjAHkvEkpzJGCobtsy5AL1_aY";
+const API_KEY: &str = ""; // Get one from Google AI Studio: https://aistudio.google.com/apikey
 const MODEL_NAME: &str = "gemini-1.5-flash-latest";
 
 mod imp {
