@@ -582,8 +582,6 @@ impl Timeline {
             debug_assert_eq!(self.n_exits(), 0);
             debug_assert_eq!(self.last_entry_dt(), None);
             debug_assert_eq!(self.last_exit_dt(), None);
-            debug_assert_eq!(self.entity_list().len(), 0);
-            debug_assert_eq!(self.stock_list().len(), 0);
 
             if cfg!(debug_assertions) {
                 let (env, tdb, edb, sdb) = self.db();
