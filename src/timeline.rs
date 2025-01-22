@@ -575,26 +575,6 @@ impl Timeline {
 
         let prev_len = imp.list.borrow().len();
 
-        if prev_len == 0 {
-            debug_assert_eq!(self.n_inside(), 0);
-            debug_assert_eq!(self.max_n_inside(), 0);
-            debug_assert_eq!(self.n_entries(), 0);
-            debug_assert_eq!(self.n_exits(), 0);
-            debug_assert_eq!(self.last_entry_dt(), None);
-            debug_assert_eq!(self.last_exit_dt(), None);
-
-            if cfg!(debug_assertions) {
-                let (env, tdb, _, _) = self.db();
-                env.with_read_txn(|rtxn| {
-                    let tdb_n_items = tdb.len(rtxn)?;
-                    debug_assert_eq!(tdb_n_items, 0);
-                    Ok(())
-                })?;
-            }
-
-            return Ok(());
-        }
-
         let (env, tdb, edb, sdb) = self.db();
         env.with_write_txn(|wtxn| {
             tdb.clear(wtxn)?;
