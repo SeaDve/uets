@@ -66,7 +66,7 @@ impl FromStr for DateTimeRange {
             });
         }
 
-        Err(anyhow!("Invalid date time range format"))
+        Err(anyhow!("`{}` did not match any formats", s))
     }
 }
 
