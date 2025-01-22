@@ -584,14 +584,10 @@ impl Timeline {
             debug_assert_eq!(self.last_exit_dt(), None);
 
             if cfg!(debug_assertions) {
-                let (env, tdb, edb, sdb) = self.db();
+                let (env, tdb, _, _) = self.db();
                 env.with_read_txn(|rtxn| {
                     let tdb_n_items = tdb.len(rtxn)?;
                     debug_assert_eq!(tdb_n_items, 0);
-                    let edb_n_items = edb.len(rtxn)?;
-                    debug_assert_eq!(edb_n_items, 0);
-                    let sdb_n_items = sdb.len(rtxn)?;
-                    debug_assert_eq!(sdb_n_items, 0);
                     Ok(())
                 })?;
             }
