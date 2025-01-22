@@ -24,7 +24,7 @@ impl Timeline {
         let col_title_row = rows.next().context("No column title")?;
 
         let entity_id_col_idx = find_position(col_title_row, |s| {
-            matches!(s.to_lowercase().as_str(), "entity" | "entity id")
+            matches!(s.to_lowercase().as_str(), "entity" | "entity id" | "id")
         });
         let col_idxs = EntityDataFieldTy::all()
             .iter()
