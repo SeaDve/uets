@@ -430,6 +430,7 @@ impl Application {
 
     async fn handle_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
         let timeline = self.timeline();
+        let operation_mode = self.settings().operation_mode();
 
         let data = if let Some(data) = entity_data {
             tracing::debug!("Using entity data from detector");
@@ -439,7 +440,7 @@ impl Application {
             tracing::debug!("Retrieved entity data from timeline");
 
             entity.data().clone()
-        } else if self.settings().operation_mode() != OperationMode::Counter {
+        } else if operation_mode != OperationMode::Counter {
             tracing::debug!("Gathering entity data from user");
 
             match EntityDataDialog::gather_data(
@@ -469,20 +470,34 @@ impl Application {
         let entity_name = data.name().cloned();
         match timeline.handle_detected(entity_id, data) {
             Ok(item) => {
-                if let Some(name) = entity_name {
-                    match item.kind() {
-                        TimelineItemKind::Entry => {
-                            self.add_message_toast_with_id(
-                                ToastId::Detected,
-                                &format!("Welcome, {}!", name),
-                            );
-                        }
-                        TimelineItemKind::Exit => {
-                            self.add_message_toast_with_id(
-                                ToastId::Detected,
-                                &format!("Goodbye, {}!", name),
-                            );
-                        }
+                match item.kind() {
+                    TimelineItemKind::Entry => {
+                        let message = match entity_name {
+                            Some(name) if operation_mode.is_for_person() => {
+                                format!("Welcome, {}!", name)
+                            }
+                            Some(name) => {
+                                format!("{name} {}", operation_mode.enter_verb())
+                            }
+                            None => {
+                                format!("{entity_id} {}", operation_mode.enter_verb())
+                            }
+                        };
+                        self.add_message_toast_with_id(ToastId::Detected, &message);
+                    }
+                    TimelineItemKind::Exit => {
+                        let message = match entity_name {
+                            Some(name) if operation_mode.is_for_person() => {
+                                format!("Goodbye, {}!", name)
+                            }
+                            Some(name) => {
+                                format!("{name} {}", operation_mode.exit_verb())
+                            }
+                            None => {
+                                format!("{entity_id} {}", operation_mode.exit_verb())
+                            }
+                        };
+                        self.add_message_toast_with_id(ToastId::Detected, &message);
                     }
                 }
 
