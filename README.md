@@ -57,7 +57,7 @@ This is experimental as it is labor-intensive to tag entities with this kind.
 - Prevents unauthorized entities from entering, such as those without IDs or disallowed entities.
 - Prevents overstay of entities. This is useful for parking lots, classrooms, arcade games, etc.
 
-### 📈 AI Data Analysis
+### 📈 Smart Data Analysis
 
 - Provide insights on data.
 - Detects anomalies in data, such as sudden increase in entity count, etc.
