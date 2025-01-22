@@ -1,8 +1,15 @@
-use anyhow::Result;
-use chrono::{DateTime, Datelike, Local, NaiveTime, Utc};
+use anyhow::{Context, Result};
+use chrono::{DateTime, Datelike, Local, NaiveDate, NaiveTime, Utc};
 
 pub fn parse(input: &str) -> Result<DateTime<Utc>> {
-    dateparser::parse_with(input, &Local, NaiveTime::MIN)
+    dateparser::parse_with(input, &Local, NaiveTime::MIN).or_else(|_| {
+        Ok(NaiveDate::parse_from_str(input, "%b %d %Y")?
+            .and_time(NaiveTime::MIN)
+            .and_local_timezone(Local)
+            .single()
+            .context("Invalid date")?
+            .to_utc())
+    })
 }
 
 pub mod format {
