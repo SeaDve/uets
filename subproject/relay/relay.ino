@@ -66,7 +66,6 @@ void server_setup()
     server.on("/status", handle_status);
 
     server.begin();
-
     Serial.println("Server started");
 }
 
