@@ -1,5 +1,6 @@
-use std::fmt;
+use std::{fmt, str::FromStr};
 
+use anyhow::{anyhow, Error, Result};
 use chrono::{
     DateTime, Datelike, Duration, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Timelike,
     Utc, Weekday,
@@ -26,6 +27,46 @@ impl fmt::Display for DateTimeRange {
         let (_, stripped, _) =
             pango::parse_markup(&self.label_markup(), 0 as char).map_err(|_| fmt::Error)?;
         write!(f, "{}", stripped)
+    }
+}
+
+impl FromStr for DateTimeRange {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let s = s.to_lowercase();
+        let s = s.trim();
+
+        if s == "all time" || s.is_empty() {
+            return Ok(Self::all_time());
+        }
+
+        if s.starts_with("until") {
+            let end = date_time::parse(s.trim_start_matches("until").trim())?;
+            return Ok(Self {
+                start: None,
+                end: Some(end),
+            });
+        }
+
+        if let Some((raw_start, raw_end)) = s.split_once("to") {
+            let start = date_time::parse(raw_start.trim())?;
+            let end = date_time::parse(raw_end.trim())?;
+            return Ok(Self {
+                start: Some(start),
+                end: Some(end),
+            });
+        }
+
+        if s.ends_with("onwards") {
+            let start = date_time::parse(s.trim_end_matches("onwards").trim())?;
+            return Ok(Self {
+                start: Some(start),
+                end: None,
+            });
+        }
+
+        Err(anyhow!("Invalid date time range format"))
     }
 }
 
@@ -232,5 +273,51 @@ fn days_in_month(year: i32, month: u32) -> u32 {
             }
         }
         _ => unreachable!(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse() {
+        let start_dt = DateTime::parse_from_rfc3339("2024-11-03T01:21:16Z")
+            .unwrap()
+            .to_utc();
+        let end_dt = DateTime::parse_from_rfc3339("2024-11-04T02:22:17Z")
+            .unwrap()
+            .to_utc();
+
+        assert_eq!(
+            DateTimeRange {
+                start: Some(start_dt),
+                end: Some(end_dt),
+            },
+            " 2024-11-03 01:21:16Z   to  2024-11-04 02:22:17Z "
+                .parse()
+                .unwrap(),
+        );
+        assert_eq!(
+            DateTimeRange {
+                start: None,
+                end: Some(end_dt),
+            },
+            " Until 2024-11-04 02:22:17Z  ".parse().unwrap(),
+        );
+        assert_eq!(
+            DateTimeRange {
+                start: Some(start_dt),
+                end: None,
+            },
+            "  2024-11-03 01:21:16Z  Onwards  ".parse().unwrap(),
+        );
+        assert_eq!(
+            DateTimeRange {
+                start: None,
+                end: None,
+            },
+            "All Time".parse().unwrap(),
+        );
     }
 }

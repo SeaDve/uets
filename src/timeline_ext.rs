@@ -5,6 +5,7 @@ use calamine::{Data, DataType, Reader};
 
 use crate::{
     date_time,
+    date_time_range::DateTimeRange,
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_id::EntityId,
     jpeg_image::JpegImage,
@@ -39,7 +40,9 @@ impl Timeline {
                     EntityDataFieldTy::ExpirationDt => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("expiration")
                     }),
-                    EntityDataFieldTy::AllowedDtRange => None, // TODO
+                    EntityDataFieldTy::AllowedDtRange => find_position(col_title_row, |s| {
+                        s.to_lowercase().as_str().contains("date range")
+                    }),
                     EntityDataFieldTy::Photo => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("photo")
                     }),
@@ -90,7 +93,16 @@ impl Timeline {
                                     .ok()
                             })
                             .map(EntityDataField::ExpirationDt),
-                        EntityDataFieldTy::AllowedDtRange => None, // TODO
+                        EntityDataFieldTy::AllowedDtRange => row[idx]
+                            .as_string()
+                            .and_then(|s| {
+                                s.parse::<DateTimeRange>()
+                                    .inspect_err(|err| {
+                                        tracing::warn!("Failed to parse date time range: {:?}", err)
+                                    })
+                                    .ok()
+                            })
+                            .map(EntityDataField::AllowedDtRange),
                         EntityDataFieldTy::Photo => row[idx]
                             .as_string()
                             .map(|s| JpegImage::from_base64(&s))
