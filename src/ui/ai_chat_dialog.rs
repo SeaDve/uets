@@ -8,11 +8,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ai_chat_message::{AiChatMessage, AiChatMessageTy},
     ai_chat_message_list::AiChatMessageList,
-    md2pango,
+    config, md2pango,
     ui::ai_chat_message_row::AiChatMessageRow,
 };
 
-const API_KEY: &str = ""; // Get one from Google AI Studio: https://aistudio.google.com/apikey
 const MODEL_NAME: &str = "gemini-1.5-flash-latest";
 
 mod imp {
@@ -381,7 +380,8 @@ impl AiChatDialog {
         self.update_send_message_action();
 
         let endpoint_url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent?key={API_KEY}"
+            "https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent?key={}",
+            config::ai_chat_api_key(),
         );
         let response = async move {
             let bytes = surf::post(endpoint_url)
