@@ -31,10 +31,7 @@ impl Timeline {
             .filter_map(|field_ty| {
                 let col_idx = match field_ty {
                     EntityDataFieldTy::StockId => find_position(col_title_row, |s| {
-                        matches!(
-                            s.to_lowercase().as_str(),
-                            "stock" | "stock id" | "stock name"
-                        )
+                        s.to_lowercase().as_str().contains("stock")
                     }),
                     EntityDataFieldTy::Location => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("location")
