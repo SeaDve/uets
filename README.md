@@ -74,6 +74,72 @@ This is experimental as it is labor-intensive to tag entities with this kind.
 5. Consider entity name on sorter, etc.
 6. Ability to filter entity data on report generation
 
+## 📷 Screenshots
+
+### Dashboard
+
+![Dashboard](data/screenshots/dashboard.png)
+
+![Dashboard 1](data/screenshots/dashboard-1.png)
+
+![Dashboard 2](data/screenshots/dashboard-2.png)
+
+#### Camera Live Feed
+
+![Camera Live Feed](data/screenshots/camera-live-feed.png)
+
+#### Detected Without IDs
+
+![Detected Without IDs](data/screenshots/detected-without-ids.png)
+
+#### Entity Gallery
+
+![Entity Gallery](data/screenshots/entity-gallery.png)
+
+#### Data Analyzer and Assistant
+
+![Data Analyzer and Assistant](data/screenshots/data-analyzer-and-assistant.png)
+
+#### Advance Data Registration
+
+![Advance Data Registration](data/screenshots/advance-data-registration.png)
+
+### Timeline
+
+![Timeline](data/screenshots/timeline.png)
+
+### Entities View
+
+![Entities View](data/screenshots/entities-view.png)
+
+#### Entity Details
+
+![Entity Details 0](data/screenshots/entity-details-0.png)
+
+![Entity Details 1](data/screenshots/entity-details-1.png)
+
+#### Entity Details Editor
+
+![Entity Details Editor](data/screenshots/entity-details-editor.png)
+
+### Stocks View
+
+![Stocks View](data/screenshots/stocks-view.png)
+
+### Report Generation
+
+![Report Generation](data/screenshots/report-generation.png)
+
+### Settings
+
+![Settings 0](data/screenshots/settings-0.png)
+
+![Settings 1](data/screenshots/settings-1.png)
+
+### Date Time Range Picker
+
+![Date Time Range Picker](data/screenshots/date-time-range-picker.png)
+
 ## 🏗️ Building and Running
 
 1. Set up a toolbox container.
