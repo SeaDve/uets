@@ -20,9 +20,9 @@ fuzzy-matcher = "0.3.7"
 genpdf = { version = "0.2.0", features = ["images"] }
 gtk = { package = "gtk4", version = "0.9", features = ["gnome_46"] }
 gsettings-macro = "0.2.1"
-gst = { package = "gstreamer", version = "0.23.3" }
+gst = { package = "gstreamer", version = "0.23" }
 gst-plugin-gtk4 = "0.13"
-gvdb = { version = "0.7", features = ["gresource"] }
+gvdb = { version = "0.8", features = ["gresource"] }
 heed = "0.21"
 image = "0.23"
 indexmap = { version = "2.7", features = ["serde"] }
@@ -30,7 +30,7 @@ inflections = "1.1.1"
 plotters = "0.3.7"
 plotters-cairo = "0.7.0"
 regex = "1.11.1"
-rppal = "0.20.0"
+rppal = "0.22"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 surf = "2.3.2"
@@ -38,6 +38,6 @@ qrcode = "0.14"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 wormhole = { package = "magic-wormhole", version = "0.7" }
-xlsxwriter = { package = "rust_xlsxwriter", version = "0.80", features = [
+xlsxwriter = { package = "rust_xlsxwriter", version = "0.81", features = [
     "chrono",
 ] }
