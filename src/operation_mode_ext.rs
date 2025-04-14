@@ -2,6 +2,7 @@ use std::fmt;
 
 use crate::{
     entity_data::{EntityData, EntityDataFieldTy, ValidEntityFields},
+    entity_kind::EntityKind,
     settings::OperationMode,
 };
 
@@ -50,13 +51,13 @@ impl OperationMode {
         ValidEntityFields::for_operation_mode(*self).is_valid_entity_data(entity_data)
     }
 
-    pub fn is_for_person(&self) -> bool {
+    pub fn entity_kind(&self) -> EntityKind {
         match self {
-            OperationMode::Counter => true,
-            OperationMode::Attendance => true,
-            OperationMode::Parking => false,
-            OperationMode::Inventory => false,
-            OperationMode::Refrigerator => false,
+            OperationMode::Counter => EntityKind::General,
+            OperationMode::Attendance => EntityKind::Person,
+            OperationMode::Parking => EntityKind::Vehicle,
+            OperationMode::Inventory => EntityKind::Item,
+            OperationMode::Refrigerator => EntityKind::Food,
         }
     }
 

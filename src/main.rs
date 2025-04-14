@@ -28,6 +28,7 @@ mod entity_entry_tracker;
 mod entity_expiration;
 mod entity_expired_tracker;
 mod entity_id;
+mod entity_kind;
 mod entity_list;
 mod format;
 mod fuzzy_filter;

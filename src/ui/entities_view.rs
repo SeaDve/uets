@@ -641,7 +641,9 @@ impl EntitiesView {
         let operation_mode = Application::get().settings().operation_mode();
         let valid_entity_field_tys = ValidEntityFields::for_operation_mode(operation_mode)
             .iter()
-            .filter(|field_ty| !matches!(field_ty, EntityDataFieldTy::Photo))
+            .filter(|field_ty| {
+                !matches!(field_ty, EntityDataFieldTy::Kind | EntityDataFieldTy::Photo)
+            })
             .collect::<Vec<_>>();
 
         let mut table = report_table::builder("Entities")
@@ -660,6 +662,7 @@ impl EntitiesView {
                     match data.get(*field_ty) {
                         Some(field) => {
                             let string = match field {
+                                EntityDataField::Kind(_) => unreachable!(),
                                 EntityDataField::StockId(i) => i.to_string(),
                                 EntityDataField::Location(l) => l.to_owned(),
                                 EntityDataField::ExpirationDt(dt) => {

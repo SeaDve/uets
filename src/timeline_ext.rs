@@ -8,6 +8,7 @@ use crate::{
     date_time_range::DateTimeRange,
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_id::EntityId,
+    entity_kind::EntityKind,
     jpeg_image::JpegImage,
     sex::Sex,
     stock_data::StockData,
@@ -16,7 +17,11 @@ use crate::{
 };
 
 impl Timeline {
-    pub fn register_data_from_workbook_bytes(&self, workbook_bytes: &[u8]) -> Result<()> {
+    pub fn register_data_from_workbook_bytes(
+        &self,
+        workbook_bytes: &[u8],
+        entity_kind: EntityKind,
+    ) -> Result<()> {
         let mut book = calamine::open_workbook_auto_from_rs(Cursor::new(workbook_bytes))?;
         let range = book.worksheet_range_at(0).context("Empty sheets")??;
 
@@ -31,6 +36,7 @@ impl Timeline {
             .iter()
             .filter_map(|field_ty| {
                 let col_idx = match field_ty {
+                    EntityDataFieldTy::Kind => None,
                     EntityDataFieldTy::StockId => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("stock")
                     }),
@@ -76,6 +82,7 @@ impl Timeline {
                 let fields = col_idxs
                     .iter()
                     .filter_map(|(field_ty, &idx)| match field_ty {
+                        EntityDataFieldTy::Kind => None,
                         EntityDataFieldTy::StockId => row[idx]
                             .as_string()
                             .map(StockId::new)
@@ -126,7 +133,7 @@ impl Timeline {
                         }
                     });
 
-                entity_data.insert(entity_id, EntityData::from_fields(fields));
+                entity_data.insert(entity_id, EntityData::from_fields(entity_kind, fields));
             } else if let Some(stock_id_col_idx) = stock_id_col_idx {
                 let Some(stock_id) = row[stock_id_col_idx].as_string().map(StockId::new) else {
                     continue;

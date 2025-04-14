@@ -445,7 +445,7 @@ impl Application {
 
             match EntityDataDialog::gather_data(
                 entity_id,
-                &EntityData::new(),
+                &EntityData::from_fields(operation_mode.entity_kind(), []),
                 [],
                 Some(&self.window()),
             )
@@ -460,7 +460,7 @@ impl Application {
         } else {
             tracing::debug!("Using empty entity data for counter mode");
 
-            EntityData::new()
+            EntityData::from_fields(operation_mode.entity_kind(), [])
         };
 
         tracing::debug!(?data, "Handling detected entity `{}`", entity_id);
@@ -473,7 +473,7 @@ impl Application {
                 match item.kind() {
                     TimelineItemKind::Entry => {
                         let message = match entity_name {
-                            Some(name) if operation_mode.is_for_person() => {
+                            Some(name) if operation_mode == OperationMode::Attendance => {
                                 format!("Welcome, {}!", name)
                             }
                             Some(name) => {
@@ -487,7 +487,7 @@ impl Application {
                     }
                     TimelineItemKind::Exit => {
                         let message = match entity_name {
-                            Some(name) if operation_mode.is_for_person() => {
+                            Some(name) if operation_mode == OperationMode::Attendance => {
                                 format!("Goodbye, {}!", name)
                             }
                             Some(name) => {

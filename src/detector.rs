@@ -17,6 +17,7 @@ use crate::{
     jpeg_image::JpegImage,
     remote::Remote,
     rfid_reader::RfidReader,
+    settings::OperationMode,
     sex::Sex,
     Application,
 };
@@ -339,13 +340,10 @@ fn entity_from_qrcode(code: &str) -> Option<(EntityId, EntityData)> {
 }
 
 fn entity_from_qrifying_cea(code: &str) -> Option<(EntityId, EntityData)> {
-    if !Application::get()
-        .settings()
-        .operation_mode()
-        .is_for_person()
-    {
-        tracing::trace!("Operation mode is not for person");
+    let operation_mode = Application::get().settings().operation_mode();
 
+    if operation_mode != OperationMode::Attendance {
+        tracing::trace!("Operation mode is not attendance");
         return None;
     }
 
@@ -357,22 +355,22 @@ fn entity_from_qrifying_cea(code: &str) -> Option<(EntityId, EntityData)> {
 
     Some((
         EntityId::new(student_id),
-        EntityData::from_fields([
-            EntityDataField::Name(name.to_string()),
-            EntityDataField::Email(bpsu_email.to_string()),
-            EntityDataField::Program(program.to_string()),
-        ]),
+        EntityData::from_fields(
+            operation_mode.entity_kind(),
+            [
+                EntityDataField::Name(name.to_string()),
+                EntityDataField::Email(bpsu_email.to_string()),
+                EntityDataField::Program(program.to_string()),
+            ],
+        ),
     ))
 }
 
 fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
-    if !Application::get()
-        .settings()
-        .operation_mode()
-        .is_for_person()
-    {
-        tracing::trace!("Operation mode is not for person");
+    let operation_mode = Application::get().settings().operation_mode();
 
+    if operation_mode != OperationMode::Attendance {
+        tracing::trace!("Operation mode is not attendance");
         return None;
     }
 
@@ -427,6 +425,6 @@ fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
 
     Some((
         EntityId::new(data.subject.pcn),
-        EntityData::from_fields(fields),
+        EntityData::from_fields(operation_mode.entity_kind(), fields),
     ))
 }

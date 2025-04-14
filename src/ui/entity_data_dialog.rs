@@ -156,6 +156,7 @@ impl EntityDataDialog {
         let ignored_data_field_tys = ignored_data_field_ty.into_iter().collect::<HashSet<_>>();
         for field_ty in EntityDataFieldTy::all() {
             let widget = match field_ty {
+                EntityDataFieldTy::Kind => continue,
                 EntityDataFieldTy::StockId => imp.stock_id_group.upcast_ref::<gtk::Widget>(),
                 EntityDataFieldTy::Location => imp.location_row.upcast_ref(),
                 EntityDataFieldTy::ExpirationDt => imp.expiration_dt_row.upcast_ref(),
@@ -174,6 +175,7 @@ impl EntityDataDialog {
 
         for field in initial_data.fields() {
             match field {
+                EntityDataField::Kind(_) => continue,
                 EntityDataField::StockId(stock_id) => {
                     if let Some(position) = imp
                         .stock_id_row
@@ -238,6 +240,7 @@ impl EntityDataDialog {
         let operation_mode = Application::get().settings().operation_mode();
 
         let data = EntityData::from_fields(
+            operation_mode.entity_kind(),
             [
                 operation_mode
                     .is_valid_entity_data_field_ty(EntityDataFieldTy::StockId)
