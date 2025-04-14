@@ -22,7 +22,6 @@ use crate::{
     jpeg_image::JpegImage,
     limit_reached::{LimitReached, LimitReachedSettingsExt},
     relay::{Relay, RelayState},
-    rfid_reader::RfidReader,
     settings::Settings,
     sound::Sound,
     timeline::Timeline,
@@ -32,7 +31,7 @@ use crate::{
 };
 
 mod imp {
-    use std::cell::OnceCell;
+    use std::cell::{OnceCell, RefCell};
 
     use super::*;
 
@@ -43,9 +42,7 @@ mod imp {
         pub(super) date_time_updater: DateTimeUpdater,
 
         pub(super) camera: OnceCell<Camera>,
-        pub(super) rfid_reader: OnceCell<RfidReader>,
-        pub(super) detector: Detector,
-
+        pub(super) detectors: RefCell<Vec<(Detector, Vec<glib::SignalHandlerId>)>>,
         pub(super) relay: OnceCell<Relay>,
 
         pub(super) env: OnceCell<heed::Env>,
@@ -105,6 +102,16 @@ mod imp {
                     }
                 ));
 
+            self.settings.connect_detector_config_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    if let Err(err) = obj.reconfigure_detectors() {
+                        tracing::error!("Failed to reconfigure detectors: {:?}", err);
+                    }
+                }
+            ));
+
             self.settings.connect_camera_ip_addr_changed(clone!(
                 #[weak]
                 obj,
@@ -115,20 +122,6 @@ mod imp {
                     }
                 }
             ));
-            self.settings.connect_aux_camera_ip_addrs_changed(clone!(
-                #[weak]
-                obj,
-                move |settings| {
-                    obj.detector().unbind_aux_cameras();
-
-                    let cameras = settings
-                        .aux_camera_ip_addrs()
-                        .into_iter()
-                        .map(Camera::new)
-                        .collect::<Vec<_>>();
-                    obj.detector().bind_aux_cameras(&cameras);
-                }
-            ));
             self.settings.connect_relay_ip_addr_changed(clone!(
                 #[weak]
                 obj,
@@ -137,20 +130,13 @@ mod imp {
                     obj.relay().set_ip_addr(ip_addr);
                 }
             ));
-            self.settings.connect_rfid_reader_ip_addr_changed(clone!(
-                #[weak]
-                obj,
-                move |settings| {
-                    let ip_addr = settings.rfid_reader_ip_addr();
-                    obj.rfid_reader().set_ip_addr(ip_addr);
-                }
-            ));
             self.settings.connect_enable_detection_wo_id_changed(clone!(
                 #[weak]
                 obj,
                 move |settings| {
-                    obj.detector()
-                        .set_enable_detection_wo_id(settings.enable_detection_wo_id());
+                    for detector in obj.detectors() {
+                        detector.set_enable_detection_wo_id(settings.enable_detection_wo_id());
+                    }
                 }
             ));
             self.settings.connect_enable_n_inside_hook_changed(clone!(
@@ -171,55 +157,6 @@ mod imp {
 
             let camera = Camera::new(self.settings.camera_ip_addr());
             self.camera.set(camera).unwrap();
-
-            let aux_cameras = self
-                .settings
-                .aux_camera_ip_addrs()
-                .into_iter()
-                .filter(|ip_addr| !ip_addr.is_empty())
-                .map(Camera::new)
-                .collect::<Vec<_>>();
-
-            let rfid_reader = RfidReader::new(self.settings.rfid_reader_ip_addr());
-            self.rfid_reader.set(rfid_reader).unwrap();
-
-            self.detector.bind_camera(obj.camera());
-            self.detector.bind_aux_cameras(&aux_cameras);
-            self.detector.bind_rfid_reader(obj.rfid_reader());
-
-            self.detector
-                .set_enable_detection_wo_id(self.settings.enable_detection_wo_id());
-            self.detector.connect_detected(clone!(
-                #[weak]
-                obj,
-                move |_, entity_id, entity_data| {
-                    glib::spawn_future_local(clone!(
-                        #[strong]
-                        entity_id,
-                        #[strong]
-                        entity_data,
-                        async move {
-                            obj.handle_detected(&entity_id, entity_data).await;
-                        }
-                    ));
-                }
-            ));
-            self.detector.connect_detected_invalid(clone!(
-                #[weak]
-                obj,
-                move |_, code| {
-                    obj.handle_detected_invalid(code);
-                }
-            ));
-            self.detector.connect_detected_wo_id(clone!(
-                #[weak]
-                obj,
-                move |_, dt, image| {
-                    if let Err(err) = obj.handle_detected_wo_id(dt, image) {
-                        tracing::error!("Failed to handle detected wo id: {:?}", err);
-                    }
-                }
-            ));
 
             let relay = Relay::new(self.settings.relay_ip_addr());
             self.relay.set(relay).unwrap();
@@ -303,19 +240,19 @@ mod imp {
 
             obj.alert_if_limit_reached();
 
+            if let Err(err) = obj.reconfigure_detectors() {
+                tracing::error!("Failed to reconfigure detectors: {:?}", err);
+            }
+
             obj.update_relay_state();
         }
 
         fn shutdown(&self) {
-            let obj = self.obj();
-
             if let Some(env) = self.env.get() {
                 if let Err(err) = env.force_sync() {
                     tracing::error!("Failed to sync db env on shutdown: {:?}", err);
                 }
             }
-
-            obj.camera().stop();
 
             tracing::info!("Shutting down");
 
@@ -362,12 +299,13 @@ impl Application {
         self.imp().camera.get().unwrap()
     }
 
-    pub fn rfid_reader(&self) -> &RfidReader {
-        self.imp().rfid_reader.get().unwrap()
-    }
-
-    pub fn detector(&self) -> &Detector {
-        &self.imp().detector
+    pub fn detectors(&self) -> Vec<Detector> {
+        self.imp()
+            .detectors
+            .borrow()
+            .iter()
+            .map(|(d, _)| d.clone())
+            .collect()
     }
 
     pub fn relay(&self) -> &Relay {
@@ -386,6 +324,13 @@ impl Application {
         self.imp().detected_wo_id_list.get().unwrap()
     }
 
+    pub fn window(&self) -> Window {
+        self.windows()
+            .into_iter()
+            .find_map(|w| w.downcast::<Window>().ok())
+            .unwrap_or_else(|| Window::new(self))
+    }
+
     pub fn present_test_window(&self) {
         TestWindow::new(self).present();
     }
@@ -402,11 +347,55 @@ impl Application {
         self.window().remove_message_toast_with_id(id);
     }
 
-    pub fn window(&self) -> Window {
-        self.windows()
-            .into_iter()
-            .find_map(|w| w.downcast::<Window>().ok())
-            .unwrap_or_else(|| Window::new(self))
+    pub fn simulate_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
+        self.handle_detected(entity_id, entity_data);
+    }
+
+    pub fn reconfigure_detectors(&self) -> Result<()> {
+        let imp = self.imp();
+
+        let settings = self.settings();
+
+        for (detector, handler_ids) in imp.detectors.take() {
+            for handler_id in handler_ids {
+                detector.disconnect(handler_id);
+            }
+        }
+
+        for config in settings.detector_config_parsed()? {
+            let detector = Detector::new(config);
+            detector.set_enable_detection_wo_id(settings.enable_detection_wo_id());
+
+            let handler_ids = vec![
+                detector.connect_detected(clone!(
+                    #[weak(rename_to = obj)]
+                    self,
+                    move |_, entity_id, entity_data| {
+                        obj.handle_detected(entity_id, entity_data);
+                    }
+                )),
+                detector.connect_detected_invalid(clone!(
+                    #[weak(rename_to = obj)]
+                    self,
+                    move |detector, code| {
+                        obj.handle_detected_invalid(detector, code);
+                    }
+                )),
+                detector.connect_detected_wo_id(clone!(
+                    #[weak(rename_to = obj)]
+                    self,
+                    move |detector, dt, image| {
+                        if let Err(err) = obj.handle_detected_wo_id(detector, dt, image) {
+                            tracing::error!("Failed to handle detected wo id: {:?}", err);
+                        }
+                    }
+                )),
+            ];
+
+            imp.detectors.borrow_mut().push((detector, handler_ids));
+        }
+
+        Ok(())
     }
 
     fn alert_if_limit_reached(&self) {
@@ -429,7 +418,21 @@ impl Application {
         }
     }
 
-    async fn handle_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
+    fn handle_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
+        glib::spawn_future_local(clone!(
+            #[weak(rename_to = obj)]
+            self,
+            #[strong]
+            entity_id,
+            #[strong]
+            entity_data,
+            async move {
+                obj.handle_detected_inner(&entity_id, entity_data).await;
+            }
+        ));
+    }
+
+    async fn handle_detected_inner(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
         let timeline = self.timeline();
 
         let data = if let Some(data) = entity_data {
@@ -531,18 +534,23 @@ impl Application {
         }
     }
 
-    fn handle_detected_invalid(&self, _code: &str) {
+    fn handle_detected_invalid(&self, detector: &Detector, _code: &str) {
         Sound::DetectedError.play();
 
-        self.add_message_toast("Invalid code detected");
+        self.add_message_toast(&format!("Invalid code detected on {}", detector.name()));
     }
 
-    fn handle_detected_wo_id(&self, dt: &DateTimeBoxed, image: Option<&JpegImage>) -> Result<()> {
+    fn handle_detected_wo_id(
+        &self,
+        detector: &Detector,
+        dt: &DateTimeBoxed,
+        image: Option<&JpegImage>,
+    ) -> Result<()> {
         Sound::CriticalAlert.play();
 
         self.add_message_toast("Detected unregistered entity!");
 
-        let item = DetectedWoIdItem::new(dt.0, image.cloned());
+        let item = DetectedWoIdItem::new(dt.0, detector.name().to_string(), image.cloned());
         self.detected_wo_id_list().insert(item)?;
 
         Ok(())

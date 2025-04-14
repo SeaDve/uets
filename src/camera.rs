@@ -238,6 +238,7 @@ impl Camera {
     pub fn stop(&self) {
         self.dispose_pipeline();
         self.set_state(CameraState::Idle);
+        self.set_enable_motion_detection(false);
     }
 
     pub fn restart(&self) -> Result<()> {

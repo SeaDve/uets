@@ -37,6 +37,7 @@ pub struct RawTimelineItem {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RawDetectedWoIdItem {
+    pub detector_name: String,
     pub image: Option<JpegImage>,
 }
 

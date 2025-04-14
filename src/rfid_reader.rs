@@ -98,6 +98,10 @@ impl RfidReader {
         self.connect();
     }
 
+    pub fn stop(&self) {
+        self.disconnect();
+    }
+
     fn connect(&self) {
         let imp = self.imp();
 

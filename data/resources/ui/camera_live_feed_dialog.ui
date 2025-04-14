@@ -15,15 +15,10 @@
           </object>
         </child>
         <property name="content">
-          <object class="UetsCameraViewfinder" id="viewfinder">
-            <property name="margin-start">12</property>
-            <property name="margin-end">12</property>
-            <property name="margin-bottom">12</property>
-            <property name="width-request">240</property>
-            <property name="height-request">150</property>
-            <property name="overflow">hidden</property>
+          <object class="GtkListBox" id="list_box">
+            <property name="selection-mode">none</property>
             <style>
-              <class name="card"/>
+              <class name="background"/>
             </style>
           </object>
         </property>

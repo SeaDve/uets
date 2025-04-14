@@ -35,11 +35,9 @@ mod imp {
         #[template_child]
         pub(super) camera_ip_addr_row: TemplateChild<adw::EntryRow>,
         #[template_child]
-        pub(super) aux_camera_ip_addrs_row: TemplateChild<adw::EntryRow>,
-        #[template_child]
-        pub(super) rfid_reader_ip_addr_row: TemplateChild<adw::EntryRow>,
-        #[template_child]
         pub(super) relay_ip_addr_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub(super) detector_config_buffer: TemplateChild<gtk::TextBuffer>,
         #[template_child]
         pub(super) quit_button: TemplateChild<gtk::Button>,
         #[template_child]
@@ -64,17 +62,21 @@ mod imp {
                     app.add_message_toast("Failed to restart camera");
                 }
             });
-            klass.install_action("settings-view.reload-aux-cameras", None, move |_, _, _| {
+            klass.install_action("settings-view.reload-detectors", None, move |obj, _, _| {
+                let imp = obj.imp();
+
                 let app = Application::get();
-                for camera in app.detector().aux_cameras() {
-                    if let Err(err) = camera.restart() {
-                        tracing::error!("Failed to restart aux camera: {:?}", err);
-                        app.add_message_toast("Failed to restart aux camera");
-                    }
+
+                app.settings()
+                    .set_detector_config(&imp.detector_config_buffer.text(
+                        &imp.detector_config_buffer.start_iter(),
+                        &imp.detector_config_buffer.end_iter(),
+                        true,
+                    ));
+
+                if let Err(err) = app.reconfigure_detectors() {
+                    tracing::error!("Failed to reconfigure detectors: {:?}", err);
                 }
-            });
-            klass.install_action("settings-view.reload-rfid-reader", None, move |_, _, _| {
-                Application::get().rfid_reader().reconnect();
             });
             klass.install_action(
                 "settings-view.reload-remote-status",
@@ -153,32 +155,15 @@ mod imp {
                     .set_camera_ip_addr(entry.text().trim());
             });
 
-            self.aux_camera_ip_addrs_row
-                .set_text(&settings.aux_camera_ip_addrs().join(", "));
-            self.aux_camera_ip_addrs_row.connect_apply(|entry| {
-                Application::get().settings().set_aux_camera_ip_addrs(
-                    &entry
-                        .text()
-                        .split(",")
-                        .map(|s| s.trim())
-                        .collect::<Vec<_>>(),
-                );
-            });
-
-            self.rfid_reader_ip_addr_row
-                .set_text(&settings.rfid_reader_ip_addr());
-            self.rfid_reader_ip_addr_row.connect_apply(|entry| {
-                Application::get()
-                    .settings()
-                    .set_rfid_reader_ip_addr(entry.text().trim());
-            });
-
             self.relay_ip_addr_row.set_text(&settings.relay_ip_addr());
             self.relay_ip_addr_row.connect_apply(|entry| {
                 Application::get()
                     .settings()
                     .set_relay_ip_addr(entry.text().trim());
             });
+
+            self.detector_config_buffer
+                .set_text(&settings.detector_config());
 
             self.quit_button.connect_clicked(|_| {
                 Application::get().quit();
@@ -226,8 +211,9 @@ impl SettingsView {
     }
 
     async fn update_remote_status_box_inner(&self) {
+        #[derive(Debug)]
         struct RemoteStatus {
-            name: &'static str,
+            name: String,
             ip_addr: String,
             port: u16,
             port_reachability: Result<()>,
@@ -249,31 +235,36 @@ impl SettingsView {
         let app = Application::get();
         let mut statuses = vec![
             RemoteStatus {
-                name: "Camera",
+                name: "Camera".into(),
                 ip_addr: app.camera().ip_addr(),
                 port: app.camera().port(),
                 port_reachability: app.camera().check_port_reachability().await,
             },
             RemoteStatus {
-                name: "RFID Reader",
-                ip_addr: app.rfid_reader().ip_addr(),
-                port: app.rfid_reader().port(),
-                port_reachability: app.rfid_reader().check_port_reachability().await,
-            },
-            RemoteStatus {
-                name: "Relay",
+                name: "Relay".into(),
                 ip_addr: app.relay().ip_addr(),
                 port: app.relay().port(),
                 port_reachability: app.relay().check_port_reachability().await,
             },
         ];
-        for camera in app.detector().aux_cameras() {
-            statuses.push(RemoteStatus {
-                name: "Aux Camera",
-                ip_addr: camera.ip_addr(),
-                port: camera.port(),
-                port_reachability: camera.check_port_reachability().await,
-            });
+        for detector in app.detectors() {
+            if let Some(camera) = detector.camera() {
+                statuses.push(RemoteStatus {
+                    name: format!("{} - Camera", detector.name()),
+                    ip_addr: camera.ip_addr(),
+                    port: camera.port(),
+                    port_reachability: camera.check_port_reachability().await,
+                });
+            }
+
+            if let Some(rfid_reader) = detector.rfid_reader() {
+                statuses.push(RemoteStatus {
+                    name: format!("{} - RFID Reader", detector.name()),
+                    ip_addr: rfid_reader.ip_addr(),
+                    port: rfid_reader.port(),
+                    port_reachability: rfid_reader.check_port_reachability().await,
+                });
+            }
         }
 
         if statuses.is_empty() {

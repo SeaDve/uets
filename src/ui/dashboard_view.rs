@@ -160,8 +160,14 @@ mod imp {
                 |obj, _, _| {
                     let dialog = CameraLiveFeedDialog::new();
 
-                    let camera = Application::get().camera().clone();
-                    dialog.set_camera(Some(camera));
+                    let app = Application::get();
+                    let mut cameras = vec![("Main".to_string(), app.camera().clone())];
+                    cameras.extend(app.detectors().iter().filter_map(|detector| {
+                        detector
+                            .camera()
+                            .map(|camera| (detector.name().to_string(), camera.clone()))
+                    }));
+                    dialog.set_cameras(cameras);
 
                     dialog.present(Some(obj));
                 },

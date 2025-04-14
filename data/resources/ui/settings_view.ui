@@ -151,41 +151,42 @@
                   </object>
                 </child>
                 <child>
-                  <object class="AdwEntryRow" id="aux_camera_ip_addrs_row">
-                    <property name="title">Auxiliary Cameras IP Addresses</property>
-                    <property name="show-apply-button">True</property>
-                    <child type="suffix">
-                      <object class="GtkButton">
-                        <property name="action-name">settings-view.reload-aux-cameras</property>
-                        <property name="icon-name">update-symbolic</property>
-                        <property name="valign">center</property>
-                        <style>
-                          <class name="flat"/>
-                        </style>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="AdwEntryRow" id="rfid_reader_ip_addr_row">
-                    <property name="title">RFID Reader IP Address</property>
-                    <property name="show-apply-button">True</property>
-                    <child type="suffix">
-                      <object class="GtkButton">
-                        <property name="action-name">settings-view.reload-rfid-reader</property>
-                        <property name="icon-name">update-symbolic</property>
-                        <property name="valign">center</property>
-                        <style>
-                          <class name="flat"/>
-                        </style>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child>
                   <object class="AdwEntryRow" id="relay_ip_addr_row">
                     <property name="title">Relay IP Address</property>
                     <property name="show-apply-button">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwExpanderRow">
+                    <property name="title">Detector Config</property>
+                    <child type="suffix">
+                      <object class="GtkButton">
+                        <property name="action-name">settings-view.reload-detectors</property>
+                        <property name="icon-name">update-symbolic</property>
+                        <property name="valign">center</property>
+                        <style>
+                          <class name="flat"/>
+                        </style>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkListBoxRow">
+                        <property name="overflow">hidden</property>
+                        <property name="activatable">False</property>
+                        <property name="selectable">False</property>
+                        <property name="child">
+                          <object class="GtkTextView">
+                            <property name="top-margin">3</property>
+                            <property name="bottom-margin">3</property>
+                            <property name="left-margin">3</property>
+                            <property name="right-margin">3</property>
+                            <property name="buffer">
+                              <object class="GtkTextBuffer" id="detector_config_buffer"/>
+                            </property>
+                          </object>
+                        </property>
+                      </object>
+                    </child>
                   </object>
                 </child>
                 <child>

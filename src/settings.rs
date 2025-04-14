@@ -1,10 +1,28 @@
+use anyhow::Result;
 use gsettings_macro::gen_settings;
 use gtk::{gio, glib};
+use serde::Deserialize;
 
 use crate::APP_ID;
 
+#[derive(Debug, Deserialize)]
+pub struct DetectorConfig {
+    pub name: String,
+    #[serde(rename = "camera")]
+    pub camera_ip_addr: Option<String>,
+    #[serde(rename = "rfid_reader")]
+    pub rfid_reader_ip_addr: Option<String>,
+}
+
 #[gen_settings(file = "./data/io.github.seadve.Uets.gschema.xml")]
 pub struct Settings;
+
+impl Settings {
+    pub fn detector_config_parsed(&self) -> Result<Vec<DetectorConfig>> {
+        let string = self.detector_config();
+        Ok(serde_yaml::from_str(&string)?)
+    }
+}
 
 impl Default for Settings {
     fn default() -> Self {

@@ -19,6 +19,8 @@ mod imp {
         #[template_child]
         pub(super) dt_label: TemplateChild<gtk::Label>,
         #[template_child]
+        pub(super) detector_name_label: TemplateChild<gtk::Label>,
+        #[template_child]
         pub(super) picture: TemplateChild<gtk::Picture>,
     }
 
@@ -66,6 +68,7 @@ mod imp {
 
             if let Some(item) = &item {
                 self.dt_label.set_text(&date_time::format::fuzzy(item.dt()));
+                self.detector_name_label.set_text(&item.detector_name());
                 self.picture
                     .set_paintable(item.image().as_ref().and_then(|i| {
                         i.texture()
@@ -76,6 +79,7 @@ mod imp {
                     }));
             } else {
                 self.dt_label.set_text("");
+                self.detector_name_label.set_text("");
                 self.picture.set_paintable(gdk::Paintable::NONE);
             }
 

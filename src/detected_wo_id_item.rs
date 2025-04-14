@@ -11,6 +11,7 @@ mod imp {
     #[derive(Default)]
     pub struct DetectedWoIdItem {
         pub(super) dt: OnceCell<DateTime<Utc>>,
+        pub(super) detector_name: OnceCell<String>,
         pub(super) image: OnceCell<Option<JpegImage>>,
     }
 
@@ -28,28 +29,34 @@ glib::wrapper! {
 }
 
 impl DetectedWoIdItem {
-    pub fn new(dt: DateTime<Utc>, image: Option<JpegImage>) -> Self {
+    pub fn new(dt: DateTime<Utc>, detector_name: String, image: Option<JpegImage>) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
         imp.dt.set(dt).unwrap();
+        imp.detector_name.set(detector_name).unwrap();
         imp.image.set(image).unwrap();
 
         this
     }
 
     pub fn from_db(dt: DateTime<Utc>, raw: db::RawDetectedWoIdItem) -> Self {
-        Self::new(dt, raw.image)
+        Self::new(dt, raw.detector_name, raw.image)
     }
 
     pub fn to_db(&self) -> db::RawDetectedWoIdItem {
         db::RawDetectedWoIdItem {
-            image: self.image().clone(),
+            detector_name: self.detector_name(),
+            image: self.image(),
         }
     }
 
     pub fn dt(&self) -> DateTime<Utc> {
         *self.imp().dt.get().unwrap()
+    }
+
+    pub fn detector_name(&self) -> String {
+        self.imp().detector_name.get().unwrap().clone()
     }
 
     pub fn image(&self) -> Option<JpegImage> {

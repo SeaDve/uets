@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <schemalist>
   <schema path="/io/github/seadve/Uets/" id="io.github.seadve.Uets">
+    <key name="detector-config" type="s">
+      <default><![CDATA["- name: Door A
+  camera: 192.168.100.101
+  rfid_reader: 192.168.100.102
+
+- name: Door B
+  camera: 192.168.100.203
+  rfid_reader: 192.168.100.202"]]></default>
+    </key>
     <key name="camera-ip-addr" type="s">
-      <default>"192.168.100.159"</default>
-    </key>
-    <key name="aux-camera-ip-addrs" type="as">
-      <default>[]</default>
-    </key>
-    <key name="rfid-reader-ip-addr" type="s">
-      <default>"uets-rfid-reader.local"</default>
+      <default>"192.168.100.101"</default>
     </key>
     <key name="relay-ip-addr" type="s">
       <default>"uets-relay.local"</default>

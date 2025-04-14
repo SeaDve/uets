@@ -16,8 +16,8 @@ use crate::{
     entity_id::EntityId,
     entity_kind::EntityKind,
     jpeg_image::JpegImage,
-    remote::Remote,
     rfid_reader::RfidReader,
+    settings::DetectorConfig,
     sex::Sex,
 };
 
@@ -25,7 +25,10 @@ const CAMERA_LAST_DETECTED_RESET_DELAY: Duration = Duration::from_secs(2);
 const DETECTED_WO_ID_ALERT_DELAY: Duration = Duration::from_secs(5);
 
 mod imp {
-    use std::{cell::RefCell, sync::OnceLock};
+    use std::{
+        cell::{OnceCell, RefCell},
+        sync::OnceLock,
+    };
 
     use gtk::glib::subclass::Signal;
 
@@ -33,10 +36,13 @@ mod imp {
 
     #[derive(Default)]
     pub struct Detector {
-        pub(super) camera: RefCell<Option<Camera>>,
-        pub(super) aux_cameras: RefCell<Vec<(Camera, Vec<glib::SignalHandlerId>)>>,
+        pub(super) name: OnceCell<String>,
+
+        pub(super) camera: OnceCell<Camera>,
         pub(super) camera_last_detected: RefCell<Option<String>>,
         pub(super) camera_last_detected_reset_timeout: RefCell<Option<glib::SourceId>>,
+
+        pub(super) rfid_reader: OnceCell<RfidReader>,
 
         pub(super) detected_wo_id_capture: RefCell<Option<(DateTimeBoxed, Option<JpegImage>)>>,
         pub(super) detected_wo_id_alert_timeout: RefCell<Option<glib::SourceId>>,
@@ -49,6 +55,20 @@ mod imp {
     }
 
     impl ObjectImpl for Detector {
+        fn dispose(&self) {
+            let obj = self.obj();
+
+            if let Some(camera) = self.camera.get() {
+                camera.stop();
+            }
+
+            if let Some(rfid_reader) = self.rfid_reader.get() {
+                rfid_reader.stop();
+            }
+
+            tracing::debug!("Detector `{}` disposed", obj.name());
+        }
+
         fn signals() -> &'static [Signal] {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
 
@@ -77,8 +97,98 @@ glib::wrapper! {
 }
 
 impl Detector {
-    pub fn new() -> Self {
-        glib::Object::new()
+    pub fn new(config: DetectorConfig) -> Self {
+        let this = glib::Object::new::<Self>();
+
+        let imp = this.imp();
+        imp.name.set(config.name).unwrap();
+
+        if let Some(ip_addr) = config.camera_ip_addr {
+            let camera = Camera::new(ip_addr);
+
+            camera.connect_code_detected(clone!(
+                #[weak]
+                this,
+                move |_, code| {
+                    let imp = this.imp();
+
+                    if imp
+                        .camera_last_detected
+                        .borrow()
+                        .as_ref()
+                        .is_some_and(|last_detected| last_detected == code)
+                    {
+                        return;
+                    }
+
+                    tracing::debug!("Detected code: {}", code);
+
+                    if let Some((id, data)) = entity_from_qrcode(code) {
+                        this.emit_detected(&id, Some(&data));
+                    } else {
+                        this.emit_by_name::<()>("detected-invalid", &[&code]);
+                    }
+
+                    imp.camera_last_detected.replace(Some(code.to_string()));
+                    this.restart_camera_last_detected_reset_timeout();
+                }
+            ));
+            camera.connect_motion_detected(clone!(
+                #[weak]
+                this,
+                move |camera| {
+                    glib::spawn_future_local(clone!(
+                        #[strong]
+                        this,
+                        #[strong]
+                        camera,
+                        async move {
+                            let imp = this.imp();
+
+                            let now = Utc::now();
+
+                            let image = camera
+                                .capture_jpeg()
+                                .await
+                                .inspect_err(|err| {
+                                    tracing::warn!("Failed to capture image: {:?}", err)
+                                })
+                                .ok();
+
+                            imp.detected_wo_id_capture
+                                .replace(Some((DateTimeBoxed(now), image)));
+
+                            if imp.detected_wo_id_alert_timeout.borrow().is_some() {
+                                this.detected_wo_id_alert();
+                            } else {
+                                this.start_detected_wo_id_alert_timeout();
+                            }
+                        }
+                    ));
+                }
+            ));
+
+            if let Err(err) = camera.start() {
+                tracing::error!("Failed to start camera: {:?}", err);
+            }
+
+            imp.camera.set(camera).unwrap();
+        }
+
+        if let Some(ip_addr) = config.rfid_reader_ip_addr {
+            let rfid_reader = RfidReader::new(ip_addr);
+            rfid_reader.connect_detected(clone!(
+                #[weak]
+                this,
+                move |_, id| {
+                    let entity_id = EntityId::new(id);
+                    this.emit_detected(&entity_id, None);
+                }
+            ));
+            imp.rfid_reader.set(rfid_reader).unwrap();
+        }
+
+        this
     }
 
     pub fn connect_detected<F>(&self, f: F) -> glib::SignalHandlerId
@@ -116,72 +226,22 @@ impl Detector {
         )
     }
 
-    pub fn bind_camera(&self, camera: &Camera) {
-        let imp = self.imp();
-
-        self.bind_camera_inner(camera);
-
-        imp.camera.replace(Some(camera.clone()));
+    pub fn name(&self) -> &str {
+        self.imp().name.get().unwrap()
     }
 
-    pub fn bind_aux_cameras(&self, cameras: &[Camera]) {
-        let imp = self.imp();
-
-        for camera in cameras {
-            let handler_ids = self.bind_camera_inner(camera);
-            imp.aux_cameras
-                .borrow_mut()
-                .push((camera.clone(), handler_ids));
-        }
-
-        tracing::debug!(
-            cameras = ?cameras.iter().map(|c| c.ip_addr()).collect::<Vec<_>>(),
-            "Bound aux cameras"
-        );
+    pub fn camera(&self) -> Option<Camera> {
+        self.imp().camera.get().cloned()
     }
 
-    pub fn unbind_aux_cameras(&self) {
-        let imp = self.imp();
-
-        for (camera, handler_ids) in imp.aux_cameras.take() {
-            for handler_id in handler_ids {
-                camera.disconnect(handler_id);
-            }
-        }
-    }
-
-    pub fn aux_cameras(&self) -> Vec<Camera> {
-        self.imp()
-            .aux_cameras
-            .borrow()
-            .iter()
-            .map(|(camera, _)| camera.clone())
-            .collect()
-    }
-
-    pub fn bind_rfid_reader(&self, rfid_reader: &RfidReader) {
-        rfid_reader.connect_detected(clone!(
-            #[weak(rename_to = obj)]
-            self,
-            move |_, id| {
-                let entity_id = EntityId::new(id);
-                obj.emit_detected(&entity_id, None);
-            }
-        ));
-    }
-
-    pub fn simulate_detected(&self, id: &EntityId, data: Option<&EntityData>) {
-        self.emit_detected(id, data);
+    pub fn rfid_reader(&self) -> Option<RfidReader> {
+        self.imp().rfid_reader.get().cloned()
     }
 
     pub fn set_enable_detection_wo_id(&self, is_enabled: bool) {
         let imp = self.imp();
 
-        if let Some(camera) = imp.camera.borrow().as_ref() {
-            camera.set_enable_motion_detection(is_enabled);
-        }
-
-        for (camera, _) in imp.aux_cameras.borrow().iter() {
+        if let Some(camera) = imp.camera.get() {
             camera.set_enable_motion_detection(is_enabled);
         }
     }
@@ -190,78 +250,6 @@ impl Detector {
         self.emit_by_name::<()>("detected", &[id, &data]);
 
         self.stop_detected_wo_id_alert_timeout();
-    }
-
-    fn bind_camera_inner(&self, camera: &Camera) -> Vec<glib::SignalHandlerId> {
-        let handler_ids = vec![
-            camera.connect_code_detected(clone!(
-                #[weak(rename_to = obj)]
-                self,
-                move |_, code| {
-                    let imp = obj.imp();
-
-                    if imp
-                        .camera_last_detected
-                        .borrow()
-                        .as_ref()
-                        .is_some_and(|last_detected| last_detected == code)
-                    {
-                        return;
-                    }
-
-                    tracing::debug!("Detected code: {}", code);
-
-                    if let Some((id, data)) = entity_from_qrcode(code) {
-                        obj.emit_detected(&id, Some(&data));
-                    } else {
-                        obj.emit_by_name::<()>("detected-invalid", &[&code]);
-                    }
-
-                    imp.camera_last_detected.replace(Some(code.to_string()));
-                    obj.restart_camera_last_detected_reset_timeout();
-                }
-            )),
-            camera.connect_motion_detected(clone!(
-                #[weak(rename_to = obj)]
-                self,
-                move |camera| {
-                    glib::spawn_future_local(clone!(
-                        #[strong]
-                        obj,
-                        #[strong]
-                        camera,
-                        async move {
-                            let imp = obj.imp();
-
-                            let now = Utc::now();
-
-                            let image = camera
-                                .capture_jpeg()
-                                .await
-                                .inspect_err(|err| {
-                                    tracing::warn!("Failed to capture image: {:?}", err)
-                                })
-                                .ok();
-
-                            imp.detected_wo_id_capture
-                                .replace(Some((DateTimeBoxed(now), image)));
-
-                            if imp.detected_wo_id_alert_timeout.borrow().is_some() {
-                                obj.detected_wo_id_alert();
-                            } else {
-                                obj.start_detected_wo_id_alert_timeout();
-                            }
-                        }
-                    ));
-                }
-            )),
-        ];
-
-        if let Err(err) = camera.start() {
-            tracing::error!("Failed to start camera: {:?}", err);
-        }
-
-        handler_ids
     }
 
     fn start_detected_wo_id_alert_timeout(&self) {
@@ -325,12 +313,6 @@ impl Detector {
         );
         imp.camera_last_detected_reset_timeout
             .replace(Some(source_id));
-    }
-}
-
-impl Default for Detector {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
