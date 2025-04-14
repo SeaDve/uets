@@ -14,6 +14,7 @@ use crate::{
     date_time_boxed::DateTimeBoxed,
     entity_data::{EntityData, EntityDataField},
     entity_id::EntityId,
+    entity_kind::EntityKind,
     jpeg_image::JpegImage,
     remote::Remote,
     rfid_reader::RfidReader,
@@ -355,14 +356,12 @@ fn entity_from_qrifying_cea(code: &str) -> Option<(EntityId, EntityData)> {
 
     Some((
         EntityId::new(student_id),
-        EntityData::from_fields(
-            operation_mode.entity_kind(),
-            [
-                EntityDataField::Name(name.to_string()),
-                EntityDataField::Email(bpsu_email.to_string()),
-                EntityDataField::Program(program.to_string()),
-            ],
-        ),
+        EntityData::from_fields([
+            EntityDataField::Kind(EntityKind::Person),
+            EntityDataField::Name(name.to_string()),
+            EntityDataField::Email(bpsu_email.to_string()),
+            EntityDataField::Program(program.to_string()),
+        ]),
     ))
 }
 
@@ -406,17 +405,20 @@ fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
         .inspect_err(|err| tracing::debug!("Failed to deserialize national id data: {:?}", err))
         .ok()?;
 
-    let mut fields = vec![EntityDataField::Name(format!(
-        "{}, {} {}",
-        case::to_title_case(&data.subject.last_name),
-        case::to_title_case(&data.subject.first_name),
-        data.subject
-            .middle_name
-            .chars()
-            .next()
-            .map(|c| format!("{}.", c.to_uppercase()))
-            .unwrap_or_default(),
-    ))];
+    let mut fields = vec![
+        EntityDataField::Kind(EntityKind::Person),
+        EntityDataField::Name(format!(
+            "{}, {} {}",
+            case::to_title_case(&data.subject.last_name),
+            case::to_title_case(&data.subject.first_name),
+            data.subject
+                .middle_name
+                .chars()
+                .next()
+                .map(|c| format!("{}.", c.to_uppercase()))
+                .unwrap_or_default(),
+        )),
+    ];
 
     match data.subject.sex.parse::<Sex>() {
         Ok(sex) => fields.push(EntityDataField::Sex(sex)),
@@ -425,6 +427,6 @@ fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
 
     Some((
         EntityId::new(data.subject.pcn),
-        EntityData::from_fields(operation_mode.entity_kind(), fields),
+        EntityData::from_fields(fields),
     ))
 }

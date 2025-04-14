@@ -8,6 +8,7 @@ use crate::{
     date_time_boxed::DateTimeBoxed,
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_id::EntityId,
+    entity_kind::EntityKind,
     list_model_enum,
     sex::Sex,
     stock::Stock,
@@ -20,6 +21,7 @@ use crate::{
 };
 
 list_model_enum!(Sex);
+list_model_enum!(EntityKind);
 
 mod imp {
     use std::cell::RefCell;
@@ -32,11 +34,15 @@ mod imp {
         #[template_child]
         pub(super) window_title: TemplateChild<adw::WindowTitle>,
         #[template_child]
+        pub(super) entity_kind_row: TemplateChild<adw::ComboRow>,
+        #[template_child]
         pub(super) stock_id_group: TemplateChild<adw::PreferencesGroup>,
         #[template_child]
         pub(super) stock_id_row: TemplateChild<adw::ComboRow>,
         #[template_child]
         pub(super) stock_id_custom_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub(super) other_data_group: TemplateChild<adw::PreferencesGroup>,
         #[template_child]
         pub(super) location_row: TemplateChild<adw::EntryRow>,
         #[template_child]
@@ -60,6 +66,7 @@ mod imp {
         #[template_child]
         pub(super) photo_viewfinder: TemplateChild<CameraViewfinder>,
 
+        pub(super) ignored_data_field_ty: RefCell<HashSet<EntityDataFieldTy>>,
         pub(super) result_tx: RefCell<Option<oneshot::Sender<()>>>,
     }
 
@@ -95,6 +102,24 @@ mod imp {
 
             let obj = self.obj();
 
+            self.entity_kind_row
+                .set_expression(Some(&gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|list_item: adw::EnumListItem| {
+                        EntityKind::try_from(list_item.value()).unwrap().to_string()
+                    }),
+                )));
+            self.entity_kind_row
+                .set_model(Some(&EntityKind::new_model()));
+
+            self.entity_kind_row.connect_selected_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_rows_visibility();
+                }
+            ));
+
             let stock_sorter = utils::new_sorter::<Stock>(false, |a, b| a.id().cmp(b.id()));
             let sorted_stock_model = gtk::SortListModel::new(
                 Some(Application::get().timeline().stock_list().clone()),
@@ -117,12 +142,18 @@ mod imp {
             ));
 
             self.sex_row
-                .set_expression(Some(&adw::EnumListItem::this_expression("name")));
+                .set_expression(Some(&gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|list_item: adw::EnumListItem| {
+                        Sex::try_from(list_item.value()).unwrap().to_string()
+                    }),
+                )));
             self.sex_row.set_model(Some(&Sex::new_model()));
 
             self.photo_viewfinder
                 .set_camera(Some(Application::get().camera().clone()));
 
+            obj.update_rows_visibility();
             obj.update_stock_id_row_sensitivity();
         }
 
@@ -152,30 +183,15 @@ impl EntityDataDialog {
         let imp = this.imp();
         imp.window_title.set_subtitle(&entity_id.to_string());
 
-        let operation_mode = Application::get().settings().operation_mode();
-        let ignored_data_field_tys = ignored_data_field_ty.into_iter().collect::<HashSet<_>>();
-        for field_ty in EntityDataFieldTy::all() {
-            let widget = match field_ty {
-                EntityDataFieldTy::Kind => continue,
-                EntityDataFieldTy::StockId => imp.stock_id_group.upcast_ref::<gtk::Widget>(),
-                EntityDataFieldTy::Location => imp.location_row.upcast_ref(),
-                EntityDataFieldTy::ExpirationDt => imp.expiration_dt_row.upcast_ref(),
-                EntityDataFieldTy::AllowedDtRange => imp.allowed_dt_range_row.upcast_ref(),
-                EntityDataFieldTy::Photo => imp.photo_viewfinder_group.upcast_ref(),
-                EntityDataFieldTy::Name => imp.name_row.upcast_ref(),
-                EntityDataFieldTy::Sex => imp.sex_row.upcast_ref(),
-                EntityDataFieldTy::Email => imp.email_row.upcast_ref(),
-                EntityDataFieldTy::Program => imp.program_row.upcast_ref(),
-            };
-            widget.set_visible(
-                operation_mode.is_valid_entity_data_field_ty(*field_ty)
-                    && !ignored_data_field_tys.contains(field_ty),
-            );
-        }
+        imp.ignored_data_field_ty
+            .replace(ignored_data_field_ty.into_iter().collect());
+        this.update_rows_visibility();
 
         for field in initial_data.fields() {
             match field {
-                EntityDataField::Kind(_) => continue,
+                EntityDataField::Kind(kind) => {
+                    imp.entity_kind_row.set_selected(kind.model_position());
+                }
                 EntityDataField::StockId(stock_id) => {
                     if let Some(position) = imp
                         .stock_id_row
@@ -234,15 +250,26 @@ impl EntityDataDialog {
         Ok(this.gather_data_inner())
     }
 
+    fn selected_entity_kind(&self) -> EntityKind {
+        let imp = self.imp();
+
+        imp.entity_kind_row
+            .selected_item()
+            .map(|item| {
+                EntityKind::try_from(item.downcast::<adw::EnumListItem>().unwrap().value()).unwrap()
+            })
+            .unwrap_or_default()
+    }
+
     fn gather_data_inner(&self) -> EntityData {
         let imp = self.imp();
 
-        let operation_mode = Application::get().settings().operation_mode();
+        let entity_kind = self.selected_entity_kind();
 
         let data = EntityData::from_fields(
-            operation_mode.entity_kind(),
             [
-                operation_mode
+                Some(EntityDataField::Kind(entity_kind)),
+                entity_kind
                     .is_valid_entity_data_field_ty(EntityDataFieldTy::StockId)
                     .then(|| {
                         let raw_stock_id_custom = imp.stock_id_custom_row.text();
@@ -259,7 +286,7 @@ impl EntityDataDialog {
                 Some(imp.location_row.text().to_string())
                     .filter(|t| !t.is_empty())
                     .map(EntityDataField::Location),
-                operation_mode
+                entity_kind
                     .is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt)
                     .then(|| {
                         imp.expiration_dt_button
@@ -267,7 +294,7 @@ impl EntityDataDialog {
                             .map(|dt| EntityDataField::ExpirationDt(dt.0))
                     })
                     .flatten(),
-                operation_mode
+                entity_kind
                     .is_valid_entity_data_field_ty(EntityDataFieldTy::AllowedDtRange)
                     .then(|| {
                         Some(imp.allowed_dt_range_button.range())
@@ -281,7 +308,7 @@ impl EntityDataDialog {
                 Some(imp.name_row.text().to_string())
                     .filter(|t| !t.is_empty())
                     .map(EntityDataField::Name),
-                operation_mode
+                entity_kind
                     .is_valid_entity_data_field_ty(EntityDataFieldTy::Sex)
                     .then(|| {
                         imp.sex_row
@@ -307,11 +334,52 @@ impl EntityDataDialog {
             .flatten(),
         );
 
-        if !operation_mode.is_valid_entity_data(&data) {
-            tracing::warn!(?operation_mode, "Invalid entity data: {:?}", data);
+        if !entity_kind.is_valid_entity_data(&data) {
+            tracing::warn!(?entity_kind, "Invalid entity data: {:?}", data);
         }
 
         data
+    }
+
+    fn update_rows_visibility(&self) {
+        let imp = self.imp();
+
+        for field_ty in EntityDataFieldTy::all() {
+            let widget = match field_ty {
+                EntityDataFieldTy::Kind => imp.entity_kind_row.upcast_ref(),
+                EntityDataFieldTy::StockId => imp.stock_id_group.upcast_ref::<gtk::Widget>(),
+                EntityDataFieldTy::Location => imp.location_row.upcast_ref(),
+                EntityDataFieldTy::ExpirationDt => imp.expiration_dt_row.upcast_ref(),
+                EntityDataFieldTy::AllowedDtRange => imp.allowed_dt_range_row.upcast_ref(),
+                EntityDataFieldTy::Photo => imp.photo_viewfinder_group.upcast_ref(),
+                EntityDataFieldTy::Name => imp.name_row.upcast_ref(),
+                EntityDataFieldTy::Sex => imp.sex_row.upcast_ref(),
+                EntityDataFieldTy::Email => imp.email_row.upcast_ref(),
+                EntityDataFieldTy::Program => imp.program_row.upcast_ref(),
+            };
+            widget.set_visible(
+                self.selected_entity_kind()
+                    .is_valid_entity_data_field_ty(*field_ty)
+                    && !imp.ignored_data_field_ty.borrow().contains(field_ty),
+            );
+        }
+
+        // This must be in sync with the rows in the other_data_group.
+        let other_data_field_ty = [
+            EntityDataFieldTy::Location,
+            EntityDataFieldTy::ExpirationDt,
+            EntityDataFieldTy::AllowedDtRange,
+            EntityDataFieldTy::Name,
+            EntityDataFieldTy::Sex,
+            EntityDataFieldTy::Email,
+            EntityDataFieldTy::Program,
+        ];
+        imp.other_data_group
+            .set_visible(other_data_field_ty.iter().any(|field_ty| {
+                self.selected_entity_kind()
+                    .is_valid_entity_data_field_ty(*field_ty)
+                    && !imp.ignored_data_field_ty.borrow().contains(field_ty)
+            }))
     }
 
     fn update_stock_id_row_sensitivity(&self) {

@@ -17,11 +17,7 @@ use crate::{
 };
 
 impl Timeline {
-    pub fn register_data_from_workbook_bytes(
-        &self,
-        workbook_bytes: &[u8],
-        entity_kind: EntityKind,
-    ) -> Result<()> {
+    pub fn register_data_from_workbook_bytes(&self, workbook_bytes: &[u8]) -> Result<()> {
         let mut book = calamine::open_workbook_auto_from_rs(Cursor::new(workbook_bytes))?;
         let range = book.worksheet_range_at(0).context("Empty sheets")??;
 
@@ -36,7 +32,9 @@ impl Timeline {
             .iter()
             .filter_map(|field_ty| {
                 let col_idx = match field_ty {
-                    EntityDataFieldTy::Kind => None,
+                    EntityDataFieldTy::Kind => find_position(col_title_row, |s| {
+                        s.to_lowercase().as_str().contains("kind")
+                    }),
                     EntityDataFieldTy::StockId => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("stock")
                     }),
@@ -79,10 +77,19 @@ impl Timeline {
                     continue;
                 };
 
-                let fields = col_idxs
+                let mut fields = col_idxs
                     .iter()
                     .filter_map(|(field_ty, &idx)| match field_ty {
-                        EntityDataFieldTy::Kind => None,
+                        EntityDataFieldTy::Kind => row[idx]
+                            .as_string()
+                            .and_then(|s| {
+                                s.parse::<EntityKind>()
+                                    .inspect_err(|err| {
+                                        tracing::warn!("Failed to parse entity kind: {:?}", err)
+                                    })
+                                    .ok()
+                            })
+                            .map(EntityDataField::Kind),
                         EntityDataFieldTy::StockId => row[idx]
                             .as_string()
                             .map(StockId::new)
@@ -131,9 +138,14 @@ impl Timeline {
                         EntityDataFieldTy::Program => {
                             row[idx].as_string().map(EntityDataField::Program)
                         }
-                    });
+                    })
+                    .collect::<Vec<_>>();
 
-                entity_data.insert(entity_id, EntityData::from_fields(entity_kind, fields));
+                if fields.iter().all(|f| f.ty() != EntityDataFieldTy::Kind) {
+                    fields.push(EntityDataField::Kind(EntityKind::default()));
+                }
+
+                entity_data.insert(entity_id, EntityData::from_fields(fields));
             } else if let Some(stock_id_col_idx) = stock_id_col_idx {
                 let Some(stock_id) = row[stock_id_col_idx].as_string().map(StockId::new) else {
                     continue;

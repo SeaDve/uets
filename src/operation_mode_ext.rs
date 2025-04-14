@@ -44,11 +44,11 @@ impl OperationMode {
     }
 
     pub fn is_valid_entity_data_field_ty(&self, entity_field: EntityDataFieldTy) -> bool {
-        ValidEntityFields::for_operation_mode(*self).contains(entity_field)
+        ValidEntityFields::for_entity_kind(self.entity_kind()).contains(entity_field)
     }
 
     pub fn is_valid_entity_data(&self, entity_data: &EntityData) -> bool {
-        ValidEntityFields::for_operation_mode(*self).is_valid_entity_data(entity_data)
+        ValidEntityFields::for_entity_kind(self.entity_kind()).is_valid_entity_data(entity_data)
     }
 
     pub fn entity_kind(&self) -> EntityKind {
@@ -56,8 +56,8 @@ impl OperationMode {
             OperationMode::Counter => EntityKind::General,
             OperationMode::Attendance => EntityKind::Person,
             OperationMode::Parking => EntityKind::Vehicle,
-            OperationMode::Inventory => EntityKind::Item,
-            OperationMode::Refrigerator => EntityKind::Food,
+            OperationMode::Inventory => EntityKind::StockItem,
+            OperationMode::Refrigerator => EntityKind::FoodItem,
         }
     }
 

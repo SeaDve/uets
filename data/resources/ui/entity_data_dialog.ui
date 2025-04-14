@@ -19,6 +19,15 @@
         <property name="content">
           <object class="AdwPreferencesPage">
             <child>
+              <object class="AdwPreferencesGroup">
+                <child>
+                  <object class="AdwComboRow" id="entity_kind_row">
+                    <property name="title">Kind</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
               <object class="AdwPreferencesGroup" id="stock_id_group">
                 <child>
                   <object class="AdwComboRow" id="stock_id_row">
@@ -34,7 +43,7 @@
               </object>
             </child>
             <child>
-              <object class="AdwPreferencesGroup">
+              <object class="AdwPreferencesGroup" id="other_data_group">
                 <child>
                   <object class="AdwEntryRow" id="location_row">
                     <property name="title">Location</property>

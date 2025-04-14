@@ -3,7 +3,7 @@ use gtk::{glib, prelude::*, subclass::prelude::*};
 
 use crate::{
     date_time, date_time_range::DateTimeRange, entity_data::EntityData, entity_id::EntityId,
-    format, log::Log, settings::OperationMode, stock_id::StockId,
+    entity_kind::EntityKind, format, log::Log, settings::OperationMode, stock_id::StockId,
     timeline_item_kind::TimelineItemKind,
 };
 
@@ -76,6 +76,15 @@ impl Entity {
 
     pub fn id(&self) -> &EntityId {
         self.imp().id.get().unwrap()
+    }
+
+    pub fn kind(&self) -> EntityKind {
+        self.imp()
+            .data
+            .borrow()
+            .kind()
+            .copied()
+            .expect("kind must always be set")
     }
 
     pub fn stock_id(&self) -> Option<StockId> {

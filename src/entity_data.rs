@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt, iter};
+use std::{collections::HashSet, fmt};
 
 use chrono::{DateTime, Utc};
 use gtk::glib;
@@ -6,8 +6,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-    date_time_range::DateTimeRange, entity_kind::EntityKind, jpeg_image::JpegImage,
-    settings::OperationMode, sex::Sex, stock_id::StockId,
+    date_time_range::DateTimeRange, entity_kind::EntityKind, jpeg_image::JpegImage, sex::Sex,
+    stock_id::StockId,
 };
 
 macro_rules! entity_data_field {
@@ -83,53 +83,7 @@ macro_rules! entity_data_getter {
 pub struct EntityData(IndexMap<EntityDataFieldTy, EntityDataField>);
 
 impl EntityData {
-    pub fn from_fields(
-        kind: EntityKind,
-        fields: impl IntoIterator<Item = EntityDataField>,
-    ) -> Self {
-        let fields = fields.into_iter().collect::<Vec<_>>();
-
-        debug_assert!(
-            fields.iter().all(|f| f.ty() != EntityDataFieldTy::Kind),
-            "kind must not be in fields"
-        );
-
-        Self::from_fields_inner(iter::once(EntityDataField::Kind(kind)).chain(fields))
-    }
-
-    pub fn has_field(&self, field_ty: EntityDataFieldTy) -> bool {
-        self.0.contains_key(&field_ty)
-    }
-
-    pub fn get(&self, field_ty: EntityDataFieldTy) -> Option<&EntityDataField> {
-        self.0.get(&field_ty)
-    }
-
-    pub fn fields(&self) -> impl Iterator<Item = &EntityDataField> + '_ {
-        self.0.values()
-    }
-
-    pub fn with_stock_id(self, stock_id: Option<StockId>) -> Self {
-        Self::from_fields_inner(
-            self.0
-                .into_values()
-                .filter(|f| f.ty() != EntityDataFieldTy::StockId)
-                .chain(stock_id.map(EntityDataField::StockId)),
-        )
-    }
-
-    entity_data_getter!(kind, Kind, &EntityKind);
-    entity_data_getter!(stock_id, StockId, &StockId);
-    entity_data_getter!(location, Location, &String);
-    entity_data_getter!(expiration_dt, ExpirationDt, &DateTime<Utc>);
-    entity_data_getter!(allowed_dt_range, AllowedDtRange, &DateTimeRange);
-    entity_data_getter!(photo, Photo, &JpegImage);
-    entity_data_getter!(name, Name, &String);
-    entity_data_getter!(sex, Sex, &Sex);
-    entity_data_getter!(email, Email, &String);
-    entity_data_getter!(program, Program, &String);
-
-    fn from_fields_inner(fields: impl IntoIterator<Item = EntityDataField>) -> Self {
+    pub fn from_fields(fields: impl IntoIterator<Item = EntityDataField>) -> Self {
         let inner = fields
             .into_iter()
             .map(|f| (f.ty(), f))
@@ -151,6 +105,38 @@ impl EntityData {
 
         Self(inner)
     }
+
+    pub fn has_field(&self, field_ty: EntityDataFieldTy) -> bool {
+        self.0.contains_key(&field_ty)
+    }
+
+    pub fn get(&self, field_ty: EntityDataFieldTy) -> Option<&EntityDataField> {
+        self.0.get(&field_ty)
+    }
+
+    pub fn fields(&self) -> impl Iterator<Item = &EntityDataField> + '_ {
+        self.0.values()
+    }
+
+    pub fn with_stock_id(self, stock_id: Option<StockId>) -> Self {
+        Self::from_fields(
+            self.0
+                .into_values()
+                .filter(|f| f.ty() != EntityDataFieldTy::StockId)
+                .chain(stock_id.map(EntityDataField::StockId)),
+        )
+    }
+
+    entity_data_getter!(kind, Kind, &EntityKind);
+    entity_data_getter!(stock_id, StockId, &StockId);
+    entity_data_getter!(location, Location, &String);
+    entity_data_getter!(expiration_dt, ExpirationDt, &DateTime<Utc>);
+    entity_data_getter!(allowed_dt_range, AllowedDtRange, &DateTimeRange);
+    entity_data_getter!(photo, Photo, &JpegImage);
+    entity_data_getter!(name, Name, &String);
+    entity_data_getter!(sex, Sex, &Sex);
+    entity_data_getter!(email, Email, &String);
+    entity_data_getter!(program, Program, &String);
 }
 
 impl Serialize for EntityData {
@@ -162,14 +148,14 @@ impl Serialize for EntityData {
 impl<'de> Deserialize<'de> for EntityData {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let fields = Vec::<EntityDataField>::deserialize(deserializer)?;
-        Ok(Self::from_fields_inner(fields))
+        Ok(Self::from_fields(fields))
     }
 }
 
 pub struct ValidEntityFields(&'static [(EntityDataFieldTy, bool)]);
 
 impl ValidEntityFields {
-    pub fn for_operation_mode(operation_mode: OperationMode) -> Self {
+    pub fn for_entity_kind(entity_kind: EntityKind) -> Self {
         macro_rules! f {
             ($field:expr) => {
                 ($field, false)
@@ -179,25 +165,24 @@ impl ValidEntityFields {
             };
         }
 
-        let person_valid_entity_fields = &[
-            f!(req EntityDataFieldTy::Kind),
-            f!(EntityDataFieldTy::AllowedDtRange),
-            f!(EntityDataFieldTy::Photo),
-            f!(EntityDataFieldTy::Name),
-            f!(EntityDataFieldTy::Sex),
-            f!(EntityDataFieldTy::Email),
-            f!(EntityDataFieldTy::Program),
-        ];
-        Self(match operation_mode {
-            OperationMode::Counter => person_valid_entity_fields,
-            OperationMode::Attendance => person_valid_entity_fields,
-            OperationMode::Parking => &[
+        Self(match entity_kind {
+            EntityKind::General => &[f!(req EntityDataFieldTy::Kind)],
+            EntityKind::Person => &[
+                f!(req EntityDataFieldTy::Kind),
+                f!(EntityDataFieldTy::AllowedDtRange),
+                f!(EntityDataFieldTy::Photo),
+                f!(EntityDataFieldTy::Name),
+                f!(EntityDataFieldTy::Sex),
+                f!(EntityDataFieldTy::Email),
+                f!(EntityDataFieldTy::Program),
+            ],
+            EntityKind::Vehicle => &[
                 f!(req EntityDataFieldTy::Kind),
                 f!(EntityDataFieldTy::AllowedDtRange),
                 f!(EntityDataFieldTy::Photo),
                 f!(EntityDataFieldTy::Location),
             ],
-            OperationMode::Inventory => &[
+            EntityKind::StockItem => &[
                 f!(req EntityDataFieldTy::Kind),
                 f!(req EntityDataFieldTy::StockId),
                 f!(EntityDataFieldTy::Location),
@@ -205,7 +190,7 @@ impl ValidEntityFields {
                 f!(EntityDataFieldTy::AllowedDtRange),
                 f!(EntityDataFieldTy::Photo),
             ],
-            OperationMode::Refrigerator => &[
+            EntityKind::FoodItem => &[
                 f!(req EntityDataFieldTy::Kind),
                 f!(req EntityDataFieldTy::StockId),
                 f!(EntityDataFieldTy::ExpirationDt),

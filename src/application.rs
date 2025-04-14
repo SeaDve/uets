@@ -15,9 +15,10 @@ use crate::{
     detected_wo_id_list::DetectedWoIdList,
     detector::Detector,
     entity::Entity,
-    entity_data::EntityData,
+    entity_data::{EntityData, EntityDataField},
     entity_entry_tracker::EntityIdSet,
     entity_id::EntityId,
+    entity_kind::EntityKind,
     jpeg_image::JpegImage,
     limit_reached::{LimitReached, LimitReachedSettingsExt},
     relay::{Relay, RelayState},
@@ -445,7 +446,7 @@ impl Application {
 
             match EntityDataDialog::gather_data(
                 entity_id,
-                &EntityData::from_fields(operation_mode.entity_kind(), []),
+                &EntityData::from_fields([EntityDataField::Kind(operation_mode.entity_kind())]),
                 [],
                 Some(&self.window()),
             )
@@ -460,7 +461,7 @@ impl Application {
         } else {
             tracing::debug!("Using empty entity data for counter mode");
 
-            EntityData::from_fields(operation_mode.entity_kind(), [])
+            EntityData::from_fields([EntityDataField::Kind(EntityKind::General)])
         };
 
         tracing::debug!(?data, "Handling detected entity `{}`", entity_id);

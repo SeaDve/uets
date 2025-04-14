@@ -314,10 +314,9 @@ mod imp {
                         &[".xls", ".xlsx", ".xlsm", ".xlsb", ".xla", ".xlam", ".ods"];
                     match ReceiveDialog::receive(valid_file_extensions, Some(&obj)).await {
                         Ok((_, bytes)) => {
-                            if let Err(err) = app.timeline().register_data_from_workbook_bytes(
-                                &bytes,
-                                app.settings().operation_mode().entity_kind(),
-                            ) {
+                            if let Err(err) =
+                                app.timeline().register_data_from_workbook_bytes(&bytes)
+                            {
                                 tracing::error!("Failed to register data: {:?}", err);
 
                                 app.add_message_toast("Failed to register data");
