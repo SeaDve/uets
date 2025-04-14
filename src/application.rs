@@ -23,7 +23,7 @@ use crate::{
     limit_reached::{LimitReached, LimitReachedSettingsExt},
     relay::{Relay, RelayState},
     rfid_reader::RfidReader,
-    settings::{OperationMode, Settings},
+    settings::Settings,
     sound::Sound,
     timeline::Timeline,
     timeline_item_kind::TimelineItemKind,
@@ -431,7 +431,6 @@ impl Application {
 
     async fn handle_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
         let timeline = self.timeline();
-        let operation_mode = self.settings().operation_mode();
 
         let data = if let Some(data) = entity_data {
             tracing::debug!("Using entity data from detector");
@@ -441,12 +440,12 @@ impl Application {
             tracing::debug!("Retrieved entity data from timeline");
 
             entity.data().clone()
-        } else if operation_mode != OperationMode::Counter {
+        } else {
             tracing::debug!("Gathering entity data from user");
 
             match EntityDataDialog::gather_data(
                 entity_id,
-                &EntityData::from_fields([EntityDataField::Kind(operation_mode.entity_kind())]),
+                &EntityData::from_fields([EntityDataField::Kind(EntityKind::default())]),
                 [],
                 Some(&self.window()),
             )
@@ -458,10 +457,6 @@ impl Application {
                     return;
                 }
             }
-        } else {
-            tracing::debug!("Using empty entity data for counter mode");
-
-            EntityData::from_fields([EntityDataField::Kind(EntityKind::General)])
         };
 
         tracing::debug!(?data, "Handling detected entity `{}`", entity_id);
@@ -469,33 +464,34 @@ impl Application {
         // TODO If the mode is inventory or refrigerator, don't handle the detected entity
         // if it doesn't have a stock id.
         let entity_name = data.name().cloned();
+        let entity_kind = data.kind();
         match timeline.handle_detected(entity_id, data) {
             Ok(item) => {
                 match item.kind() {
                     TimelineItemKind::Entry => {
                         let message = match entity_name {
-                            Some(name) if operation_mode == OperationMode::Attendance => {
+                            Some(name) if entity_kind == EntityKind::Person => {
                                 format!("Welcome, {}!", name)
                             }
                             Some(name) => {
-                                format!("{name} {}", operation_mode.enter_verb())
+                                format!("{name} {}", entity_kind.enter_verb())
                             }
                             None => {
-                                format!("{entity_id} {}", operation_mode.enter_verb())
+                                format!("{entity_id} {}", entity_kind.enter_verb())
                             }
                         };
                         self.add_message_toast_with_id(ToastId::Detected, &message);
                     }
                     TimelineItemKind::Exit => {
                         let message = match entity_name {
-                            Some(name) if operation_mode == OperationMode::Attendance => {
+                            Some(name) if entity_kind == EntityKind::Person => {
                                 format!("Goodbye, {}!", name)
                             }
                             Some(name) => {
-                                format!("{name} {}", operation_mode.exit_verb())
+                                format!("{name} {}", entity_kind.exit_verb())
                             }
                             None => {
-                                format!("{entity_id} {}", operation_mode.exit_verb())
+                                format!("{entity_id} {}", entity_kind.exit_verb())
                             }
                         };
                         self.add_message_toast_with_id(ToastId::Detected, &message);

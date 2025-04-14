@@ -127,7 +127,17 @@ impl EntityData {
         )
     }
 
-    entity_data_getter!(kind, Kind, &EntityKind);
+    pub fn kind(&self) -> EntityKind {
+        *self
+            .0
+            .get(&EntityDataFieldTy::Kind)
+            .map(|f| match f {
+                EntityDataField::Kind(value) => value,
+                _ => unreachable!(),
+            })
+            .expect("kind is required")
+    }
+
     entity_data_getter!(stock_id, StockId, &StockId);
     entity_data_getter!(location, Location, &String);
     entity_data_getter!(expiration_dt, ExpirationDt, &DateTime<Utc>);
@@ -182,7 +192,7 @@ impl ValidEntityFields {
                 f!(EntityDataFieldTy::Photo),
                 f!(EntityDataFieldTy::Location),
             ],
-            EntityKind::StockItem => &[
+            EntityKind::Item => &[
                 f!(req EntityDataFieldTy::Kind),
                 f!(req EntityDataFieldTy::StockId),
                 f!(EntityDataFieldTy::Location),
@@ -202,10 +212,6 @@ impl ValidEntityFields {
 
     pub fn contains(&self, field: EntityDataFieldTy) -> bool {
         self.0.iter().any(|&(f, _)| f == field)
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = EntityDataFieldTy> + '_ {
-        self.0.iter().map(|&(ty, _)| ty)
     }
 
     pub fn is_valid_entity_data(&self, entity_data: &EntityData) -> bool {

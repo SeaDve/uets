@@ -1,16 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <schemalist>
   <schema path="/io/github/seadve/Uets/" id="io.github.seadve.Uets">
-    <key name="operation-mode" type="s">
-      <choices>
-        <choice value="counter"/>
-        <choice value="attendance"/>
-        <choice value="parking"/>
-        <choice value="inventory"/>
-        <choice value="refrigerator"/>
-      </choices>
-      <default>"counter"</default>
-    </key>
     <key name="camera-ip-addr" type="s">
       <default>"192.168.100.159"</default>
     </key>

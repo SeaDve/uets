@@ -3,7 +3,7 @@ use gtk::{glib, prelude::*, subclass::prelude::*};
 
 use crate::{
     date_time, date_time_range::DateTimeRange, entity_data::EntityData, entity_id::EntityId,
-    entity_kind::EntityKind, format, log::Log, settings::OperationMode, stock_id::StockId,
+    entity_kind::EntityKind, format, log::Log, stock_id::StockId,
     timeline_item_kind::TimelineItemKind,
 };
 
@@ -79,12 +79,7 @@ impl Entity {
     }
 
     pub fn kind(&self) -> EntityKind {
-        self.imp()
-            .data
-            .borrow()
-            .kind()
-            .copied()
-            .expect("kind must always be set")
+        self.imp().data.borrow().kind()
     }
 
     pub fn stock_id(&self) -> Option<StockId> {
@@ -140,31 +135,26 @@ impl Entity {
         }
     }
 
-    pub fn status_text(
-        &self,
-        for_dt_range: &DateTimeRange,
-        operation_mode: OperationMode,
-    ) -> String {
-        self.status_markup(for_dt_range, operation_mode, false)
+    pub fn status_text(&self, for_dt_range: &DateTimeRange) -> String {
+        self.status_markup(for_dt_range, false)
     }
 
     pub fn status_markup(
         &self,
         for_dt_range: &DateTimeRange,
-        operation_mode: OperationMode,
         use_red_markup_on_entry_to_exit_duration: bool,
     ) -> String {
         match self.action_for_dt_range(for_dt_range) {
             Some((dt, TimelineItemKind::Entry)) => {
-                let verb = match operation_mode {
-                    OperationMode::Counter | OperationMode::Attendance => "Entered",
-                    OperationMode::Parking => "Drove in",
-                    OperationMode::Inventory | OperationMode::Refrigerator => "Added",
+                let verb = match self.kind() {
+                    EntityKind::General | EntityKind::Person => "Entered",
+                    EntityKind::Vehicle => "Drove in",
+                    EntityKind::Item | EntityKind::FoodItem => "Added",
                 };
-                let entry_to_exit_duration_prefix = match operation_mode {
-                    OperationMode::Counter | OperationMode::Attendance => "stayed",
-                    OperationMode::Parking => "parked",
-                    OperationMode::Inventory | OperationMode::Refrigerator => "kept",
+                let entry_to_exit_duration_prefix = match self.kind() {
+                    EntityKind::General | EntityKind::Person => "stayed",
+                    EntityKind::Vehicle => "parked",
+                    EntityKind::Item | EntityKind::FoodItem => "kept",
                 };
 
                 let duration_start = if let Some(start) = for_dt_range.start {
@@ -190,17 +180,17 @@ impl Entity {
                 )
             }
             Some((dt, TimelineItemKind::Exit)) => {
-                let verb = match operation_mode {
-                    OperationMode::Counter | OperationMode::Attendance => "Exited",
-                    OperationMode::Parking => "Drove out",
-                    OperationMode::Inventory | OperationMode::Refrigerator => "Removed",
+                let verb = match self.kind() {
+                    EntityKind::General | EntityKind::Person => "Exited",
+                    EntityKind::Vehicle => "Drove out",
+                    EntityKind::Item | EntityKind::FoodItem => "Removed",
                 };
                 format!("{verb} {}", date_time::format::fuzzy(dt))
             }
-            None => match operation_mode {
-                OperationMode::Counter | OperationMode::Attendance => "Never entered".into(),
-                OperationMode::Parking => "Never drove in".into(),
-                OperationMode::Inventory | OperationMode::Refrigerator => "Never added".into(),
+            None => match self.kind() {
+                EntityKind::General | EntityKind::Person => "Never entered".into(),
+                EntityKind::Vehicle => "Never drove in".into(),
+                EntityKind::Item | EntityKind::FoodItem => "Never added".into(),
             },
         }
     }

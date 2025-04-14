@@ -9,7 +9,7 @@ use crate::{
     date_time,
     date_time_range::DateTimeRange,
     entity::Entity,
-    entity_data::{EntityDataField, EntityDataFieldTy, ValidEntityFields},
+    entity_data::{EntityDataField, EntityDataFieldTy},
     entity_expiration::{EntityExpiration, EntityExpirationEntityExt},
     entity_id::EntityId,
     entity_list::EntityList,
@@ -266,17 +266,6 @@ mod imp {
 
             let obj = self.obj();
 
-            Application::get()
-                .settings()
-                .connect_operation_mode_changed(clone!(
-                    #[weak]
-                    obj,
-                    move |_| {
-                        obj.update_entity_expiration_dropdown_visibility();
-                        obj.update_entity_sex_dropdown_visibility();
-                    }
-                ));
-
             self.search_entry.connect_search_changed(clone!(
                 #[weak]
                 obj,
@@ -499,8 +488,6 @@ mod imp {
             self.fuzzy_filter.set(fuzzy_filter).unwrap();
 
             obj.update_fallback_sorter();
-            obj.update_entity_expiration_dropdown_visibility();
-            obj.update_entity_sex_dropdown_visibility();
             obj.update_stack();
             obj.update_n_results_label();
         }
@@ -638,18 +625,16 @@ impl EntitiesView {
             .map(|o| o.unwrap().downcast::<Entity>().unwrap())
             .collect::<Vec<_>>();
 
-        let operation_mode = Application::get().settings().operation_mode();
-        let valid_entity_field_tys =
-            ValidEntityFields::for_entity_kind(operation_mode.entity_kind())
-                .iter()
-                .filter(|field_ty| !matches!(field_ty, EntityDataFieldTy::Photo))
-                .collect::<Vec<_>>();
+        let entity_field_tys = EntityDataFieldTy::all()
+            .iter()
+            .filter(|field_ty| !matches!(field_ty, EntityDataFieldTy::Photo))
+            .collect::<Vec<_>>();
 
         let mut table = report_table::builder("Entities")
             .column("ID")
             .column("Status")
             .rows(entities.iter().map(|entity| {
-                let status_text = entity.status_text(&imp.dt_range.borrow(), operation_mode);
+                let status_text = entity.status_text(&imp.dt_range.borrow());
 
                 let mut cells = report_table::row_builder()
                     .cell(entity.id().to_string())
@@ -657,8 +642,8 @@ impl EntitiesView {
                     .build();
 
                 let data = entity.data();
-                for field_ty in &valid_entity_field_tys {
-                    match data.get(*field_ty) {
+                for field_ty in &entity_field_tys {
+                    match data.get(**field_ty) {
                         Some(field) => {
                             let string = match field {
                                 EntityDataField::Kind(k) => k.to_string(),
@@ -689,7 +674,7 @@ impl EntitiesView {
             }))
             .build();
 
-        for field_ty in valid_entity_field_tys {
+        for field_ty in entity_field_tys {
             table.columns.push(field_ty.to_string());
         }
 
@@ -1111,26 +1096,6 @@ impl EntitiesView {
             .unwrap()
             .sorter()
             .set_fallback_sorter(Some(sorter));
-    }
-
-    fn update_entity_expiration_dropdown_visibility(&self) {
-        let imp = self.imp();
-
-        let is_visible = Application::get()
-            .settings()
-            .operation_mode()
-            .is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt);
-        imp.entity_expiration_dropdown.set_visible(is_visible);
-    }
-
-    fn update_entity_sex_dropdown_visibility(&self) {
-        let imp = self.imp();
-
-        let is_visible = Application::get()
-            .settings()
-            .operation_mode()
-            .is_valid_entity_data_field_ty(EntityDataFieldTy::Sex);
-        imp.entity_sex_dropdown.set_visible(is_visible);
     }
 
     fn update_stack(&self) {

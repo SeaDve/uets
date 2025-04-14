@@ -18,9 +18,7 @@ use crate::{
     jpeg_image::JpegImage,
     remote::Remote,
     rfid_reader::RfidReader,
-    settings::OperationMode,
     sex::Sex,
-    Application,
 };
 
 const CAMERA_LAST_DETECTED_RESET_DELAY: Duration = Duration::from_secs(2);
@@ -341,13 +339,6 @@ fn entity_from_qrcode(code: &str) -> Option<(EntityId, EntityData)> {
 }
 
 fn entity_from_qrifying_cea(code: &str) -> Option<(EntityId, EntityData)> {
-    let operation_mode = Application::get().settings().operation_mode();
-
-    if operation_mode != OperationMode::Attendance {
-        tracing::trace!("Operation mode is not attendance");
-        return None;
-    }
-
     let mut substrings = code.splitn(4, '_');
     let name = substrings.next()?;
     let student_id = substrings.next()?;
@@ -366,13 +357,6 @@ fn entity_from_qrifying_cea(code: &str) -> Option<(EntityId, EntityData)> {
 }
 
 fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
-    let operation_mode = Application::get().settings().operation_mode();
-
-    if operation_mode != OperationMode::Attendance {
-        tracing::trace!("Operation mode is not attendance");
-        return None;
-    }
-
     #[derive(Serialize, Deserialize)]
     pub struct Subject {
         #[serde(rename = "lName")]

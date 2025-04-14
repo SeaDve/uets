@@ -124,13 +124,6 @@ mod imp {
                     obj.update_status_row();
                 }
             ));
-            app.settings().connect_operation_mode_changed(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.update_status_row();
-                }
-            ));
             app.timeline()
                 .entity_entry_tracker()
                 .connect_overstayed_changed(clone!(
@@ -379,14 +372,12 @@ impl EntityDetailsPane {
 
         if let Some(entity) = self.entity() {
             let app = Application::get();
-            let operation_mode = app.settings().operation_mode();
             let is_overstayed = app
                 .timeline()
                 .entity_entry_tracker()
                 .is_overstayed(entity.id());
 
-            let status_markup =
-                entity.status_markup(&imp.dt_range.borrow(), operation_mode, is_overstayed);
+            let status_markup = entity.status_markup(&imp.dt_range.borrow(), is_overstayed);
             imp.status_row.set_markup(status_markup);
         } else {
             imp.status_row.set_text("");

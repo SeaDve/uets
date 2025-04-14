@@ -64,13 +64,6 @@ mod imp {
             let app = Application::get();
             let settings = app.settings();
 
-            settings.connect_operation_mode_changed(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.update_status_label();
-                }
-            ));
             settings.connect_max_entry_to_exit_duration_secs_changed(clone!(
                 #[weak]
                 obj,
@@ -247,12 +240,10 @@ impl TimelineRow {
                 format!("<a href=\"{entity_uri}\">{entity_display}</a>")
             };
 
-            let settings = app.settings();
-            let operation_mode = settings.operation_mode();
-
+            let entity_kind = entity.kind();
             let text = match item.kind() {
                 TimelineItemKind::Entry => {
-                    format!("<b>{}</b> {}", title, operation_mode.enter_verb())
+                    format!("<b>{}</b> {}", title, entity_kind.enter_verb())
                 }
                 TimelineItemKind::Exit => {
                     let entry_to_exit_duration = item
@@ -262,13 +253,13 @@ impl TimelineRow {
                     format!(
                         "<b>{}</b> {} after <i>{}</i> {}",
                         title,
-                        operation_mode.exit_verb(),
-                        if settings.compute_overstayed(entry_to_exit_duration) {
+                        entity_kind.exit_verb(),
+                        if app.settings().compute_overstayed(entry_to_exit_duration) {
                             format::red_markup(&entry_to_exit_duration_formatted)
                         } else {
                             entry_to_exit_duration_formatted
                         },
-                        operation_mode.entry_to_exit_duration_suffix(),
+                        entity_kind.entry_to_exit_duration_suffix(),
                     )
                 }
             };

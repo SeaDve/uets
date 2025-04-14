@@ -16,7 +16,9 @@
                   <object class="GtkBox">
                     <property name="orientation">vertical</property>
                     <child>
-                      <object class="GtkLabel" id="n_inside_title_label"/>
+                      <object class="GtkLabel">
+                        <property name="label">Total Inside Count</property>
+                      </object>
                     </child>
                     <child>
                       <object class="GtkLabel" id="n_inside_label">

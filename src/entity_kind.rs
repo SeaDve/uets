@@ -12,7 +12,7 @@ pub enum EntityKind {
     General,
     Person,
     Vehicle,
-    StockItem,
+    Item,
     FoodItem,
 }
 
@@ -24,6 +24,40 @@ impl EntityKind {
     pub fn is_valid_entity_data(&self, entity_data: &EntityData) -> bool {
         ValidEntityFields::for_entity_kind(*self).is_valid_entity_data(entity_data)
     }
+
+    pub fn enter_verb(&self) -> &str {
+        match self {
+            EntityKind::General | EntityKind::Person => "enters",
+            EntityKind::Vehicle => "drives in",
+            EntityKind::Item | EntityKind::FoodItem => "added",
+        }
+    }
+
+    pub fn exit_verb(&self) -> &str {
+        match self {
+            EntityKind::General | EntityKind::Person => "exits",
+            EntityKind::Vehicle => "drives out",
+            EntityKind::Item | EntityKind::FoodItem => "removed",
+        }
+    }
+
+    pub fn entry_to_exit_duration_suffix(&self) -> &str {
+        match self {
+            EntityKind::General | EntityKind::Person => "of stay",
+            EntityKind::Vehicle => "of parking",
+            EntityKind::Item | EntityKind::FoodItem => "of being kept",
+        }
+    }
+
+    pub fn entities_view_icon_name(&self) -> &str {
+        match self {
+            Self::General => "tag-outline-symbolic",
+            Self::Person => "person-symbolic",
+            Self::Vehicle => "driving-symbolic",
+            Self::Item => "package-x-generic-symbolic",
+            Self::FoodItem => "egg-symbolic",
+        }
+    }
 }
 
 impl fmt::Display for EntityKind {
@@ -32,7 +66,7 @@ impl fmt::Display for EntityKind {
             EntityKind::General => write!(f, "General"),
             EntityKind::Person => write!(f, "Person"),
             EntityKind::Vehicle => write!(f, "Vehicle"),
-            EntityKind::StockItem => write!(f, "Stock Item"),
+            EntityKind::Item => write!(f, "Item"),
             EntityKind::FoodItem => write!(f, "Food Item"),
         }
     }
@@ -57,7 +91,7 @@ impl FromStr for EntityKind {
             "general" => Ok(Self::General),
             "person" => Ok(Self::Person),
             "vehicle" => Ok(Self::Vehicle),
-            "item" => Ok(Self::StockItem),
+            "item" => Ok(Self::Item),
             "food" => Ok(Self::FoodItem),
             _ => Err(EntityKindParseError),
         }

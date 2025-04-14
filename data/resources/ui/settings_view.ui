@@ -7,12 +7,6 @@
     <child>
       <object class="AdwPreferencesPage" id="page">
         <child>
-          <object class="AdwPreferencesGroup" id="operation_mode_group">
-            <property name="title">Operation Mode</property>
-            <property name="description">Set up the operating mode of the device</property>
-          </object>
-        </child>
-        <child>
           <object class="AdwPreferencesGroup">
             <property name="title">Alerts</property>
             <child>
