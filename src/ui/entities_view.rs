@@ -12,6 +12,7 @@ use crate::{
     entity_data::{EntityDataField, EntityDataFieldTy},
     entity_expiration::{EntityExpiration, EntityExpirationEntityExt},
     entity_id::EntityId,
+    entity_kind::EntityKind,
     entity_list::EntityList,
     fuzzy_filter::FuzzyFilter,
     list_model_enum,
@@ -32,6 +33,19 @@ struct S;
 
 impl S {
     const IS: &str = "is";
+
+    const ENTITY_KIND_VALUES: &[&str] = &[
+        Self::GENERAL,
+        Self::PERSON,
+        Self::VEHICLE,
+        Self::ITEM,
+        Self::FOOD_ITEM,
+    ];
+    const GENERAL: &str = "general";
+    const PERSON: &str = "person";
+    const VEHICLE: &str = "vehicle";
+    const ITEM: &str = "item";
+    const FOOD_ITEM: &str = "food-item";
 
     const ENTITY_ZONE_VALUES: &[&str] = &[Self::INSIDE, Self::OUTSIDE];
     const INSIDE: &str = "inside";
@@ -78,6 +92,43 @@ impl S {
     const STOCK_DESC: &str = "stock-desc";
     const UPDATED_ASC: &str = "updated-asc";
     const UPDATED_DESC: &str = "updated-desc";
+}
+
+#[derive(Debug, Clone, Copy, glib::Enum)]
+#[enum_type(name = "UetsEntityKindFilter")]
+enum EntityKindFilter {
+    All,
+    General,
+    Person,
+    Vehicle,
+    Item,
+    FoodItem,
+}
+
+list_model_enum!(EntityKindFilter);
+
+impl EntityKindFilter {
+    fn display(&self) -> &'static str {
+        match self {
+            Self::All => "All",
+            Self::General => "General",
+            Self::Person => "Person",
+            Self::Vehicle => "Vehicle",
+            Self::Item => "Inventory Item",
+            Self::FoodItem => "Food Item",
+        }
+    }
+
+    fn entity_kind(&self) -> Option<EntityKind> {
+        match self {
+            Self::All => None,
+            Self::General => Some(EntityKind::General),
+            Self::Person => Some(EntityKind::Person),
+            Self::Vehicle => Some(EntityKind::Vehicle),
+            Self::Item => Some(EntityKind::Item),
+            Self::FoodItem => Some(EntityKind::FoodItem),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, glib::Enum)]
@@ -187,6 +238,8 @@ mod imp {
         #[template_child]
         pub(super) search_entry: TemplateChild<SearchEntry>,
         #[template_child]
+        pub(super) entity_kind_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
         pub(super) entity_zone_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
         pub(super) entity_overstayed_dropdown: TemplateChild<gtk::DropDown>,
@@ -213,6 +266,7 @@ mod imp {
 
         pub(super) dt_range: RefCell<DateTimeRange>,
 
+        pub(super) entity_kind_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) entity_zone_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) entity_overstayed_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) entity_expiration_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
@@ -273,6 +327,30 @@ mod imp {
                     obj.handle_search_entry_search_changed(entry);
                 }
             ));
+
+            self.entity_kind_dropdown
+                .set_expression(Some(&gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|list_item: adw::EnumListItem| {
+                        EntityKindFilter::try_from(list_item.value())
+                            .unwrap()
+                            .display()
+                    }),
+                )));
+            self.entity_kind_dropdown
+                .set_model(Some(&EntityKindFilter::new_model()));
+            let entity_kind_dropdown_selected_item_notify_id = self
+                .entity_kind_dropdown
+                .connect_selected_item_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |dropdown| {
+                        obj.handle_entity_kind_dropdown_selected_item_notify(dropdown);
+                    }
+                ));
+            self.entity_kind_dropdown_selected_item_id
+                .set(entity_kind_dropdown_selected_item_notify_id)
+                .unwrap();
 
             self.entity_zone_dropdown
                 .set_expression(Some(&adw::EnumListItem::this_expression("name")));
@@ -488,6 +566,8 @@ mod imp {
             self.fuzzy_filter.set(fuzzy_filter).unwrap();
 
             obj.update_fallback_sorter();
+            obj.update_entity_expiration_dropdown_visibility();
+            obj.update_entity_sex_dropdown_visibility();
             obj.update_stack();
             obj.update_n_results_label();
         }
@@ -702,6 +782,24 @@ impl EntitiesView {
 
         let queries = entry.queries();
 
+        let entity_kind = match queries.find_last_with_values(S::IS, S::ENTITY_KIND_VALUES) {
+            Some(S::GENERAL) => EntityKindFilter::General,
+            Some(S::PERSON) => EntityKindFilter::Person,
+            Some(S::VEHICLE) => EntityKindFilter::Vehicle,
+            Some(S::ITEM) => EntityKindFilter::Item,
+            Some(S::FOOD_ITEM) => EntityKindFilter::FoodItem,
+            None => EntityKindFilter::All,
+            Some(_) => unreachable!(),
+        };
+
+        let selected_item_notify_id = imp.entity_kind_dropdown_selected_item_id.get().unwrap();
+        imp.entity_kind_dropdown
+            .block_signal(selected_item_notify_id);
+        imp.entity_kind_dropdown
+            .set_selected(entity_kind.model_position());
+        imp.entity_kind_dropdown
+            .unblock_signal(selected_item_notify_id);
+
         let entity_zone = match queries.find_last_with_values(S::IS, S::ENTITY_ZONE_VALUES) {
             Some(S::INSIDE) => EntityZoneFilter::Inside,
             Some(S::OUTSIDE) => EntityZoneFilter::Outside,
@@ -801,6 +899,35 @@ impl EntitiesView {
                 .join(" "),
         );
         every_filter.append(fuzzy_filter.clone());
+
+        match entity_kind {
+            EntityKindFilter::All => {}
+            EntityKindFilter::General => {
+                every_filter.append(new_filter(|entity: &Entity| {
+                    entity.data().kind() == EntityKind::General
+                }));
+            }
+            EntityKindFilter::Person => {
+                every_filter.append(new_filter(|entity: &Entity| {
+                    entity.data().kind() == EntityKind::Person
+                }));
+            }
+            EntityKindFilter::Vehicle => {
+                every_filter.append(new_filter(|entity: &Entity| {
+                    entity.data().kind() == EntityKind::Vehicle
+                }));
+            }
+            EntityKindFilter::Item => {
+                every_filter.append(new_filter(|entity: &Entity| {
+                    entity.data().kind() == EntityKind::Item
+                }));
+            }
+            EntityKindFilter::FoodItem => {
+                every_filter.append(new_filter(|entity: &Entity| {
+                    entity.data().kind() == EntityKind::FoodItem
+                }));
+            }
+        }
 
         match entity_zone {
             EntityZoneFilter::All => {}
@@ -916,6 +1043,58 @@ impl EntitiesView {
         }
 
         imp.search_entry.set_queries(queries);
+    }
+
+    fn handle_entity_kind_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
+        let imp = self.imp();
+
+        let selected_item = dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+        let entity_kind_filter = EntityKindFilter::try_from(selected_item.value()).unwrap();
+
+        let mut queries = imp.search_entry.queries();
+
+        match entity_kind_filter {
+            EntityKindFilter::All => {
+                queries.remove_all(S::IS, S::ENTITY_KIND_VALUES);
+            }
+            EntityKindFilter::General => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_KIND_VALUES, S::GENERAL);
+            }
+            EntityKindFilter::Person => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_KIND_VALUES, S::PERSON);
+            }
+            EntityKindFilter::Vehicle => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_KIND_VALUES, S::VEHICLE);
+            }
+            EntityKindFilter::Item => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_KIND_VALUES, S::ITEM);
+            }
+            EntityKindFilter::FoodItem => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_KIND_VALUES, S::FOOD_ITEM);
+            }
+        }
+
+        if entity_kind_filter.entity_kind().is_some_and(|kind| {
+            !kind.is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt)
+        }) {
+            queries.remove_all(S::IS, S::ENTITY_EXPIRATION_VALUES);
+        }
+
+        if entity_kind_filter
+            .entity_kind()
+            .is_some_and(|kind| !kind.is_valid_entity_data_field_ty(EntityDataFieldTy::Sex))
+        {
+            queries.remove_all(S::IS, S::ENTITY_SEX_VALUES);
+        }
+
+        imp.search_entry.set_queries(queries);
+
+        self.update_entity_expiration_dropdown_visibility();
+        self.update_entity_sex_dropdown_visibility();
     }
 
     fn handle_entity_zone_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
@@ -1096,6 +1275,42 @@ impl EntitiesView {
             .unwrap()
             .sorter()
             .set_fallback_sorter(Some(sorter));
+    }
+
+    fn update_entity_expiration_dropdown_visibility(&self) {
+        let imp = self.imp();
+
+        let selected_item = imp
+            .entity_kind_dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+        imp.entity_expiration_dropdown.set_visible(
+            EntityKindFilter::try_from(selected_item.value())
+                .unwrap()
+                .entity_kind()
+                .is_none_or(|kind| {
+                    kind.is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt)
+                }),
+        );
+    }
+
+    fn update_entity_sex_dropdown_visibility(&self) {
+        let imp = self.imp();
+
+        let selected_item = imp
+            .entity_kind_dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+        imp.entity_sex_dropdown.set_visible(
+            EntityKindFilter::try_from(selected_item.value())
+                .unwrap()
+                .entity_kind()
+                .is_none_or(|kind| kind.is_valid_entity_data_field_ty(EntityDataFieldTy::Sex)),
+        );
     }
 
     fn update_stack(&self) {

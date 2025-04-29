@@ -34,6 +34,8 @@ mod imp {
         #[template_child]
         pub(super) window_title: TemplateChild<adw::WindowTitle>,
         #[template_child]
+        pub(super) entity_kind_group: TemplateChild<adw::PreferencesGroup>,
+        #[template_child]
         pub(super) entity_kind_row: TemplateChild<adw::ComboRow>,
         #[template_child]
         pub(super) stock_id_group: TemplateChild<adw::PreferencesGroup>,
@@ -346,7 +348,7 @@ impl EntityDataDialog {
 
         for field_ty in EntityDataFieldTy::all() {
             let widget = match field_ty {
-                EntityDataFieldTy::Kind => imp.entity_kind_row.upcast_ref(),
+                EntityDataFieldTy::Kind => imp.entity_kind_group.upcast_ref(),
                 EntityDataFieldTy::StockId => imp.stock_id_group.upcast_ref::<gtk::Widget>(),
                 EntityDataFieldTy::Location => imp.location_row.upcast_ref(),
                 EntityDataFieldTy::ExpirationDt => imp.expiration_dt_row.upcast_ref(),

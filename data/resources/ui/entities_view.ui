@@ -56,6 +56,9 @@
                   <class name="toolbar"/>
                 </style>
                 <child>
+                  <object class="GtkDropDown" id="entity_kind_dropdown"/>
+                </child>
+                <child>
                   <object class="GtkDropDown" id="entity_zone_dropdown"/>
                 </child>
                 <child>

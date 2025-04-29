@@ -19,7 +19,7 @@
         <property name="content">
           <object class="AdwPreferencesPage">
             <child>
-              <object class="AdwPreferencesGroup">
+              <object class="AdwPreferencesGroup" id="entity_kind_group">
                 <child>
                   <object class="AdwComboRow" id="entity_kind_row">
                     <property name="title">Kind</property>
