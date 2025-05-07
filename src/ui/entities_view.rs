@@ -103,7 +103,7 @@ impl EntityKindFilter {
             Self::All => "All",
             Self::Person => "Person",
             Self::Vehicle => "Vehicle",
-            Self::Item => "Inventory Item",
+            Self::Item => "Item",
         }
     }
 
