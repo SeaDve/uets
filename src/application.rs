@@ -549,6 +549,16 @@ impl Application {
         Sound::DetectedError.play();
 
         self.add_message_toast(&format!("Invalid code detected on {}", detector.name()));
+
+        glib::spawn_future_local(clone!(
+            #[weak]
+            detector,
+            async move {
+                if let Err(err) = detector.return_message("Invalid code detected").await {
+                    tracing::error!("Failed to return message: {:?}", err);
+                }
+            }
+        ));
     }
 
     fn handle_detected_wo_id(
