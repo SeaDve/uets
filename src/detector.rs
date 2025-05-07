@@ -21,6 +21,7 @@ use crate::{
     rfid_reader::RfidReader,
     settings::DetectorConfig,
     sex::Sex,
+    timeline::Timeline,
 };
 
 const CAMERA_LAST_DETECTED_RESET_DELAY: Duration = Duration::from_secs(2);
@@ -105,7 +106,7 @@ glib::wrapper! {
 }
 
 impl Detector {
-    pub fn new(config: DetectorConfig) -> Self {
+    pub fn new(config: DetectorConfig, timeline: &Timeline) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
@@ -178,6 +179,8 @@ impl Detector {
 
         if let Some(remote_app) = config.remote_app_ip_addr {
             let remote_app = RemoteApp::new(remote_app);
+            remote_app.bind_timeline(timeline);
+
             remote_app.connect_code_detected(clone!(
                 #[weak]
                 this,
@@ -260,7 +263,7 @@ impl Detector {
 
     pub async fn return_message(&self, message: &str) -> Result<()> {
         if let Some(remote_app) = self.imp().remote_app.get() {
-            remote_app.ws_send_text(message).await?;
+            remote_app.ws_send_message(message).await?;
         }
 
         Ok(())

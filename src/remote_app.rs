@@ -1,3 +1,5 @@
+use std::{collections::HashMap, future::Future};
+
 use anyhow::{Context, Result};
 use async_channel::Sender;
 use async_lock::Mutex;
@@ -8,25 +10,40 @@ use gtk::{
     prelude::*,
     subclass::prelude::*,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use crate::remote::Remote;
+use crate::{remote::Remote, timeline::Timeline};
 
 const PORT: u16 = 8888;
 
-#[derive(Deserialize)]
-enum SocketResponse {
+#[derive(Debug, PartialEq, Eq, Hash, Serialize)]
+enum Property {
+    NInside,
+}
+
+#[derive(Debug, Deserialize)]
+enum SocketIncoming {
     Code(String),
     Tag(String),
+    RequestProperties,
+}
+
+#[derive(Debug, Serialize)]
+enum SocketOutgoing {
+    Message(String),
+    Properties(HashMap<Property, serde_json::Value>),
 }
 
 enum WsCommand {
     Close,
-    SendMessage(tungstenite::Message),
+    Send(tungstenite::Message),
 }
 
 mod imp {
-    use std::{cell::RefCell, sync::OnceLock};
+    use std::{
+        cell::{OnceCell, RefCell},
+        sync::OnceLock,
+    };
 
     use glib::subclass::Signal;
 
@@ -37,6 +54,8 @@ mod imp {
         pub(super) ip_addr: RefCell<String>,
 
         pub(super) command_tx: Mutex<Option<Sender<WsCommand>>>,
+
+        pub(super) timeline: OnceCell<Timeline>,
     }
 
     #[glib::object_subclass]
@@ -99,6 +118,25 @@ impl RemoteApp {
         this
     }
 
+    pub fn bind_timeline(&self, timeline: &Timeline) {
+        let imp = self.imp();
+
+        timeline.connect_n_inside_notify(clone!(
+            #[weak(rename_to = obj)]
+            self,
+            move |timeline| {
+                let n_inside = timeline.n_inside();
+                obj.ws_send_properties_helper(async move {
+                    let mut props = HashMap::new();
+                    props.insert(Property::NInside, serde_json::to_value(n_inside)?);
+                    Ok(props)
+                });
+            }
+        ));
+
+        imp.timeline.set(timeline.clone()).unwrap();
+    }
+
     pub fn connect_code_detected<F>(&self, f: F) -> glib::SignalHandlerId
     where
         F: Fn(&Self, &str) + 'static,
@@ -121,22 +159,6 @@ impl RemoteApp {
         )
     }
 
-    pub async fn ws_send_text(&self, text: &str) -> Result<()> {
-        let imp = self.imp();
-
-        imp.command_tx
-            .lock()
-            .await
-            .as_ref()
-            .context("Command channel not initialized")?
-            .send(WsCommand::SendMessage(tungstenite::Message::Text(
-                text.into(),
-            )))
-            .await?;
-
-        Ok(())
-    }
-
     pub fn stop(&self) {
         glib::spawn_future_local(clone!(
             #[weak(rename_to = obj)]
@@ -149,6 +171,69 @@ impl RemoteApp {
                 };
             }
         ));
+    }
+
+    pub async fn ws_send_message(&self, message: &str) -> Result<()> {
+        self.ws_send(&SocketOutgoing::Message(message.to_string()))
+            .await
+    }
+
+    async fn ws_send_all_properties(&self) -> Result<()> {
+        let imp = self.imp();
+
+        let mut props = HashMap::new();
+
+        if let Some(timeline) = imp.timeline.get() {
+            props.insert(
+                Property::NInside,
+                serde_json::to_value(timeline.n_inside())?,
+            );
+        }
+
+        self.ws_send_properties(props).await
+    }
+
+    fn ws_send_properties_helper(
+        &self,
+        props: impl Future<Output = Result<HashMap<Property, serde_json::Value>>> + 'static,
+    ) {
+        glib::spawn_future_local(clone!(
+            #[weak(rename_to = obj)]
+            self,
+            async move {
+                match props.await {
+                    Ok(props) => {
+                        if let Err(err) = obj.ws_send_properties(props).await {
+                            tracing::error!("Failed to send properties: {:?}", err);
+                        }
+                    }
+                    Err(err) => {
+                        tracing::error!("Failed to get properties: {:?}", err);
+                    }
+                }
+            }
+        ));
+    }
+
+    async fn ws_send_properties(&self, props: HashMap<Property, serde_json::Value>) -> Result<()> {
+        self.ws_send(&SocketOutgoing::Properties(props)).await
+    }
+
+    async fn ws_send(&self, outgoing: &SocketOutgoing) -> Result<()> {
+        let imp = self.imp();
+
+        let text = serde_json::to_string(outgoing)?;
+        imp.command_tx
+            .lock()
+            .await
+            .as_ref()
+            .context("Command channel not initialized")?
+            .send(WsCommand::Send(tungstenite::Message::Text(text.into())))
+            .await?;
+
+        tracing::debug!("Sent message: {:?}", outgoing);
+
+        Ok(())
     }
 
     async fn run_client(&self) -> Result<()> {
@@ -165,7 +250,7 @@ impl RemoteApp {
                 ws_message = ws_stream.next().fuse() => {
                     match ws_message {
                         Some(raw_message) => {
-                            if let Err(err) = self.handle_message(raw_message) {
+                            if let Err(err) = self.handle_message(raw_message).await {
                                 tracing::error!("Error handling message: {:?}", err);
                                 break;
                             }
@@ -184,7 +269,7 @@ impl RemoteApp {
                                     tracing::info!("Closing WebSocket stream");
                                     break;
                                 }
-                                WsCommand::SendMessage(msg) => {
+                                WsCommand::Send(msg) => {
                                     if let Err(err) = ws_stream.send(msg).await {
                                         tracing::error!("Error sending message: {:?}", err);
                                         break;
@@ -206,14 +291,24 @@ impl RemoteApp {
         Ok(())
     }
 
-    fn handle_message(&self, raw_message: tungstenite::Result<tungstenite::Message>) -> Result<()> {
+    async fn handle_message(
+        &self,
+        raw_message: tungstenite::Result<tungstenite::Message>,
+    ) -> Result<()> {
         if let tungstenite::Message::Text(text) = raw_message? {
-            match serde_json::from_str::<SocketResponse>(text.as_str())? {
-                SocketResponse::Code(code) => {
+            let incoming = serde_json::from_str::<SocketIncoming>(text.as_str())?;
+
+            tracing::debug!("Received message: {:?}", incoming);
+
+            match incoming {
+                SocketIncoming::Code(code) => {
                     self.emit_by_name::<()>("code-detected", &[&code]);
                 }
-                SocketResponse::Tag(tag) => {
+                SocketIncoming::Tag(tag) => {
                     self.emit_by_name::<()>("tag-detected", &[&tag]);
+                }
+                SocketIncoming::RequestProperties => {
+                    self.ws_send_all_properties().await?;
                 }
             }
         }

@@ -367,7 +367,7 @@ impl Application {
         }
 
         for config in settings.detector_config_parsed()? {
-            let detector = Detector::new(config);
+            let detector = Detector::new(config, self.timeline());
             detector.set_enable_detection_wo_id(settings.enable_detection_wo_id());
 
             let handler_ids = vec![
