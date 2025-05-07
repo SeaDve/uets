@@ -12,6 +12,8 @@ pub struct DetectorConfig {
     pub camera_ip_addr: Option<String>,
     #[serde(rename = "rfid_reader")]
     pub rfid_reader_ip_addr: Option<String>,
+    #[serde(rename = "remote_app")]
+    pub remote_app_ip_addr: Option<String>,
 }
 
 #[gen_settings(file = "./data/io.github.seadve.Uets.gschema.xml")]

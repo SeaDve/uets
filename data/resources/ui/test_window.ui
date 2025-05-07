@@ -2,51 +2,56 @@
 <interface>
   <template class="UetsTestWindow" parent="AdwApplicationWindow">
     <property name="default-width">480</property>
+    <property name="default-height">240</property>
     <property name="content">
-      <object class="GtkBox">
-        <property name="orientation">vertical</property>
-        <child>
-          <object class="AdwHeaderBar">
-            <property name="title-widget">
-              <object class="AdwWindowTitle">
-                <property name="title">Test Window</property>
-              </object>
-            </property>
-          </object>
-        </child>
-        <child>
+      <object class="AdwToastOverlay" id="toast_overlay">
+        <property name="child">
           <object class="GtkBox">
-            <property name="margin-start">12</property>
-            <property name="margin-end">12</property>
-            <property name="margin-top">12</property>
-            <property name="margin-bottom">12</property>
-            <property name="spacing">6</property>
+            <property name="orientation">vertical</property>
             <child>
-              <object class="GtkEntry" id="entity_id_entry">
-                <property name="hexpand">True</property>
-                <property name="placeholder-text">Entity ID</property>
+              <object class="AdwHeaderBar">
+                <property name="title-widget">
+                  <object class="AdwWindowTitle">
+                    <property name="title">Test Window</property>
+                  </object>
+                </property>
               </object>
             </child>
             <child>
-              <object class="GtkButton" id="enter_button">
-                <property name="valign">center</property>
-                <property name="label">Enter</property>
-                <style>
-                  <class name="suggested-action"/>
-                </style>
-              </object>
-            </child>
-            <child>
-              <object class="GtkButton" id="reset_button">
-                <property name="valign">center</property>
-                <property name="label">Reset All</property>
-                <style>
-                  <class name="destructive-action"/>
-                </style>
+              <object class="GtkBox">
+                <property name="margin-start">12</property>
+                <property name="margin-end">12</property>
+                <property name="margin-top">12</property>
+                <property name="margin-bottom">12</property>
+                <property name="spacing">6</property>
+                <child>
+                  <object class="GtkEntry" id="entity_id_entry">
+                    <property name="hexpand">True</property>
+                    <property name="placeholder-text">Entity ID</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="enter_button">
+                    <property name="valign">center</property>
+                    <property name="label">Enter</property>
+                    <style>
+                      <class name="suggested-action"/>
+                    </style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="reset_button">
+                    <property name="valign">center</property>
+                    <property name="label">Reset All</property>
+                    <style>
+                      <class name="destructive-action"/>
+                    </style>
+                  </object>
+                </child>
               </object>
             </child>
           </object>
-        </child>
+        </property>
       </object>
     </property>
   </template>

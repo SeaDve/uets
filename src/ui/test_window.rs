@@ -13,6 +13,8 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/test_window.ui")]
     pub struct TestWindow {
         #[template_child]
+        pub(super) toast_overlay: TemplateChild<adw::ToastOverlay>,
+        #[template_child]
         pub(super) entity_id_entry: TemplateChild<gtk::Entry>,
         #[template_child]
         pub(super) enter_button: TemplateChild<gtk::Button>,
@@ -90,6 +92,14 @@ impl TestWindow {
 
         imp.entity_id_entry.set_text("");
 
-        Application::get().simulate_detected(&id, None);
+        glib::spawn_future_local(clone!(
+            #[weak(rename_to = obj)]
+            self,
+            async move {
+                if let Some(message) = Application::get().simulate_detected(&id, None).await {
+                    obj.imp().toast_overlay.add_toast(adw::Toast::new(&message));
+                }
+            }
+        ));
     }
 }

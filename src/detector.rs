@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use anyhow::Result;
 use chrono::Utc;
 use gtk::{
     glib::{self, clone, closure_local},
@@ -16,6 +17,7 @@ use crate::{
     entity_id::EntityId,
     entity_kind::EntityKind,
     jpeg_image::JpegImage,
+    remote_app::RemoteApp,
     rfid_reader::RfidReader,
     settings::DetectorConfig,
     sex::Sex,
@@ -44,6 +46,8 @@ mod imp {
 
         pub(super) rfid_reader: OnceCell<RfidReader>,
 
+        pub(super) remote_app: OnceCell<RemoteApp>,
+
         pub(super) detected_wo_id_capture: RefCell<Option<(DateTimeBoxed, Option<JpegImage>)>>,
         pub(super) detected_wo_id_alert_timeout: RefCell<Option<glib::SourceId>>,
     }
@@ -64,6 +68,10 @@ mod imp {
 
             if let Some(rfid_reader) = self.rfid_reader.get() {
                 rfid_reader.stop();
+            }
+
+            if let Some(remote_app) = self.remote_app.get() {
+                remote_app.stop();
             }
 
             tracing::debug!("Detector `{}` disposed", obj.name());
@@ -110,27 +118,7 @@ impl Detector {
                 #[weak]
                 this,
                 move |_, code| {
-                    let imp = this.imp();
-
-                    if imp
-                        .camera_last_detected
-                        .borrow()
-                        .as_ref()
-                        .is_some_and(|last_detected| last_detected == code)
-                    {
-                        return;
-                    }
-
-                    tracing::debug!("Detected code: {}", code);
-
-                    if let Some((id, data)) = entity_from_qrcode(code) {
-                        this.emit_detected(&id, Some(&data));
-                    } else {
-                        this.emit_by_name::<()>("detected-invalid", &[&code]);
-                    }
-
-                    imp.camera_last_detected.replace(Some(code.to_string()));
-                    this.restart_camera_last_detected_reset_timeout();
+                    this.handle_code_detected(code);
                 }
             ));
             camera.connect_motion_detected(clone!(
@@ -188,6 +176,26 @@ impl Detector {
             imp.rfid_reader.set(rfid_reader).unwrap();
         }
 
+        if let Some(remote_app) = config.remote_app_ip_addr {
+            let remote_app = RemoteApp::new(remote_app);
+            remote_app.connect_code_detected(clone!(
+                #[weak]
+                this,
+                move |_, code| {
+                    this.handle_code_detected(code);
+                }
+            ));
+            remote_app.connect_tag_detected(clone!(
+                #[weak]
+                this,
+                move |_, tag| {
+                    let entity_id = EntityId::new(tag);
+                    this.emit_detected(&entity_id, None);
+                }
+            ));
+            imp.remote_app.set(remote_app).unwrap();
+        }
+
         this
     }
 
@@ -238,12 +246,24 @@ impl Detector {
         self.imp().rfid_reader.get().cloned()
     }
 
+    pub fn remote_app(&self) -> Option<RemoteApp> {
+        self.imp().remote_app.get().cloned()
+    }
+
     pub fn set_enable_detection_wo_id(&self, is_enabled: bool) {
         let imp = self.imp();
 
         if let Some(camera) = imp.camera.get() {
             camera.set_enable_motion_detection(is_enabled);
         }
+    }
+
+    pub async fn return_message(&self, message: &str) -> Result<()> {
+        if let Some(remote_app) = self.imp().remote_app.get() {
+            remote_app.ws_send_text(message).await?;
+        }
+
+        Ok(())
     }
 
     fn emit_detected(&self, id: &EntityId, data: Option<&EntityData>) {
@@ -313,6 +333,30 @@ impl Detector {
         );
         imp.camera_last_detected_reset_timeout
             .replace(Some(source_id));
+    }
+
+    fn handle_code_detected(&self, code: &str) {
+        let imp = self.imp();
+
+        if imp
+            .camera_last_detected
+            .borrow()
+            .as_ref()
+            .is_some_and(|last_detected| last_detected == code)
+        {
+            return;
+        }
+
+        tracing::debug!("Detected code: {}", code);
+
+        if let Some((id, data)) = entity_from_qrcode(code) {
+            self.emit_detected(&id, Some(&data));
+        } else {
+            self.emit_by_name::<()>("detected-invalid", &[&code]);
+        }
+
+        imp.camera_last_detected.replace(Some(code.to_string()));
+        self.restart_camera_last_detected_reset_timeout();
     }
 }
 

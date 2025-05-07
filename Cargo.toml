@@ -7,8 +7,10 @@ rust-version = "1.82"
 [dependencies]
 adw = { package = "libadwaita", version = "0.7", features = ["v1_5"] }
 anyhow = "1.0"
+async-channel = "2.3.1"
 async-lock = "3.4.0"
 async-net = "2.0.0"
+async-tungstenite = { version = "0.29.1", features = ["gio-runtime"] }
 calamine = "0.26.1"
 chrono = { version = "0.4", features = ["serde"] }
 chrono-humanize = "0.2.3"

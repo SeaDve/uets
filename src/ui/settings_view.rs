@@ -265,6 +265,15 @@ impl SettingsView {
                     port_reachability: rfid_reader.check_port_reachability().await,
                 });
             }
+
+            if let Some(remote_app) = detector.remote_app() {
+                statuses.push(RemoteStatus {
+                    name: format!("{} - Remote App", detector.name()),
+                    ip_addr: remote_app.ip_addr(),
+                    port: remote_app.port(),
+                    port_reachability: remote_app.check_port_reachability().await,
+                });
+            }
         }
 
         if statuses.is_empty() {

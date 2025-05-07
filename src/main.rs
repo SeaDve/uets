@@ -39,6 +39,7 @@ mod log;
 mod md2pango;
 mod relay;
 mod remote;
+mod remote_app;
 mod report;
 mod report_table;
 mod rfid_reader;

@@ -347,8 +347,12 @@ impl Application {
         self.window().remove_message_toast_with_id(id);
     }
 
-    pub fn simulate_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
-        self.handle_detected(entity_id, entity_data);
+    pub async fn simulate_detected(
+        &self,
+        entity_id: &EntityId,
+        entity_data: Option<EntityData>,
+    ) -> Option<String> {
+        self.handle_detected(entity_id, entity_data).await
     }
 
     pub fn reconfigure_detectors(&self) -> Result<()> {
@@ -370,8 +374,24 @@ impl Application {
                 detector.connect_detected(clone!(
                     #[weak(rename_to = obj)]
                     self,
-                    move |_, entity_id, entity_data| {
-                        obj.handle_detected(entity_id, entity_data);
+                    move |detector, entity_id, entity_data| {
+                        glib::spawn_future_local(clone!(
+                            #[weak]
+                            obj,
+                            #[weak]
+                            detector,
+                            #[strong]
+                            entity_id,
+                            async move {
+                                if let Some(message) =
+                                    obj.handle_detected(&entity_id, entity_data).await
+                                {
+                                    if let Err(err) = detector.return_message(&message).await {
+                                        tracing::error!("Failed to return message: {:?}", err);
+                                    }
+                                }
+                            }
+                        ));
                     }
                 )),
                 detector.connect_detected_invalid(clone!(
@@ -418,21 +438,11 @@ impl Application {
         }
     }
 
-    fn handle_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
-        glib::spawn_future_local(clone!(
-            #[weak(rename_to = obj)]
-            self,
-            #[strong]
-            entity_id,
-            #[strong]
-            entity_data,
-            async move {
-                obj.handle_detected_inner(&entity_id, entity_data).await;
-            }
-        ));
-    }
-
-    async fn handle_detected_inner(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
+    async fn handle_detected(
+        &self,
+        entity_id: &EntityId,
+        entity_data: Option<EntityData>,
+    ) -> Option<String> {
         let timeline = self.timeline();
 
         let data = if let Some(data) = entity_data {
@@ -457,7 +467,7 @@ impl Application {
                 Ok(data) => data,
                 Err(oneshot::Canceled) => {
                     tracing::debug!("Gathering entity data was canceled; ignoring detected entity");
-                    return;
+                    return None;
                 }
             }
         };
@@ -470,36 +480,30 @@ impl Application {
         let entity_kind = data.kind();
         match timeline.handle_detected(entity_id, data) {
             Ok(item) => {
-                match item.kind() {
-                    TimelineItemKind::Entry => {
-                        let message = match entity_name {
-                            Some(name) if entity_kind == EntityKind::Person => {
-                                format!("Welcome, {}!", name)
-                            }
-                            Some(name) => {
-                                format!("{name} {}", entity_kind.enter_verb())
-                            }
-                            None => {
-                                format!("{entity_id} {}", entity_kind.enter_verb())
-                            }
-                        };
-                        self.add_message_toast_with_id(ToastId::Detected, &message);
-                    }
-                    TimelineItemKind::Exit => {
-                        let message = match entity_name {
-                            Some(name) if entity_kind == EntityKind::Person => {
-                                format!("Goodbye, {}!", name)
-                            }
-                            Some(name) => {
-                                format!("{name} {}", entity_kind.exit_verb())
-                            }
-                            None => {
-                                format!("{entity_id} {}", entity_kind.exit_verb())
-                            }
-                        };
-                        self.add_message_toast_with_id(ToastId::Detected, &message);
-                    }
-                }
+                let welcome_message = match item.kind() {
+                    TimelineItemKind::Entry => match entity_name {
+                        Some(name) if entity_kind == EntityKind::Person => {
+                            format!("Welcome, {}!", name)
+                        }
+                        Some(name) => {
+                            format!("{name} {}", entity_kind.enter_verb())
+                        }
+                        None => {
+                            format!("{entity_id} {}", entity_kind.enter_verb())
+                        }
+                    },
+                    TimelineItemKind::Exit => match entity_name {
+                        Some(name) if entity_kind == EntityKind::Person => {
+                            format!("Goodbye, {}!", name)
+                        }
+                        Some(name) => {
+                            format!("{name} {}", entity_kind.exit_verb())
+                        }
+                        None => {
+                            format!("{entity_id} {}", entity_kind.exit_verb())
+                        }
+                    },
+                };
 
                 let entity = timeline
                     .entity_list()
@@ -514,22 +518,29 @@ impl Application {
                     .contains(item.dt())
                     && item.kind().is_entry()
                 {
-                    self.add_message_toast_with_id(
-                        ToastId::Detected,
-                        &format!("“{}” is not allowed!", id_or_name(&entity)),
-                    );
+                    let message = format!("“{}” is not allowed!", id_or_name(&entity));
+                    self.add_message_toast_with_id(ToastId::Detected, &message);
 
                     Sound::CriticalAlert.play();
+
+                    Some(message)
                 } else {
+                    self.add_message_toast_with_id(ToastId::Detected, &welcome_message);
+
                     Sound::DetectedSuccess.play();
+
+                    Some(welcome_message)
                 }
             }
             Err(err) => {
                 tracing::error!("Failed to handle entity: {:?}", err);
 
-                self.add_message_toast("Can't handle entity");
+                let message = format!("Failed to handle “{}”", entity_id);
+                self.add_message_toast_with_id(ToastId::Detected, &message);
 
                 Sound::DetectedError.play();
+
+                Some(message)
             }
         }
     }
