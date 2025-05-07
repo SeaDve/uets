@@ -474,7 +474,7 @@ impl Application {
 
         tracing::debug!(?data, "Handling detected entity `{}`", entity_id);
 
-        // TODO If the mode is inventory or refrigerator, don't handle the detected entity
+        // TODO If the mode is inventory, don't handle the detected entity
         // if it doesn't have a stock id.
         let entity_name = data.name().cloned();
         let entity_kind = data.kind();

@@ -12,7 +12,6 @@ use crate::{
     entity_data::{EntityDataField, EntityDataFieldTy},
     entity_entry_tracker::EntityIdSet,
     entity_expiration::EntityExpiration,
-    entity_kind::EntityKind,
     format,
     ui::{entity_data_dialog::EntityDataDialog, information_row::InformationRow},
     Application,
@@ -163,7 +162,6 @@ mod imp {
                     #[weak]
                     obj,
                     move |_, _| {
-                        obj.update_edit_data_button_visibility();
                         obj.update_data_group_rows();
                         obj.update_photo_picture_group();
                     }
@@ -181,7 +179,6 @@ mod imp {
             );
             self.entity_signals.set(entity_signals).unwrap();
 
-            obj.update_edit_data_button_visibility();
             obj.update_data_group_rows();
             obj.update_photo_picture_group();
             obj.update_status_row();
@@ -233,7 +230,6 @@ mod imp {
                 .set_target(entity.as_ref());
 
             self.entity.replace(entity);
-            obj.update_edit_data_button_visibility();
             obj.update_data_group_rows();
             obj.update_photo_picture_group();
             obj.update_status_row();
@@ -285,15 +281,6 @@ impl EntityDetailsPane {
         let imp = self.imp();
         imp.dt_range.replace(dt_range);
         self.update_status_row();
-    }
-
-    fn update_edit_data_button_visibility(&self) {
-        let imp = self.imp();
-
-        imp.edit_data_button.set_visible(
-            self.entity()
-                .is_some_and(|e| e.kind() != EntityKind::General),
-        );
     }
 
     fn update_data_group_rows(&self) {

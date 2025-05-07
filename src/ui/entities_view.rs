@@ -34,18 +34,10 @@ struct S;
 impl S {
     const IS: &str = "is";
 
-    const ENTITY_KIND_VALUES: &[&str] = &[
-        Self::GENERAL,
-        Self::PERSON,
-        Self::VEHICLE,
-        Self::ITEM,
-        Self::FOOD_ITEM,
-    ];
-    const GENERAL: &str = "general";
+    const ENTITY_KIND_VALUES: &[&str] = &[Self::PERSON, Self::VEHICLE, Self::ITEM];
     const PERSON: &str = "person";
     const VEHICLE: &str = "vehicle";
     const ITEM: &str = "item";
-    const FOOD_ITEM: &str = "food-item";
 
     const ENTITY_ZONE_VALUES: &[&str] = &[Self::INSIDE, Self::OUTSIDE];
     const INSIDE: &str = "inside";
@@ -98,11 +90,9 @@ impl S {
 #[enum_type(name = "UetsEntityKindFilter")]
 enum EntityKindFilter {
     All,
-    General,
     Person,
     Vehicle,
     Item,
-    FoodItem,
 }
 
 list_model_enum!(EntityKindFilter);
@@ -111,22 +101,18 @@ impl EntityKindFilter {
     fn display(&self) -> &'static str {
         match self {
             Self::All => "All",
-            Self::General => "General",
             Self::Person => "Person",
             Self::Vehicle => "Vehicle",
             Self::Item => "Inventory Item",
-            Self::FoodItem => "Food Item",
         }
     }
 
     fn entity_kind(&self) -> Option<EntityKind> {
         match self {
             Self::All => None,
-            Self::General => Some(EntityKind::General),
             Self::Person => Some(EntityKind::Person),
             Self::Vehicle => Some(EntityKind::Vehicle),
             Self::Item => Some(EntityKind::Item),
-            Self::FoodItem => Some(EntityKind::FoodItem),
         }
     }
 }
@@ -783,11 +769,9 @@ impl EntitiesView {
         let queries = entry.queries();
 
         let entity_kind = match queries.find_last_with_values(S::IS, S::ENTITY_KIND_VALUES) {
-            Some(S::GENERAL) => EntityKindFilter::General,
             Some(S::PERSON) => EntityKindFilter::Person,
             Some(S::VEHICLE) => EntityKindFilter::Vehicle,
             Some(S::ITEM) => EntityKindFilter::Item,
-            Some(S::FOOD_ITEM) => EntityKindFilter::FoodItem,
             None => EntityKindFilter::All,
             Some(_) => unreachable!(),
         };
@@ -902,11 +886,6 @@ impl EntitiesView {
 
         match entity_kind {
             EntityKindFilter::All => {}
-            EntityKindFilter::General => {
-                every_filter.append(new_filter(|entity: &Entity| {
-                    entity.data().kind() == EntityKind::General
-                }));
-            }
             EntityKindFilter::Person => {
                 every_filter.append(new_filter(|entity: &Entity| {
                     entity.data().kind() == EntityKind::Person
@@ -920,11 +899,6 @@ impl EntitiesView {
             EntityKindFilter::Item => {
                 every_filter.append(new_filter(|entity: &Entity| {
                     entity.data().kind() == EntityKind::Item
-                }));
-            }
-            EntityKindFilter::FoodItem => {
-                every_filter.append(new_filter(|entity: &Entity| {
-                    entity.data().kind() == EntityKind::FoodItem
                 }));
             }
         }
@@ -1061,9 +1035,6 @@ impl EntitiesView {
             EntityKindFilter::All => {
                 queries.remove_all(S::IS, S::ENTITY_KIND_VALUES);
             }
-            EntityKindFilter::General => {
-                queries.replace_all_or_insert(S::IS, S::ENTITY_KIND_VALUES, S::GENERAL);
-            }
             EntityKindFilter::Person => {
                 queries.replace_all_or_insert(S::IS, S::ENTITY_KIND_VALUES, S::PERSON);
             }
@@ -1072,9 +1043,6 @@ impl EntitiesView {
             }
             EntityKindFilter::Item => {
                 queries.replace_all_or_insert(S::IS, S::ENTITY_KIND_VALUES, S::ITEM);
-            }
-            EntityKindFilter::FoodItem => {
-                queries.replace_all_or_insert(S::IS, S::ENTITY_KIND_VALUES, S::FOOD_ITEM);
             }
         }
 

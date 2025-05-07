@@ -176,7 +176,6 @@ impl ValidEntityFields {
         }
 
         Self(match entity_kind {
-            EntityKind::General => &[f!(req EntityDataFieldTy::Kind)],
             EntityKind::Person => &[
                 f!(req EntityDataFieldTy::Kind),
                 f!(EntityDataFieldTy::AllowedDtRange),
@@ -196,13 +195,6 @@ impl ValidEntityFields {
                 f!(req EntityDataFieldTy::Kind),
                 f!(req EntityDataFieldTy::StockId),
                 f!(EntityDataFieldTy::Location),
-                f!(EntityDataFieldTy::ExpirationDt),
-                f!(EntityDataFieldTy::AllowedDtRange),
-                f!(EntityDataFieldTy::Photo),
-            ],
-            EntityKind::FoodItem => &[
-                f!(req EntityDataFieldTy::Kind),
-                f!(req EntityDataFieldTy::StockId),
                 f!(EntityDataFieldTy::ExpirationDt),
                 f!(EntityDataFieldTy::AllowedDtRange),
                 f!(EntityDataFieldTy::Photo),

@@ -147,14 +147,14 @@ impl Entity {
         match self.action_for_dt_range(for_dt_range) {
             Some((dt, TimelineItemKind::Entry)) => {
                 let verb = match self.kind() {
-                    EntityKind::General | EntityKind::Person => "Entered",
+                    EntityKind::Person => "Entered",
                     EntityKind::Vehicle => "Drove in",
-                    EntityKind::Item | EntityKind::FoodItem => "Added",
+                    EntityKind::Item => "Added",
                 };
                 let entry_to_exit_duration_prefix = match self.kind() {
-                    EntityKind::General | EntityKind::Person => "stayed",
+                    EntityKind::Person => "stayed",
                     EntityKind::Vehicle => "parked",
-                    EntityKind::Item | EntityKind::FoodItem => "kept",
+                    EntityKind::Item => "kept",
                 };
 
                 let duration_start = if let Some(start) = for_dt_range.start {
@@ -181,16 +181,16 @@ impl Entity {
             }
             Some((dt, TimelineItemKind::Exit)) => {
                 let verb = match self.kind() {
-                    EntityKind::General | EntityKind::Person => "Exited",
+                    EntityKind::Person => "Exited",
                     EntityKind::Vehicle => "Drove out",
-                    EntityKind::Item | EntityKind::FoodItem => "Removed",
+                    EntityKind::Item => "Removed",
                 };
                 format!("{verb} {}", date_time::format::fuzzy(dt))
             }
             None => match self.kind() {
-                EntityKind::General | EntityKind::Person => "Never entered".into(),
+                EntityKind::Person => "Never entered".into(),
                 EntityKind::Vehicle => "Never drove in".into(),
-                EntityKind::Item | EntityKind::FoodItem => "Never added".into(),
+                EntityKind::Item => "Never added".into(),
             },
         }
     }

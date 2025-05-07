@@ -9,11 +9,9 @@ use crate::entity_data::{EntityData, EntityDataFieldTy, ValidEntityFields};
 #[enum_type(name = "UetsEntityKind")]
 pub enum EntityKind {
     #[default]
-    General,
     Person,
     Vehicle,
     Item,
-    FoodItem,
 }
 
 impl EntityKind {
@@ -27,35 +25,33 @@ impl EntityKind {
 
     pub fn enter_verb(&self) -> &str {
         match self {
-            EntityKind::General | EntityKind::Person => "enters",
+            EntityKind::Person => "enters",
             EntityKind::Vehicle => "drives in",
-            EntityKind::Item | EntityKind::FoodItem => "added",
+            EntityKind::Item => "added",
         }
     }
 
     pub fn exit_verb(&self) -> &str {
         match self {
-            EntityKind::General | EntityKind::Person => "exits",
+            EntityKind::Person => "exits",
             EntityKind::Vehicle => "drives out",
-            EntityKind::Item | EntityKind::FoodItem => "removed",
+            EntityKind::Item => "removed",
         }
     }
 
     pub fn entry_to_exit_duration_suffix(&self) -> &str {
         match self {
-            EntityKind::General | EntityKind::Person => "of stay",
+            EntityKind::Person => "of stay",
             EntityKind::Vehicle => "of parking",
-            EntityKind::Item | EntityKind::FoodItem => "of being kept",
+            EntityKind::Item => "of being kept",
         }
     }
 
     pub fn entities_view_icon_name(&self) -> &str {
         match self {
-            Self::General => "tag-outline-symbolic",
             Self::Person => "person-symbolic",
             Self::Vehicle => "driving-symbolic",
             Self::Item => "package-x-generic-symbolic",
-            Self::FoodItem => "egg-symbolic",
         }
     }
 }
@@ -63,11 +59,9 @@ impl EntityKind {
 impl fmt::Display for EntityKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EntityKind::General => write!(f, "General"),
             EntityKind::Person => write!(f, "Person"),
             EntityKind::Vehicle => write!(f, "Vehicle"),
             EntityKind::Item => write!(f, "Item"),
-            EntityKind::FoodItem => write!(f, "Food Item"),
         }
     }
 }
@@ -88,11 +82,9 @@ impl FromStr for EntityKind {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().trim() {
-            "general" => Ok(Self::General),
             "person" => Ok(Self::Person),
             "vehicle" => Ok(Self::Vehicle),
             "item" => Ok(Self::Item),
-            "food" => Ok(Self::FoodItem),
             _ => Err(EntityKindParseError),
         }
     }
