@@ -189,15 +189,16 @@ impl ValidEntityFields {
                 f!(req EntityDataFieldTy::Kind),
                 f!(EntityDataFieldTy::AllowedDtRange),
                 f!(EntityDataFieldTy::Photo),
+                f!(EntityDataFieldTy::Name),
                 f!(EntityDataFieldTy::Location),
             ],
             EntityKind::Item => &[
                 f!(req EntityDataFieldTy::Kind),
                 f!(req EntityDataFieldTy::StockId),
-                f!(EntityDataFieldTy::Location),
-                f!(EntityDataFieldTy::ExpirationDt),
                 f!(EntityDataFieldTy::AllowedDtRange),
                 f!(EntityDataFieldTy::Photo),
+                f!(EntityDataFieldTy::Location),
+                f!(EntityDataFieldTy::ExpirationDt),
             ],
         })
     }
