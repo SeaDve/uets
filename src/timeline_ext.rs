@@ -73,70 +73,87 @@ impl Timeline {
         let mut stock_data = HashMap::new();
         for row in rows {
             if let Some(entity_id_col_idx) = entity_id_col_idx {
-                let Some(entity_id) = row[entity_id_col_idx].as_string().map(EntityId::new) else {
+                let entity_id_cell = &row[entity_id_col_idx];
+
+                if entity_id_cell.is_empty() {
+                    continue;
+                }
+
+                let Some(entity_id) = entity_id_cell.as_string().map(EntityId::new) else {
                     continue;
                 };
 
                 let mut fields = col_idxs
                     .iter()
-                    .filter_map(|(field_ty, &idx)| match field_ty {
-                        EntityDataFieldTy::Kind => row[idx]
-                            .as_string()
-                            .and_then(|s| {
-                                s.parse::<EntityKind>()
-                                    .inspect_err(|err| {
-                                        tracing::warn!("Failed to parse entity kind: {:?}", err)
-                                    })
-                                    .ok()
-                            })
-                            .map(EntityDataField::Kind),
-                        EntityDataFieldTy::StockId => row[idx]
-                            .as_string()
-                            .map(StockId::new)
-                            .map(EntityDataField::StockId),
-                        EntityDataFieldTy::Location => {
-                            row[idx].as_string().map(EntityDataField::Location)
+                    .filter_map(|(field_ty, &idx)| {
+                        let cell = &row[idx];
+
+                        if cell.is_empty() {
+                            return None;
                         }
-                        EntityDataFieldTy::ExpirationDt => row[idx]
-                            .as_string()
-                            .and_then(|s| {
-                                date_time::parse(&s)
-                                    .inspect_err(|err| {
-                                        tracing::warn!("Failed to parse date time: {:?}", err)
-                                    })
-                                    .ok()
-                            })
-                            .map(EntityDataField::ExpirationDt),
-                        EntityDataFieldTy::AllowedDtRange => row[idx]
-                            .as_string()
-                            .and_then(|s| {
-                                s.parse::<DateTimeRange>()
-                                    .inspect_err(|err| {
-                                        tracing::warn!("Failed to parse date time range: {:?}", err)
-                                    })
-                                    .ok()
-                            })
-                            .map(EntityDataField::AllowedDtRange),
-                        EntityDataFieldTy::Photo => row[idx]
-                            .as_string()
-                            .map(|s| JpegImage::from_base64(&s))
-                            .map(EntityDataField::Photo),
-                        EntityDataFieldTy::Name => row[idx].as_string().map(EntityDataField::Name),
-                        EntityDataFieldTy::Sex => row[idx]
-                            .as_string()
-                            .and_then(|s| {
-                                s.parse::<Sex>()
-                                    .inspect_err(|err| {
-                                        tracing::warn!("Failed to parse sex: {:?}", err)
-                                    })
-                                    .ok()
-                            })
-                            .map(EntityDataField::Sex),
-                        EntityDataFieldTy::Email => {
-                            row[idx].as_string().map(EntityDataField::Email)
-                        }
-                        EntityDataFieldTy::Program => {
-                            row[idx].as_string().map(EntityDataField::Program)
+
+                        match field_ty {
+                            EntityDataFieldTy::Kind => cell
+                                .as_string()
+                                .and_then(|s| {
+                                    s.parse::<EntityKind>()
+                                        .inspect_err(|err| {
+                                            tracing::warn!("Failed to parse entity kind: {:?}", err)
+                                        })
+                                        .ok()
+                                })
+                                .map(EntityDataField::Kind),
+                            EntityDataFieldTy::StockId => cell
+                                .as_string()
+                                .map(StockId::new)
+                                .map(EntityDataField::StockId),
+                            EntityDataFieldTy::Location => {
+                                cell.as_string().map(EntityDataField::Location)
+                            }
+                            EntityDataFieldTy::ExpirationDt => cell
+                                .as_string()
+                                .and_then(|s| {
+                                    date_time::parse(&s)
+                                        .inspect_err(|err| {
+                                            tracing::warn!("Failed to parse date time: {:?}", err)
+                                        })
+                                        .ok()
+                                })
+                                .map(EntityDataField::ExpirationDt),
+                            EntityDataFieldTy::AllowedDtRange => cell
+                                .as_string()
+                                .and_then(|s| {
+                                    s.parse::<DateTimeRange>()
+                                        .inspect_err(|err| {
+                                            tracing::warn!(
+                                                "Failed to parse date time range: {:?}",
+                                                err
+                                            )
+                                        })
+                                        .ok()
+                                })
+                                .map(EntityDataField::AllowedDtRange),
+                            EntityDataFieldTy::Photo => cell
+                                .as_string()
+                                .map(|s| JpegImage::from_base64(&s))
+                                .map(EntityDataField::Photo),
+                            EntityDataFieldTy::Name => cell.as_string().map(EntityDataField::Name),
+                            EntityDataFieldTy::Sex => cell
+                                .as_string()
+                                .and_then(|s| {
+                                    s.parse::<Sex>()
+                                        .inspect_err(|err| {
+                                            tracing::warn!("Failed to parse sex: {:?}", err)
+                                        })
+                                        .ok()
+                                })
+                                .map(EntityDataField::Sex),
+                            EntityDataFieldTy::Email => {
+                                cell.as_string().map(EntityDataField::Email)
+                            }
+                            EntityDataFieldTy::Program => {
+                                cell.as_string().map(EntityDataField::Program)
+                            }
                         }
                     })
                     .collect::<Vec<_>>();
@@ -147,7 +164,13 @@ impl Timeline {
 
                 entity_data.insert(entity_id, EntityData::from_fields(fields));
             } else if let Some(stock_id_col_idx) = stock_id_col_idx {
-                let Some(stock_id) = row[stock_id_col_idx].as_string().map(StockId::new) else {
+                let stock_id_cell = &row[stock_id_col_idx];
+
+                if stock_id_cell.is_empty() {
+                    continue;
+                }
+
+                let Some(stock_id) = stock_id_cell.as_string().map(StockId::new) else {
                     continue;
                 };
 
