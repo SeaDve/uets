@@ -25,9 +25,9 @@
                 <property name="margin-bottom">12</property>
                 <property name="spacing">6</property>
                 <child>
-                  <object class="GtkEntry" id="entity_id_entry">
+                  <object class="GtkEntry" id="value_entry">
                     <property name="hexpand">True</property>
-                    <property name="placeholder-text">Entity ID</property>
+                    <property name="placeholder-text">id[:optional_data_in_json]</property>
                   </object>
                 </child>
                 <child>

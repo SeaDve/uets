@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Instant};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use chrono::{DateTime, Utc};
 use gtk::{
     gio,
@@ -15,10 +15,11 @@ use crate::{
     date_time_range::DateTimeRange,
     db::{self, EnvExt},
     entity::Entity,
-    entity_data::EntityData,
+    entity_data::{EntityData, EntityDataFieldTy},
     entity_entry_tracker::{EntityEntryTracker, EntityIdSet},
     entity_expired_tracker::EntityExpiredTracker,
     entity_id::EntityId,
+    entity_kind::EntityKind,
     entity_list::EntityList,
     log::Log,
     stock::{Stock, StockLogs},
@@ -366,6 +367,20 @@ impl Timeline {
             );
         }
 
+        if let Some(possessor) = entity_data.possessor() {
+            ensure!(
+                self.entity_list().contains(possessor),
+                "Unknown possessor entity `{}`",
+                possessor
+            );
+
+            ensure!(
+                possessor != entity_id,
+                "Entity `{}` cannot be its own possessor",
+                entity_id
+            );
+        }
+
         let now_dt = Utc::now();
         debug_assert!(imp
             .list
@@ -387,6 +402,18 @@ impl Timeline {
                 .get(&stock_id)
                 .unwrap_or_else(|| Stock::new(stock_id.clone(), StockData {}))
         });
+
+        // If the item re-entered the "storage", we automatically set the
+        // possessor to None.
+        //
+        // We do not do the same with vehicles, as the the possessor is the
+        // owner, while in items, the possessor only borrows.
+        if item_kind.is_entry() && entity.kind() == EntityKind::Item {
+            debug_assert!(entity
+                .kind()
+                .is_valid_entity_data_field_ty(EntityDataFieldTy::Possessor));
+            entity.set_data(entity.data().with_possessor(None));
+        }
 
         let (env, tdb, edb, sdb) = self.db();
         env.with_write_txn(|wtxn| {

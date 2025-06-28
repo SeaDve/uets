@@ -7,7 +7,7 @@ use inflections::case;
 
 use crate::{
     ai_chat_message_list::AiChatMessageList,
-    date_time,
+    config, date_time,
     date_time_range::DateTimeRange,
     entity_id::EntityId,
     limit_reached::{LimitReached, LimitReachedLabelExt, LimitReachedSettingsExt},
@@ -92,6 +92,8 @@ mod imp {
         pub(super) n_upper_limit_reached_stocks_row: TemplateChild<InformationRow>,
         #[template_child]
         pub(super) n_expired_entities_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) show_ai_chat_dialog_row: TemplateChild<adw::ActionRow>,
         #[template_child]
         pub(super) n_inside_graph: TemplateChild<TimeGraph>,
         #[template_child]
@@ -451,6 +453,9 @@ mod imp {
             obj.update_n_lower_limit_reached_stocks_row();
             obj.update_n_upper_limit_reached_stocks_row();
             obj.update_n_expired_entities_row();
+
+            self.show_ai_chat_dialog_row
+                .set_visible(!config::ai_chat_api_key().is_empty());
         }
 
         fn dispose(&self) {

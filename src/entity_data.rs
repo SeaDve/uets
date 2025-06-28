@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt};
+use std::fmt;
 
 use chrono::{DateTime, Utc};
 use gtk::glib;
@@ -6,8 +6,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-    date_time_range::DateTimeRange, entity_kind::EntityKind, jpeg_image::JpegImage, sex::Sex,
-    stock_id::StockId,
+    date_time_range::DateTimeRange, entity_id::EntityId, entity_kind::EntityKind,
+    jpeg_image::JpegImage, sex::Sex, stock_id::StockId,
 };
 
 macro_rules! entity_data_field {
@@ -57,6 +57,7 @@ macro_rules! entity_data_field {
 entity_data_field! {
     Kind(EntityKind) => "Kind",
     StockId(StockId) => "Stock Name",
+    Possessor(EntityId) => "Possessor",
     Location(String) => "Location",
     ExpirationDt(DateTime<Utc>) => "Expiration Date",
     AllowedDtRange(DateTimeRange) => "Allowed Date Range",
@@ -78,32 +79,65 @@ macro_rules! entity_data_getter {
     };
 }
 
+#[derive(Debug, Clone, glib::Boxed)]
+#[boxed_type(name = "UetsEntityDataFieldVecBoxed")]
+pub struct EntityDataFieldVecBoxed(pub Vec<EntityDataField>);
+
 #[derive(Debug, Default, Clone, PartialEq, Eq, glib::Boxed)]
 #[boxed_type(name = "UetsEntityData", nullable)]
 pub struct EntityData(IndexMap<EntityDataFieldTy, EntityDataField>);
 
 impl EntityData {
     pub fn from_fields(fields: impl IntoIterator<Item = EntityDataField>) -> Self {
-        let inner = fields
-            .into_iter()
-            .map(|f| (f.ty(), f))
-            .collect::<IndexMap<_, _>>();
+        let mut this = {
+            let mut inner = IndexMap::new();
 
-        if tracing::enabled!(tracing::Level::WARN) {
-            let mut seen = HashSet::new();
-            for (field_ty, field) in &inner {
-                if !seen.insert(field_ty) {
-                    tracing::warn!("Duplicate field: {:?}", field);
+            for field in fields {
+                let field_ty = field.ty();
+                if inner.insert(field_ty, field).is_some() {
+                    tracing::warn!("Duplicate field: {:?}; removing previous value", field_ty);
+                }
+            }
+
+            Self(inner)
+        };
+
+        let kind = this.kind();
+        let valid_entity_fields = ValidEntityFields::for_entity_kind(kind);
+
+        if tracing::enabled!(tracing::Level::ERROR) {
+            for (field_ty, is_required) in valid_entity_fields.0.iter() {
+                if *is_required && !this.has_field(*field_ty) {
+                    tracing::error!(
+                        "Entity data for kind {:?} is missing required field {:?}",
+                        kind,
+                        field_ty
+                    );
                 }
             }
         }
 
-        debug_assert!(
-            inner.contains_key(&EntityDataFieldTy::Kind),
-            "entity data must always contain a kind field"
-        );
+        this.0.retain(|field_ty, _| {
+            let is_valid_field = valid_entity_fields.contains(*field_ty);
 
-        Self(inner)
+            if !is_valid_field {
+                tracing::warn!(
+                    "Entity data for kind {:?} contains field {:?} that is not valid; removing it",
+                    kind,
+                    field_ty
+                );
+            }
+
+            is_valid_field
+        });
+
+        this
+    }
+
+    pub fn extended(self, fields: impl IntoIterator<Item = EntityDataField>) -> Self {
+        let mut ret = self.0.clone();
+        ret.extend(fields.into_iter().map(|field| (field.ty(), field)));
+        Self(ret)
     }
 
     pub fn has_field(&self, field_ty: EntityDataFieldTy) -> bool {
@@ -127,6 +161,15 @@ impl EntityData {
         )
     }
 
+    pub fn with_possessor(self, possessor: Option<EntityId>) -> Self {
+        Self::from_fields(
+            self.0
+                .into_values()
+                .filter(|f| f.ty() != EntityDataFieldTy::Possessor)
+                .chain(possessor.map(EntityDataField::Possessor)),
+        )
+    }
+
     pub fn kind(&self) -> EntityKind {
         *self
             .0
@@ -139,14 +182,15 @@ impl EntityData {
     }
 
     entity_data_getter!(stock_id, StockId, &StockId);
-    entity_data_getter!(location, Location, &String);
-    entity_data_getter!(expiration_dt, ExpirationDt, &DateTime<Utc>);
     entity_data_getter!(allowed_dt_range, AllowedDtRange, &DateTimeRange);
+    entity_data_getter!(possessor, Possessor, &EntityId);
     entity_data_getter!(photo, Photo, &JpegImage);
     entity_data_getter!(name, Name, &String);
     entity_data_getter!(sex, Sex, &Sex);
     entity_data_getter!(email, Email, &String);
     entity_data_getter!(program, Program, &String);
+    entity_data_getter!(location, Location, &String);
+    entity_data_getter!(expiration_dt, ExpirationDt, &DateTime<Utc>);
 }
 
 impl Serialize for EntityData {
@@ -187,6 +231,7 @@ impl ValidEntityFields {
             ],
             EntityKind::Vehicle => &[
                 f!(req EntityDataFieldTy::Kind),
+                f!(EntityDataFieldTy::Possessor),
                 f!(EntityDataFieldTy::AllowedDtRange),
                 f!(EntityDataFieldTy::Photo),
                 f!(EntityDataFieldTy::Name),
@@ -195,6 +240,7 @@ impl ValidEntityFields {
             EntityKind::Item => &[
                 f!(req EntityDataFieldTy::Kind),
                 f!(req EntityDataFieldTy::StockId),
+                f!(EntityDataFieldTy::Possessor),
                 f!(EntityDataFieldTy::AllowedDtRange),
                 f!(EntityDataFieldTy::Photo),
                 f!(EntityDataFieldTy::Location),
@@ -205,15 +251,5 @@ impl ValidEntityFields {
 
     pub fn contains(&self, field: EntityDataFieldTy) -> bool {
         self.0.iter().any(|&(f, _)| f == field)
-    }
-
-    pub fn is_valid_entity_data(&self, entity_data: &EntityData) -> bool {
-        self.0.iter().all(|(f, is_required)| {
-            if *is_required {
-                entity_data.has_field(*f)
-            } else {
-                true
-            }
-        }) && entity_data.fields().all(|f| self.contains(f.ty()))
     }
 }

@@ -43,7 +43,20 @@
               </object>
             </child>
             <child>
+              <!-- NOTE: Adding a row on this group must also update entity_data_dialog.rs -->
               <object class="AdwPreferencesGroup" id="other_data_group">
+                <!-- XXX: We use a DropDown here since AdwComboRow somehow causes segfault from the model -->
+                <child>
+                  <object class="AdwActionRow" id="possessor_row">
+                    <property name="title">Possessor</property>
+                    <child type="suffix">
+                      <object class="GtkDropDown" id="possessor_dropdown">
+                        <property name="valign">center</property>
+                        <property name="enable-search">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
                 <child>
                   <object class="AdwEntryRow" id="location_row">
                     <property name="title">Location</property>

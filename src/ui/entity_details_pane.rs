@@ -12,6 +12,8 @@ use crate::{
     entity_data::{EntityDataField, EntityDataFieldTy},
     entity_entry_tracker::EntityIdSet,
     entity_expiration::EntityExpiration,
+    entity_id::EntityId,
+    entity_kind::EntityKind,
     format,
     ui::{entity_data_dialog::EntityDataDialog, information_row::InformationRow},
     Application,
@@ -79,10 +81,25 @@ mod imp {
                         return;
                     };
 
+                    let mut ignored_data_field_ty =
+                        vec![EntityDataFieldTy::Kind, EntityDataFieldTy::StockId]; // FIXME Allow changing stock ID
+
+                    // We shouldn't be able to edit the stock if the entity is inside and it is an item
+                    // because it can be thought of being stored in a "storage" and no one can possess it.
+                    //
+                    // A vehicle on the other hand can always be possessed, even if it is inside, and its
+                    // possessor can be changed.
+                    if entity.is_inside() && entity.kind() == EntityKind::Item {
+                        debug_assert!(entity
+                            .kind()
+                            .is_valid_entity_data_field_ty(EntityDataFieldTy::Possessor));
+                        ignored_data_field_ty.push(EntityDataFieldTy::Possessor);
+                    }
+
                     let updated_data = match EntityDataDialog::gather_data(
                         entity.id(),
                         &entity.data(),
-                        [EntityDataFieldTy::Kind, EntityDataFieldTy::StockId], // FIXME Allow changing stock ID
+                        ignored_data_field_ty,
                         Some(&obj),
                     )
                     .await
@@ -194,6 +211,9 @@ mod imp {
             SIGNALS.get_or_init(|| {
                 vec![
                     Signal::builder("show-stock-request").build(),
+                    Signal::builder("show-other-entity-request")
+                        .param_types([EntityId::static_type()])
+                        .build(),
                     Signal::builder("show-timeline-request").build(),
                     Signal::builder("close-request").build(),
                 ]
@@ -256,6 +276,17 @@ impl EntityDetailsPane {
             "show-stock-request",
             false,
             closure_local!(|obj: &Self| f(obj)),
+        )
+    }
+
+    pub fn connect_show_other_entity_request<F>(&self, f: F) -> glib::SignalHandlerId
+    where
+        F: Fn(&Self, &EntityId) + 'static,
+    {
+        self.connect_closure(
+            "show-other-entity-request",
+            false,
+            closure_local!(|obj: &Self, entity_id: &EntityId| f(obj, entity_id)),
         )
     }
 
@@ -328,6 +359,27 @@ impl EntityDetailsPane {
                     }
                     _ => row.set_text(field.to_string()),
                 };
+
+                if field.ty() == EntityDataFieldTy::Possessor {
+                    row.set_activatable(true);
+                    row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
+
+                    row.connect_activated(clone!(
+                        #[weak(rename_to = obj)]
+                        self,
+                        move |_| {
+                            if let Some(possessor) =
+                                obj.entity().and_then(|e| e.data().possessor().cloned())
+                            {
+                                obj.emit_by_name::<()>("show-other-entity-request", &[&possessor]);
+                            } else {
+                                tracing::error!(
+                                    "Possessor row activated but no possessor set for entity"
+                                );
+                            }
+                        }
+                    ));
+                }
 
                 imp.data_group.add(&row);
                 imp.data_group_rows.borrow_mut().push(row);

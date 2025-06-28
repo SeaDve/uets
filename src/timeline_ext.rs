@@ -38,6 +38,9 @@ impl Timeline {
                     EntityDataFieldTy::StockId => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("stock")
                     }),
+                    EntityDataFieldTy::Possessor => find_position(col_title_row, |s| {
+                        s.to_lowercase().as_str().contains("possessor")
+                    }),
                     EntityDataFieldTy::Location => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("location")
                     }),
@@ -83,7 +86,7 @@ impl Timeline {
                     continue;
                 };
 
-                let mut fields = col_idxs
+                let fields = col_idxs
                     .iter()
                     .filter_map(|(field_ty, &idx)| {
                         let cell = &row[idx];
@@ -107,6 +110,10 @@ impl Timeline {
                                 .as_string()
                                 .map(StockId::new)
                                 .map(EntityDataField::StockId),
+                            EntityDataFieldTy::Possessor => cell
+                                .as_string()
+                                .map(EntityId::new)
+                                .map(EntityDataField::Possessor),
                             EntityDataFieldTy::Location => {
                                 cell.as_string().map(EntityDataField::Location)
                             }
@@ -158,11 +165,11 @@ impl Timeline {
                     })
                     .collect::<Vec<_>>();
 
-                if fields.iter().all(|f| f.ty() != EntityDataFieldTy::Kind) {
-                    fields.push(EntityDataField::Kind(EntityKind::default()));
+                if fields.iter().any(|f| f.ty() == EntityDataFieldTy::Kind) {
+                    entity_data.insert(entity_id, EntityData::from_fields(fields));
+                } else {
+                    tracing::warn!("Entity `{}` has no `kind` field; skipping", entity_id);
                 }
-
-                entity_data.insert(entity_id, EntityData::from_fields(fields));
             } else if let Some(stock_id_col_idx) = stock_id_col_idx {
                 let stock_id_cell = &row[stock_id_col_idx];
 

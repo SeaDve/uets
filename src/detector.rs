@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     camera::Camera,
     date_time_boxed::DateTimeBoxed,
-    entity_data::{EntityData, EntityDataField},
+    entity_data::{EntityDataField, EntityDataFieldVecBoxed},
     entity_id::EntityId,
     entity_kind::EntityKind,
     jpeg_image::JpegImage,
@@ -84,7 +84,10 @@ mod imp {
             SIGNALS.get_or_init(|| {
                 vec![
                     Signal::builder("detected")
-                        .param_types([EntityId::static_type(), Option::<EntityData>::static_type()])
+                        .param_types([
+                            EntityId::static_type(),
+                            EntityDataFieldVecBoxed::static_type(),
+                        ])
                         .build(),
                     Signal::builder("detected-invalid")
                         .param_types([String::static_type()])
@@ -171,7 +174,7 @@ impl Detector {
                 this,
                 move |_, id| {
                     let entity_id = EntityId::new(id);
-                    this.emit_detected(&entity_id, None);
+                    this.emit_detected(&entity_id, vec![]);
                 }
             ));
             imp.rfid_reader.set(rfid_reader).unwrap();
@@ -191,9 +194,9 @@ impl Detector {
             remote_app.connect_tag_detected(clone!(
                 #[weak]
                 this,
-                move |_, tag| {
+                move |_, tag, data_fields| {
                     let entity_id = EntityId::new(tag);
-                    this.emit_detected(&entity_id, None);
+                    this.emit_detected(&entity_id, data_fields.0.clone());
                 }
             ));
             imp.remote_app.set(remote_app).unwrap();
@@ -204,12 +207,18 @@ impl Detector {
 
     pub fn connect_detected<F>(&self, f: F) -> glib::SignalHandlerId
     where
-        F: Fn(&Self, &EntityId, Option<EntityData>) + 'static,
+        F: Fn(&Self, &EntityId, &EntityDataFieldVecBoxed) + 'static,
     {
         self.connect_closure(
             "detected",
             false,
-            closure_local!(|obj: &Self, id: &EntityId, data: Option<EntityData>| f(obj, id, data)),
+            closure_local!(
+                |obj: &Self, id: &EntityId, data_fields_boxed: &EntityDataFieldVecBoxed| f(
+                    obj,
+                    id,
+                    data_fields_boxed
+                )
+            ),
         )
     }
 
@@ -269,8 +278,8 @@ impl Detector {
         Ok(())
     }
 
-    fn emit_detected(&self, id: &EntityId, data: Option<&EntityData>) {
-        self.emit_by_name::<()>("detected", &[id, &data]);
+    fn emit_detected(&self, id: &EntityId, data_fields: Vec<EntityDataField>) {
+        self.emit_by_name::<()>("detected", &[id, &EntityDataFieldVecBoxed(data_fields)]);
 
         self.stop_detected_wo_id_alert_timeout();
     }
@@ -352,8 +361,8 @@ impl Detector {
 
         tracing::debug!("Detected code: {}", code);
 
-        if let Some((id, data)) = entity_from_qrcode(code) {
-            self.emit_detected(&id, Some(&data));
+        if let Some((id, data_fields)) = entity_from_qrcode(code) {
+            self.emit_detected(&id, data_fields);
         } else {
             self.emit_by_name::<()>("detected-invalid", &[&code]);
         }
@@ -363,11 +372,17 @@ impl Detector {
     }
 }
 
-fn entity_from_qrcode(code: &str) -> Option<(EntityId, EntityData)> {
-    entity_from_national_id(code).or_else(|| entity_from_qrifying_cea(code))
+fn entity_from_qrcode(code: &str) -> Option<(EntityId, Vec<EntityDataField>)> {
+    entity_from_national_id(code)
+        .or_else(|| entity_from_qrifying_cea(code))
+        .or_else(|| entity_from_uets_qrcode_format(code))
 }
 
-fn entity_from_qrifying_cea(code: &str) -> Option<(EntityId, EntityData)> {
+fn entity_from_uets_qrcode_format(code: &str) -> Option<(EntityId, Vec<EntityDataField>)> {
+    Some((code.strip_prefix("UETS:").map(EntityId::new)?, vec![]))
+}
+
+fn entity_from_qrifying_cea(code: &str) -> Option<(EntityId, Vec<EntityDataField>)> {
     let mut substrings = code.splitn(4, '_');
     let name = substrings.next()?;
     let student_id = substrings.next()?;
@@ -376,16 +391,16 @@ fn entity_from_qrifying_cea(code: &str) -> Option<(EntityId, EntityData)> {
 
     Some((
         EntityId::new(student_id),
-        EntityData::from_fields([
+        vec![
             EntityDataField::Kind(EntityKind::Person),
             EntityDataField::Name(name.to_string()),
             EntityDataField::Email(bpsu_email.to_string()),
             EntityDataField::Program(program.to_string()),
-        ]),
+        ],
     ))
 }
 
-fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
+fn entity_from_national_id(code: &str) -> Option<(EntityId, Vec<EntityDataField>)> {
     #[derive(Serialize, Deserialize)]
     pub struct Subject {
         #[serde(rename = "lName")]
@@ -438,8 +453,27 @@ fn entity_from_national_id(code: &str) -> Option<(EntityId, EntityData)> {
         Err(err) => tracing::warn!("Failed to parse sex: {:?}", err),
     }
 
-    Some((
-        EntityId::new(data.subject.pcn),
-        EntityData::from_fields(fields),
-    ))
+    Some((EntityId::new(data.subject.pcn), fields))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn uets_qrcode_format() {
+        let code = "UETS: ABC123 ";
+        let (id, data_fields) = entity_from_uets_qrcode_format(code).unwrap();
+        assert_eq!(id.to_string(), " ABC123 ");
+        assert!(data_fields.is_empty());
+
+        let code = "UETS:";
+        let (id, data_fields) = entity_from_uets_qrcode_format(code).unwrap();
+        assert_eq!(id.to_string(), "");
+        assert!(data_fields.is_empty());
+
+        let code = "U";
+        let out = entity_from_uets_qrcode_format(code);
+        assert!(out.is_none());
+    }
 }

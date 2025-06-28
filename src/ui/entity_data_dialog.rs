@@ -6,6 +6,7 @@ use gtk::glib::{self, clone, closure};
 
 use crate::{
     date_time_boxed::DateTimeBoxed,
+    entity::Entity,
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_id::EntityId,
     entity_kind::EntityKind,
@@ -43,6 +44,10 @@ mod imp {
         pub(super) stock_id_row: TemplateChild<adw::ComboRow>,
         #[template_child]
         pub(super) stock_id_custom_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub(super) possessor_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub(super) possessor_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
         pub(super) other_data_group: TemplateChild<adw::PreferencesGroup>,
         #[template_child]
@@ -134,6 +139,7 @@ mod imp {
                     closure!(|stock: &Stock| stock.id().to_string()),
                 )));
             self.stock_id_row.set_model(Some(&sorted_stock_model));
+            self.stock_id_row.set_selected(gtk::INVALID_LIST_POSITION);
 
             self.stock_id_custom_row.connect_text_notify(clone!(
                 #[weak]
@@ -142,6 +148,27 @@ mod imp {
                     obj.update_stock_id_row_sensitivity();
                 }
             ));
+
+            let possessor_filter =
+                utils::new_filter::<Entity>(|entity| entity.kind() == EntityKind::Person);
+            let filtered_possessor_model = gtk::FilterListModel::new(
+                Some(Application::get().timeline().entity_list().clone()),
+                Some(possessor_filter),
+            );
+
+            let possessor_sorter = utils::new_sorter::<Entity>(false, |a, b| a.id().cmp(b.id()));
+            let sorted_filtered_possessor_model =
+                gtk::SortListModel::new(Some(filtered_possessor_model), Some(possessor_sorter));
+
+            self.possessor_dropdown
+                .set_expression(Some(gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|entity: &Entity| entity.id().to_string()),
+                )));
+            self.possessor_dropdown
+                .set_model(Some(&sorted_filtered_possessor_model));
+            self.possessor_dropdown
+                .set_selected(gtk::INVALID_LIST_POSITION);
 
             self.sex_row
                 .set_expression(Some(&gtk::ClosureExpression::new::<String>(
@@ -210,6 +237,25 @@ impl EntityDataDialog {
                         imp.stock_id_custom_row.set_text(&stock_id.to_string());
                     }
                 }
+                EntityDataField::Possessor(possessor) => {
+                    if let Some(position) = imp
+                        .possessor_dropdown
+                        .model()
+                        .unwrap()
+                        .iter::<glib::Object>()
+                        .position(|o| {
+                            let entity = o.unwrap().downcast::<Entity>().unwrap();
+                            entity.id() == possessor
+                        })
+                    {
+                        imp.possessor_dropdown.set_selected(position as u32);
+                    } else {
+                        imp.possessor_dropdown
+                            .set_selected(gtk::INVALID_LIST_POSITION);
+
+                        tracing::error!(?possessor, "Possessor not found in model");
+                    }
+                }
                 EntityDataField::Location(location) => {
                     imp.location_row.set_text(location);
                 }
@@ -247,9 +293,11 @@ impl EntityDataDialog {
             return Err(err);
         }
 
+        let data = this.gather_data_inner();
+
         this.close();
 
-        Ok(this.gather_data_inner())
+        Ok(data)
     }
 
     fn selected_entity_kind(&self) -> EntityKind {
@@ -268,7 +316,7 @@ impl EntityDataDialog {
 
         let entity_kind = self.selected_entity_kind();
 
-        let data = EntityData::from_fields(
+        EntityData::from_fields(
             [
                 Some(EntityDataField::Kind(entity_kind)),
                 entity_kind
@@ -283,6 +331,15 @@ impl EntityDataDialog {
                         } else {
                             Some(EntityDataField::StockId(StockId::new(raw_stock_id_custom)))
                         }
+                    })
+                    .flatten(),
+                entity_kind
+                    .is_valid_entity_data_field_ty(EntityDataFieldTy::Possessor)
+                    .then(|| {
+                        imp.possessor_dropdown
+                            .selected_item()
+                            .map(|entity| entity.downcast::<Entity>().unwrap().id().clone())
+                            .map(EntityDataField::Possessor)
                     })
                     .flatten(),
                 Some(imp.location_row.text().to_string())
@@ -334,13 +391,7 @@ impl EntityDataDialog {
             ]
             .into_iter()
             .flatten(),
-        );
-
-        if !entity_kind.is_valid_entity_data(&data) {
-            tracing::warn!(?entity_kind, "Invalid entity data: {:?}", data);
-        }
-
-        data
+        )
     }
 
     fn update_rows_visibility(&self) {
@@ -348,8 +399,9 @@ impl EntityDataDialog {
 
         for field_ty in EntityDataFieldTy::all() {
             let widget = match field_ty {
-                EntityDataFieldTy::Kind => imp.entity_kind_group.upcast_ref(),
-                EntityDataFieldTy::StockId => imp.stock_id_group.upcast_ref::<gtk::Widget>(),
+                EntityDataFieldTy::Kind => imp.entity_kind_group.upcast_ref::<gtk::Widget>(),
+                EntityDataFieldTy::StockId => imp.stock_id_group.upcast_ref(),
+                EntityDataFieldTy::Possessor => imp.possessor_row.upcast_ref(),
                 EntityDataFieldTy::Location => imp.location_row.upcast_ref(),
                 EntityDataFieldTy::ExpirationDt => imp.expiration_dt_row.upcast_ref(),
                 EntityDataFieldTy::AllowedDtRange => imp.allowed_dt_range_row.upcast_ref(),
@@ -368,6 +420,7 @@ impl EntityDataDialog {
 
         // This must be in sync with the rows in the other_data_group.
         let other_data_field_ty = [
+            EntityDataFieldTy::Possessor,
             EntityDataFieldTy::Location,
             EntityDataFieldTy::ExpirationDt,
             EntityDataFieldTy::AllowedDtRange,

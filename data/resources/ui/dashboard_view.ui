@@ -168,7 +168,7 @@
               </object>
             </child>
             <child>
-              <object class="AdwActionRow">
+              <object class="AdwActionRow" id="show_ai_chat_dialog_row">
                 <property name="title">Show Data Analyzer and Assistant</property>
                 <property name="activatable">True</property>
                 <property name="action-name">dashboard-view.show-ai-chat-dialog</property>

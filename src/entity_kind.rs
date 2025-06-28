@@ -3,7 +3,7 @@ use std::{error, fmt, str::FromStr};
 use gtk::glib;
 use serde::{Deserialize, Serialize};
 
-use crate::entity_data::{EntityData, EntityDataFieldTy, ValidEntityFields};
+use crate::entity_data::{EntityDataFieldTy, ValidEntityFields};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, glib::Enum)]
 #[enum_type(name = "UetsEntityKind")]
@@ -17,10 +17,6 @@ pub enum EntityKind {
 impl EntityKind {
     pub fn is_valid_entity_data_field_ty(&self, entity_field: EntityDataFieldTy) -> bool {
         ValidEntityFields::for_entity_kind(*self).contains(entity_field)
-    }
-
-    pub fn is_valid_entity_data(&self, entity_data: &EntityData) -> bool {
-        ValidEntityFields::for_entity_kind(*self).is_valid_entity_data(entity_data)
     }
 
     pub fn enter_verb(&self) -> &str {

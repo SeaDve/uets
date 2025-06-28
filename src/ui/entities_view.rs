@@ -514,6 +514,13 @@ mod imp {
                     obj.emit_by_name::<()>("show-stock-request", &[&stock_id]);
                 }
             ));
+            self.details_pane.connect_show_other_entity_request(clone!(
+                #[weak]
+                obj,
+                move |_, entity_id| {
+                    obj.show_entity(entity_id);
+                }
+            ));
             self.details_pane.connect_show_timeline_request(clone!(
                 #[weak]
                 obj,
@@ -714,6 +721,7 @@ impl EntitiesView {
                             let string = match field {
                                 EntityDataField::Kind(k) => k.to_string(),
                                 EntityDataField::StockId(i) => i.to_string(),
+                                EntityDataField::Possessor(p) => p.to_string(),
                                 EntityDataField::Location(l) => l.to_owned(),
                                 EntityDataField::ExpirationDt(dt) => {
                                     date_time::format::human_readable_date(*dt)

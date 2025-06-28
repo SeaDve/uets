@@ -1,10 +1,11 @@
 use adw::{prelude::*, subclass::prelude::*};
+use anyhow::Result;
 use gtk::{
     gdk,
     glib::{self, clone},
 };
 
-use crate::{entity_id::EntityId, Application};
+use crate::{entity_data::EntityDataField, entity_id::EntityId, Application};
 
 mod imp {
     use super::*;
@@ -15,7 +16,7 @@ mod imp {
         #[template_child]
         pub(super) toast_overlay: TemplateChild<adw::ToastOverlay>,
         #[template_child]
-        pub(super) entity_id_entry: TemplateChild<gtk::Entry>,
+        pub(super) value_entry: TemplateChild<gtk::Entry>,
         #[template_child]
         pub(super) enter_button: TemplateChild<gtk::Button>,
         #[template_child]
@@ -45,7 +46,7 @@ mod imp {
 
             let obj = self.obj();
 
-            self.entity_id_entry.connect_activate(clone!(
+            self.value_entry.connect_activate(clone!(
                 #[weak]
                 obj,
                 move |_| {
@@ -86,20 +87,40 @@ impl TestWindow {
     }
 
     fn handle_enter(&self) {
-        let imp = self.imp();
-
-        let id = EntityId::new(imp.entity_id_entry.text());
-
-        imp.entity_id_entry.set_text("");
-
         glib::spawn_future_local(clone!(
             #[weak(rename_to = obj)]
             self,
             async move {
-                if let Some(message) = Application::get().simulate_detected(&id, None).await {
-                    obj.imp().toast_overlay.add_toast(adw::Toast::new(&message));
+                if let Err(err) = obj.handle_enter_inner().await {
+                    tracing::error!("Failed to handle enter: {:?}", err);
                 }
             }
         ));
+    }
+
+    async fn handle_enter_inner(&self) -> Result<()> {
+        let imp = self.imp();
+
+        let text = imp.value_entry.text();
+        let (entity_id, entity_data) =
+            if let Some((raw_entity_id, raw_entity_data)) = text.split_once(':') {
+                (
+                    EntityId::new(raw_entity_id),
+                    serde_json::from_str::<Vec<EntityDataField>>(raw_entity_data)?,
+                )
+            } else {
+                (EntityId::new(text.as_str()), vec![])
+            };
+
+        imp.value_entry.set_text("");
+
+        if let Some(message) = Application::get()
+            .simulate_detected(&entity_id, entity_data)
+            .await
+        {
+            imp.toast_overlay.add_toast(adw::Toast::new(&message));
+        }
+
+        Ok(())
     }
 }

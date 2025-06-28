@@ -12,7 +12,11 @@ use gtk::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{remote::Remote, timeline::Timeline};
+use crate::{
+    entity_data::{EntityDataField, EntityDataFieldVecBoxed},
+    remote::Remote,
+    timeline::Timeline,
+};
 
 const PORT: u16 = 8888;
 
@@ -24,7 +28,7 @@ enum Property {
 #[derive(Debug, Deserialize)]
 enum SocketIncoming {
     Code(String),
-    Tag(String),
+    Tag(String, Vec<EntityDataField>),
     RequestProperties,
 }
 
@@ -96,7 +100,10 @@ mod imp {
                         .param_types([String::static_type()])
                         .build(),
                     Signal::builder("tag-detected")
-                        .param_types([String::static_type()])
+                        .param_types([
+                            String::static_type(),
+                            EntityDataFieldVecBoxed::static_type(),
+                        ])
                         .build(),
                 ]
             })
@@ -150,12 +157,18 @@ impl RemoteApp {
 
     pub fn connect_tag_detected<F>(&self, f: F) -> glib::SignalHandlerId
     where
-        F: Fn(&Self, &str) + 'static,
+        F: Fn(&Self, &str, &EntityDataFieldVecBoxed) + 'static,
     {
         self.connect_closure(
             "tag-detected",
             false,
-            closure_local!(|obj: &Self, tag: &str| f(obj, tag)),
+            closure_local!(
+                |obj: &Self, tag: &str, data_fields_boxed: &EntityDataFieldVecBoxed| f(
+                    obj,
+                    tag,
+                    data_fields_boxed
+                )
+            ),
         )
     }
 
@@ -231,7 +244,7 @@ impl RemoteApp {
             .send(WsCommand::Send(tungstenite::Message::Text(text.into())))
             .await?;
 
-        tracing::debug!("Sent message: {:?}", outgoing);
+        tracing::debug!("Sent outgoing: {:?}", outgoing);
 
         Ok(())
     }
@@ -304,8 +317,11 @@ impl RemoteApp {
                 SocketIncoming::Code(code) => {
                     self.emit_by_name::<()>("code-detected", &[&code]);
                 }
-                SocketIncoming::Tag(tag) => {
-                    self.emit_by_name::<()>("tag-detected", &[&tag]);
+                SocketIncoming::Tag(tag, data_fields) => {
+                    self.emit_by_name::<()>(
+                        "tag-detected",
+                        &[&tag, &EntityDataFieldVecBoxed(data_fields)],
+                    );
                 }
                 SocketIncoming::RequestProperties => {
                     self.ws_send_all_properties().await?;

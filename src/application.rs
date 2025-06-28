@@ -1,3 +1,5 @@
+use std::iter;
+
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::Result;
 use futures_channel::oneshot;
@@ -15,7 +17,7 @@ use crate::{
     detected_wo_id_list::DetectedWoIdList,
     detector::Detector,
     entity::Entity,
-    entity_data::{EntityData, EntityDataField},
+    entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_entry_tracker::EntityIdSet,
     entity_id::EntityId,
     entity_kind::EntityKind,
@@ -350,9 +352,9 @@ impl Application {
     pub async fn simulate_detected(
         &self,
         entity_id: &EntityId,
-        entity_data: Option<EntityData>,
+        entity_data_fields: Vec<EntityDataField>,
     ) -> Option<String> {
-        self.handle_detected(entity_id, entity_data).await
+        self.handle_detected(entity_id, entity_data_fields).await
     }
 
     pub fn reconfigure_detectors(&self) -> Result<()> {
@@ -374,7 +376,8 @@ impl Application {
                 detector.connect_detected(clone!(
                     #[weak(rename_to = obj)]
                     self,
-                    move |detector, entity_id, entity_data| {
+                    move |detector, entity_id, entity_data_fields| {
+                        let entity_data_fields = entity_data_fields.0.clone();
                         glib::spawn_future_local(clone!(
                             #[weak]
                             obj,
@@ -384,7 +387,7 @@ impl Application {
                             entity_id,
                             async move {
                                 if let Some(message) =
-                                    obj.handle_detected(&entity_id, entity_data).await
+                                    obj.handle_detected(&entity_id, entity_data_fields).await
                                 {
                                     if let Err(err) = detector.return_message(&message).await {
                                         tracing::error!("Failed to return message: {:?}", err);
@@ -440,45 +443,64 @@ impl Application {
 
     async fn handle_detected(
         &self,
-        entity_id: &EntityId,
-        entity_data: Option<EntityData>,
+        detected_entity_id: &EntityId,
+        detected_entity_data_fields: Vec<EntityDataField>,
     ) -> Option<String> {
         let timeline = self.timeline();
 
-        let data = if let Some(data) = entity_data {
-            tracing::debug!("Using entity data from detector");
+        let data = match timeline.entity_list().get(detected_entity_id) {
+            Some(entity) => {
+                tracing::debug!("Retrieved entity data from timeline");
 
-            data
-        } else if let Some(entity) = timeline.entity_list().get(entity_id) {
-            tracing::debug!("Retrieved entity data from timeline");
+                entity.data().clone().extended(detected_entity_data_fields)
+            }
+            None if !detected_entity_data_fields.is_empty() => {
+                tracing::debug!("Using entity data from detector");
 
-            entity.data().clone()
-        } else {
-            tracing::debug!("Gathering entity data from user");
+                if detected_entity_data_fields
+                    .iter()
+                    .any(|f| f.ty() == EntityDataFieldTy::Kind)
+                {
+                    EntityData::from_fields(detected_entity_data_fields)
+                } else {
+                    tracing::debug!("Detected entity data has no `kind` field; using default kind");
 
-            match EntityDataDialog::gather_data(
-                entity_id,
-                &EntityData::from_fields([EntityDataField::Kind(EntityKind::default())]),
-                [],
-                Some(&self.window()),
-            )
-            .await
-            {
-                Ok(data) => data,
-                Err(oneshot::Canceled) => {
-                    tracing::debug!("Gathering entity data was canceled; ignoring detected entity");
-                    return None;
+                    EntityData::from_fields(
+                        detected_entity_data_fields
+                            .into_iter()
+                            .chain(iter::once(EntityDataField::Kind(EntityKind::default()))),
+                    )
+                }
+            }
+            None => {
+                tracing::debug!("Gathering entity data from user");
+
+                match EntityDataDialog::gather_data(
+                    detected_entity_id,
+                    &EntityData::from_fields([EntityDataField::Kind(EntityKind::default())]),
+                    [],
+                    Some(&self.window()),
+                )
+                .await
+                {
+                    Ok(data) => data.extended(detected_entity_data_fields),
+                    Err(oneshot::Canceled) => {
+                        tracing::debug!(
+                            "Gathering entity data was canceled; ignoring detected entity"
+                        );
+                        return None;
+                    }
                 }
             }
         };
 
-        tracing::debug!(?data, "Handling detected entity `{}`", entity_id);
+        tracing::debug!(?data, "Handling detected entity `{}`", detected_entity_id);
 
         // TODO If the mode is inventory, don't handle the detected entity
         // if it doesn't have a stock id.
         let entity_name = data.name().cloned();
         let entity_kind = data.kind();
-        match timeline.handle_detected(entity_id, data) {
+        match timeline.handle_detected(detected_entity_id, data) {
             Ok(item) => {
                 let welcome_message = match item.kind() {
                     TimelineItemKind::Entry => match entity_name {
@@ -489,7 +511,7 @@ impl Application {
                             format!("{name} {}", entity_kind.enter_verb())
                         }
                         None => {
-                            format!("{entity_id} {}", entity_kind.enter_verb())
+                            format!("{detected_entity_id} {}", entity_kind.enter_verb())
                         }
                     },
                     TimelineItemKind::Exit => match entity_name {
@@ -500,7 +522,7 @@ impl Application {
                             format!("{name} {}", entity_kind.exit_verb())
                         }
                         None => {
-                            format!("{entity_id} {}", entity_kind.exit_verb())
+                            format!("{detected_entity_id} {}", entity_kind.exit_verb())
                         }
                     },
                 };
@@ -535,7 +557,7 @@ impl Application {
             Err(err) => {
                 tracing::error!("Failed to handle entity: {:?}", err);
 
-                let message = format!("Failed to handle “{}”", entity_id);
+                let message = format!("Failed to handle “{}”", detected_entity_id);
                 self.add_message_toast_with_id(ToastId::Detected, &message);
 
                 Sound::DetectedError.play();
