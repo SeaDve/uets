@@ -65,6 +65,7 @@ mod imp {
                     obj,
                     move |_, _| {
                         obj.update_title_label_and_avatar();
+                        obj.update_subtitle_label();
                     }
                 ),
             );

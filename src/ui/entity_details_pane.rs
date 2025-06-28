@@ -181,6 +181,7 @@ mod imp {
                     move |_, _| {
                         obj.update_data_group_rows();
                         obj.update_photo_picture_group();
+                        obj.update_status_row();
                     }
                 ),
             );

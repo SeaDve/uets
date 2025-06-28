@@ -163,7 +163,13 @@ mod imp {
             self.possessor_dropdown
                 .set_expression(Some(gtk::ClosureExpression::new::<String>(
                     &[] as &[gtk::Expression],
-                    closure!(|entity: &Entity| entity.id().to_string()),
+                    closure!(|entity: &Entity| {
+                        if let Some(entity_name) = entity.data().name() {
+                            format!("{} ({})", entity_name, entity.id())
+                        } else {
+                            entity.id().to_string()
+                        }
+                    }),
                 )));
             self.possessor_dropdown
                 .set_model(Some(&sorted_filtered_possessor_model));

@@ -53,6 +53,9 @@
                       <object class="GtkDropDown" id="possessor_dropdown">
                         <property name="valign">center</property>
                         <property name="enable-search">True</property>
+                        <style>
+                          <class name="entity-data-dialog-possessor-dropdown"/>
+                        </style>
                       </object>
                     </child>
                   </object>

@@ -240,10 +240,29 @@ impl TimelineRow {
                 format!("<a href=\"{entity_uri}\">{entity_display}</a>")
             };
 
+            let possessor_title = entity.data().possessor().map(|possessor| {
+                let possessor_entity = Application::get()
+                    .timeline()
+                    .entity_list()
+                    .get(possessor)
+                    .expect("possessor should exist");
+                possessor_entity
+                    .data()
+                    .name()
+                    .cloned()
+                    .unwrap_or_else(|| possessor.to_string())
+            });
+
             let entity_kind = entity.kind();
             let text = match item.kind() {
                 TimelineItemKind::Entry => {
-                    format!("<b>{}</b> {}", title, entity_kind.enter_verb())
+                    format!(
+                        "<b>{title}</b> {}",
+                        possessor_title.map_or_else(
+                            || entity_kind.enter_verb().to_string(),
+                            |p| entity_kind.enter_verb_with_possessor(&p)
+                        )
+                    )
                 }
                 TimelineItemKind::Exit => {
                     let entry_to_exit_duration = item
@@ -251,9 +270,11 @@ impl TimelineRow {
                         .expect("entry to exit duration must have been set on exit");
                     let entry_to_exit_duration_formatted = format::duration(entry_to_exit_duration);
                     format!(
-                        "<b>{}</b> {} after <i>{}</i> {}",
-                        title,
-                        entity_kind.exit_verb(),
+                        "<b>{title}</b> {} after <i>{}</i> {}",
+                        possessor_title.map_or_else(
+                            || entity_kind.exit_verb().to_string(),
+                            |p| entity_kind.exit_verb_with_possessor(&p)
+                        ),
                         if app.settings().compute_overstayed(entry_to_exit_duration) {
                             format::red_markup(&entry_to_exit_duration_formatted)
                         } else {

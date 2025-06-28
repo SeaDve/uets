@@ -2,8 +2,8 @@ use chrono::{DateTime, Utc};
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
 use crate::{
-    date_time, date_time_range::DateTimeRange, entity_data::EntityData, entity_id::EntityId,
-    entity_kind::EntityKind, format, log::Log, stock_id::StockId,
+    application::Application, date_time, date_time_range::DateTimeRange, entity_data::EntityData,
+    entity_id::EntityId, entity_kind::EntityKind, format, log::Log, stock_id::StockId,
     timeline_item_kind::TimelineItemKind,
 };
 
@@ -144,13 +144,25 @@ impl Entity {
         for_dt_range: &DateTimeRange,
         use_red_markup_on_entry_to_exit_duration: bool,
     ) -> String {
+        let possessor_title = self.data().possessor().map(|possessor| {
+            let possessor_entity = Application::get()
+                .timeline()
+                .entity_list()
+                .get(possessor)
+                .expect("possessor should exist");
+            possessor_entity
+                .data()
+                .name()
+                .cloned()
+                .unwrap_or_else(|| possessor.to_string())
+        });
+
         match self.action_for_dt_range(for_dt_range) {
             Some((dt, TimelineItemKind::Entry)) => {
-                let verb = match self.kind() {
-                    EntityKind::Person => "Entered",
-                    EntityKind::Vehicle => "Drove in",
-                    EntityKind::Item => "Added",
-                };
+                let status = possessor_title.map_or_else(
+                    || self.kind().enter_status().to_string(),
+                    |p| self.kind().enter_status_with_possessor(&p),
+                );
                 let entry_to_exit_duration_prefix = match self.kind() {
                     EntityKind::Person => "stayed",
                     EntityKind::Vehicle => "parked",
@@ -170,7 +182,7 @@ impl Entity {
                 let formatted_duration = format::duration(duration_end - duration_start);
 
                 format!(
-                    "{verb} {} and {entry_to_exit_duration_prefix} for {}",
+                    "{status} {} and {entry_to_exit_duration_prefix} for {}",
                     date_time::format::fuzzy(dt),
                     if use_red_markup_on_entry_to_exit_duration {
                         format::red_markup(&formatted_duration)
@@ -180,18 +192,16 @@ impl Entity {
                 )
             }
             Some((dt, TimelineItemKind::Exit)) => {
-                let verb = match self.kind() {
-                    EntityKind::Person => "Exited",
-                    EntityKind::Vehicle => "Drove out",
-                    EntityKind::Item => "Removed",
-                };
-                format!("{verb} {}", date_time::format::fuzzy(dt))
+                let status = possessor_title.map_or_else(
+                    || self.kind().exit_status().to_string(),
+                    |p| self.kind().exit_status_with_possessor(&p),
+                );
+                format!("{status} {}", date_time::format::fuzzy(dt))
             }
-            None => match self.kind() {
-                EntityKind::Person => "Never entered".into(),
-                EntityKind::Vehicle => "Never drove in".into(),
-                EntityKind::Item => "Never added".into(),
-            },
+            None => possessor_title.map_or_else(
+                || self.kind().default_status().to_string(),
+                |p| self.kind().default_status_with_possessor(&p),
+            ),
         }
     }
 }

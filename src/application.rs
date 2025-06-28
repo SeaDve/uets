@@ -500,6 +500,18 @@ impl Application {
         // if it doesn't have a stock id.
         let entity_name = data.name().cloned();
         let entity_kind = data.kind();
+        let entity_possessor_title = data.possessor().map(|possessor| {
+            let possessor_entity = self
+                .timeline()
+                .entity_list()
+                .get(possessor)
+                .expect("possessor should exist");
+            possessor_entity
+                .data()
+                .name()
+                .cloned()
+                .unwrap_or_else(|| possessor.to_string())
+        });
         match timeline.handle_detected(detected_entity_id, data) {
             Ok(item) => {
                 let welcome_message = match item.kind() {
@@ -508,10 +520,22 @@ impl Application {
                             format!("Welcome, {}!", name)
                         }
                         Some(name) => {
-                            format!("{name} {}", entity_kind.enter_verb())
+                            format!(
+                                "{name} {}",
+                                entity_possessor_title.map_or_else(
+                                    || entity_kind.enter_verb().to_string(),
+                                    |p| entity_kind.enter_verb_with_possessor(&p),
+                                )
+                            )
                         }
                         None => {
-                            format!("{detected_entity_id} {}", entity_kind.enter_verb())
+                            format!(
+                                "{detected_entity_id} {}",
+                                entity_possessor_title.map_or_else(
+                                    || entity_kind.enter_verb().to_string(),
+                                    |p| entity_kind.enter_verb_with_possessor(&p),
+                                )
+                            )
                         }
                     },
                     TimelineItemKind::Exit => match entity_name {
@@ -519,10 +543,22 @@ impl Application {
                             format!("Goodbye, {}!", name)
                         }
                         Some(name) => {
-                            format!("{name} {}", entity_kind.exit_verb())
+                            format!(
+                                "{name} {}",
+                                entity_possessor_title.map_or_else(
+                                    || entity_kind.exit_verb().to_string(),
+                                    |p| entity_kind.exit_verb_with_possessor(&p),
+                                )
+                            )
                         }
                         None => {
-                            format!("{detected_entity_id} {}", entity_kind.exit_verb())
+                            format!(
+                                "{detected_entity_id} {}",
+                                entity_possessor_title.map_or_else(
+                                    || entity_kind.exit_verb().to_string(),
+                                    |p| entity_kind.exit_verb_with_possessor(&p),
+                                )
+                            )
                         }
                     },
                 };
