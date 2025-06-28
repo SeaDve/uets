@@ -33,6 +33,7 @@ pub const DETECTED_WO_ID_DB_NAME: &str = "detected_wo_id";
 pub struct RawTimelineItem {
     pub is_entry: bool,
     pub entity_id: EntityId,
+    pub entity_data: EntityData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

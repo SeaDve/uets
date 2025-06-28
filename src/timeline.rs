@@ -265,13 +265,8 @@ impl Timeline {
         dt_range: &'a DateTimeRange,
         stock_id: &'a StockId,
     ) -> impl DoubleEndedIterator<Item = TimelineItem> + 'a {
-        self.iter(dt_range).filter(|item| {
-            let entity = self
-                .entity_list()
-                .get(item.entity_id())
-                .expect("entity must be known");
-            entity.stock_id().as_ref() == Some(stock_id)
-        })
+        self.iter(dt_range)
+            .filter(|item| item.entity_data().stock_id() == Some(stock_id))
     }
 
     pub fn n_inside_for_dt(&self, dt: DateTime<Utc>) -> u32 {
@@ -354,7 +349,7 @@ impl Timeline {
             .get(entity_id)
             .unwrap_or_else(|| Entity::new(entity_id.clone(), entity_data.clone()));
 
-        // TODO Should this be allowed instead?
+        // TODO Should this be allowed instead? Should we allow changing the stock id?
         //
         // When exiting, this should not be allowed as an entity cannot enter then exit
         // with different stock id. But if the same entity enters with a different stock id,
@@ -381,14 +376,14 @@ impl Timeline {
             );
         }
 
-        entity.set_data(entity_data.with_stock_id(entity.stock_id())); // FIXME Allow changing stock ID
-
         let now_dt = Utc::now();
         debug_assert!(imp
             .list
             .borrow()
             .last()
             .map_or(true, |(dt, _)| &now_dt > dt));
+
+        entity.set_data(entity_data.clone());
 
         let is_exit = entity.is_inside();
 
@@ -397,7 +392,7 @@ impl Timeline {
         } else {
             TimelineItemKind::Entry
         };
-        let item = TimelineItem::new(now_dt, item_kind, entity_id.clone());
+        let item = TimelineItem::new(now_dt, item_kind, entity_id.clone(), entity_data);
 
         let stock = entity.stock_id().map(|stock_id| {
             self.stock_list()
@@ -410,6 +405,9 @@ impl Timeline {
         //
         // We do not do the same with vehicles, as the the possessor is the
         // owner, while in items, the possessor only borrows.
+        //
+        // We do this after timeline item creation, so that the item can display
+        // who "returned" (added back) the item to the "storage".
         if item_kind.is_entry() && entity.kind() == EntityKind::Item {
             debug_assert!(entity
                 .kind()
@@ -688,11 +686,6 @@ impl Timeline {
         let mut stock_logs: HashMap<StockId, StockLogs> = HashMap::new();
 
         for item in imp.list.borrow().values() {
-            let entity = self
-                .entity_list()
-                .get(item.entity_id())
-                .expect("entity must be known");
-
             if item.kind().is_exit() {
                 n_inside -= 1;
                 n_exits += 1;
@@ -726,7 +719,7 @@ impl Timeline {
                 .or_default()
                 .insert(item.dt(), item.kind());
 
-            if let Some(stock_id) = entity.stock_id() {
+            if let Some(stock_id) = item.entity_data().stock_id() {
                 let logs = stock_logs.entry(stock_id.clone()).or_default();
 
                 let prev_n_inside = logs.n_inside.latest().copied().unwrap_or(0);

@@ -448,7 +448,7 @@ impl Application {
     ) -> Option<String> {
         let timeline = self.timeline();
 
-        let data = match timeline.entity_list().get(detected_entity_id) {
+        let entity_data = match timeline.entity_list().get(detected_entity_id) {
             Some(entity) => {
                 tracing::debug!("Retrieved entity data from timeline");
 
@@ -494,26 +494,31 @@ impl Application {
             }
         };
 
-        tracing::debug!(?data, "Handling detected entity `{}`", detected_entity_id);
+        tracing::debug!(
+            ?entity_data,
+            "Handling detected entity `{}`",
+            detected_entity_id
+        );
 
         // TODO If the mode is inventory, don't handle the detected entity
         // if it doesn't have a stock id.
-        let entity_name = data.name().cloned();
-        let entity_kind = data.kind();
-        let entity_possessor_title = data.possessor().map(|possessor| {
-            let possessor_entity = self
-                .timeline()
-                .entity_list()
-                .get(possessor)
-                .expect("possessor should exist");
-            possessor_entity
-                .data()
-                .name()
-                .cloned()
-                .unwrap_or_else(|| possessor.to_string())
-        });
-        match timeline.handle_detected(detected_entity_id, data) {
+        match timeline.handle_detected(detected_entity_id, entity_data) {
             Ok(item) => {
+                let entity_name = item.entity_data().name();
+                let entity_kind = item.entity_data().kind();
+                let entity_possessor_title = item.entity_data().possessor().map(|possessor| {
+                    let possessor_entity = self
+                        .timeline()
+                        .entity_list()
+                        .get(possessor)
+                        .expect("possessor should exist");
+                    possessor_entity
+                        .data()
+                        .name()
+                        .cloned()
+                        .unwrap_or_else(|| possessor.to_string())
+                });
+
                 let welcome_message = match item.kind() {
                     TimelineItemKind::Entry => match entity_name {
                         Some(name) if entity_kind == EntityKind::Person => {
@@ -530,7 +535,8 @@ impl Application {
                         }
                         None => {
                             format!(
-                                "{detected_entity_id} {}",
+                                "{} {}",
+                                item.entity_id(),
                                 entity_possessor_title.map_or_else(
                                     || entity_kind.enter_verb().to_string(),
                                     |p| entity_kind.enter_verb_with_possessor(&p),
@@ -553,7 +559,8 @@ impl Application {
                         }
                         None => {
                             format!(
-                                "{detected_entity_id} {}",
+                                "{} {}",
+                                item.entity_id(),
                                 entity_possessor_title.map_or_else(
                                     || entity_kind.exit_verb().to_string(),
                                     |p| entity_kind.exit_verb_with_possessor(&p),
@@ -563,20 +570,18 @@ impl Application {
                     },
                 };
 
-                let entity = timeline
-                    .entity_list()
-                    .get(item.entity_id())
-                    .expect("entity must exist");
-
-                if !entity
-                    .data()
+                if !item
+                    .entity_data()
                     .allowed_dt_range()
                     .copied()
                     .unwrap_or_default()
                     .contains(item.dt())
                     && item.kind().is_entry()
                 {
-                    let message = format!("“{}” is not allowed!", id_or_name(&entity));
+                    let message = format!(
+                        "“{}” is not allowed!",
+                        id_or_name_inner(item.entity_id(), item.entity_data())
+                    );
                     self.add_message_toast_with_id(ToastId::Detected, &message);
 
                     Sound::CriticalAlert.play();
@@ -693,9 +698,12 @@ fn init_env() -> Result<(heed::Env, Timeline, DetectedWoIdList)> {
     Ok((env, timeline, detected_wo_id_list))
 }
 
-fn id_or_name(entity: &Entity) -> String {
-    entity
-        .data()
+fn id_or_name_inner(entity_id: &EntityId, entity_data: &EntityData) -> String {
+    entity_data
         .name()
-        .map_or_else(|| entity.id().to_string(), |n| n.clone())
+        .map_or_else(|| entity_id.to_string(), |n| n.clone())
+}
+
+fn id_or_name(entity: &Entity) -> String {
+    id_or_name_inner(entity.id(), &entity.data())
 }

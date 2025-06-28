@@ -294,16 +294,11 @@ mod imp {
 
             let fuzzy_filter = FuzzyFilter::new(|o| {
                 let item = o.downcast_ref::<TimelineItem>().unwrap();
-                let entity = Application::get()
-                    .timeline()
-                    .entity_list()
-                    .get(item.entity_id())
-                    .expect("entity must be known");
                 [
                     Some(item.dt().with_timezone(&Local).format("%B %Y").to_string()),
                     Some(item.entity_id().to_string()),
-                    entity.stock_id().map(|s| s.to_string()),
-                    entity.data().name().cloned(),
+                    item.entity_data().stock_id().map(|s| s.to_string()),
+                    item.entity_data().name().cloned(),
                 ]
                 .into_iter()
                 .flatten()
@@ -559,12 +554,9 @@ impl TimelineView {
         let any_stock_filter = gtk::AnyFilter::new();
         for stock_id in queries.all_values(S::STOCK).into_iter().map(StockId::new) {
             any_stock_filter.append(new_filter(move |item: &TimelineItem| {
-                let entity = Application::get()
-                    .timeline()
-                    .entity_list()
-                    .get(item.entity_id())
-                    .expect("entity must be known");
-                entity.stock_id().is_some_and(|s_id| s_id == stock_id)
+                item.entity_data()
+                    .stock_id()
+                    .is_some_and(|s_id| *s_id == stock_id)
             }));
         }
 

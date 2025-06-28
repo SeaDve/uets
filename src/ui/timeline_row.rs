@@ -5,16 +5,13 @@ use gtk::{
 };
 
 use crate::{
-    date_time, entity::Entity, entity_entry_tracker::EntityEntryTrackerSettingsExt,
-    entity_id::EntityId, format, stock_id::StockId, timeline_item::TimelineItem,
-    timeline_item_kind::TimelineItemKind, Application,
+    date_time, entity_entry_tracker::EntityEntryTrackerSettingsExt, entity_id::EntityId, format,
+    stock_id::StockId, timeline_item::TimelineItem, timeline_item_kind::TimelineItemKind,
+    Application,
 };
 
 mod imp {
-    use std::{
-        cell::{OnceCell, RefCell},
-        sync::OnceLock,
-    };
+    use std::{cell::RefCell, sync::OnceLock};
 
     use glib::subclass::Signal;
 
@@ -35,8 +32,6 @@ mod imp {
         pub(super) dt_label: TemplateChild<gtk::Label>,
         #[template_child]
         pub(super) status_label: TemplateChild<gtk::Label>,
-
-        pub(super) entity_signals: OnceCell<glib::SignalGroup>,
     }
 
     #[glib::object_subclass]
@@ -71,19 +66,6 @@ mod imp {
                     obj.update_status_label();
                 }
             ));
-
-            let entity_signals = glib::SignalGroup::new::<Entity>();
-            entity_signals.connect_notify_local(
-                Some("data"),
-                clone!(
-                    #[weak]
-                    obj,
-                    move |_, _| {
-                        obj.update_status_label();
-                    }
-                ),
-            );
-            self.entity_signals.set(entity_signals).unwrap();
 
             self.status_label.connect_activate_link(clone!(
                 #[weak]
@@ -160,18 +142,6 @@ mod imp {
                 self.dt_label.set_text("");
             }
 
-            let entity = item.as_ref().map(|item| {
-                Application::get()
-                    .timeline()
-                    .entity_list()
-                    .get(item.entity_id())
-                    .expect("entity must be known")
-            });
-            self.entity_signals
-                .get()
-                .unwrap()
-                .set_target(entity.as_ref());
-
             self.item.replace(item);
             obj.update_status_label();
             obj.notify_item();
@@ -215,32 +185,24 @@ impl TimelineRow {
         let imp = self.imp();
 
         if let Some(item) = &self.item() {
-            let entity_id = item.entity_id();
-
             let app = Application::get();
 
-            let entity = app
-                .timeline()
-                .entity_list()
-                .get(entity_id)
-                .expect("entity must be known");
-
-            let entity_id_escaped = glib::markup_escape_text(&entity_id.to_string());
+            let entity_id_escaped = glib::markup_escape_text(&item.entity_id().to_string());
             let entity_uri = format!("entity:{}", entity_id_escaped);
-            let title = if let Some(stock_id) = entity.stock_id() {
+            let title = if let Some(stock_id) = item.entity_data().stock_id() {
                 let stock_id_escaped = glib::markup_escape_text(&stock_id.to_string());
                 let stock_uri = format!("stock:{}", stock_id_escaped);
                 format!("<a href=\"{stock_uri}\">{stock_id_escaped}</a> (<a href=\"{entity_uri}\">{entity_id_escaped}</a>)")
             } else {
-                let entity_display = &entity
-                    .data()
+                let entity_display = &item
+                    .entity_data()
                     .name()
                     .cloned()
                     .map_or_else(|| entity_id_escaped, |name| glib::markup_escape_text(&name));
                 format!("<a href=\"{entity_uri}\">{entity_display}</a>")
             };
 
-            let possessor_title = entity.data().possessor().map(|possessor| {
+            let possessor_title = item.entity_data().possessor().map(|possessor| {
                 let possessor_entity = Application::get()
                     .timeline()
                     .entity_list()
@@ -253,7 +215,7 @@ impl TimelineRow {
                     .unwrap_or_else(|| possessor.to_string())
             });
 
-            let entity_kind = entity.kind();
+            let entity_kind = item.entity_data().kind();
             let text = match item.kind() {
                 TimelineItemKind::Entry => {
                     format!(
