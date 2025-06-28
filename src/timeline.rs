@@ -381,6 +381,8 @@ impl Timeline {
             );
         }
 
+        entity.set_data(entity_data.with_stock_id(entity.stock_id())); // FIXME Allow changing stock ID
+
         let now_dt = Utc::now();
         debug_assert!(imp
             .list
