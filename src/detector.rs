@@ -191,12 +191,11 @@ impl Detector {
                     this.handle_code_detected(code);
                 }
             ));
-            remote_app.connect_tag_detected(clone!(
+            remote_app.connect_entity_detected(clone!(
                 #[weak]
                 this,
-                move |_, tag, data_fields| {
-                    let entity_id = EntityId::new(tag);
-                    this.emit_detected(&entity_id, data_fields.0.clone());
+                move |_, id, data_fields| {
+                    this.emit_detected(id, data_fields.0.clone());
                 }
             ));
             imp.remote_app.set(remote_app).unwrap();
