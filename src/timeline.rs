@@ -363,13 +363,20 @@ impl Timeline {
         }
 
         if let Some(possessor) = entity_data.possessor() {
-            ensure!(
-                self.entity_list().contains(possessor),
-                "Unknown possessor entity `{}`",
-                possessor
-            );
+            let Some(posessor_entity) = self.entity_list().get(possessor) else {
+                bail!("Unknown possessor entity `{}`", possessor);
+            };
 
             ensure!(
+                posessor_entity.kind() == EntityKind::Person,
+                "Only persons can be possessors"
+            );
+
+            debug_assert!(entity
+                .kind()
+                .is_valid_entity_data_field_ty(EntityDataFieldTy::Possessor));
+
+            debug_assert!(
                 possessor != entity_id,
                 "Entity `{}` cannot be its own possessor",
                 entity_id
@@ -400,6 +407,9 @@ impl Timeline {
                 .unwrap_or_else(|| Stock::new(stock_id.clone(), StockData {}))
         });
 
+        // TODO: Maybe do this on the client instead, and allow also changing the
+        // possessor of the item whie inside the "storage".
+        //
         // If the item re-entered the "storage", we automatically set the
         // possessor to None.
         //
