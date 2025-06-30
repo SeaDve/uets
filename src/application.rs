@@ -376,8 +376,8 @@ impl Application {
                 detector.connect_detected(clone!(
                     #[weak(rename_to = obj)]
                     self,
-                    move |detector, entity_id, entity_data_fields| {
-                        let entity_data_fields = entity_data_fields.0.clone();
+                    move |detector, entity_id, entity_data_fields_boxed| {
+                        let entity_data_fields = entity_data_fields_boxed.0.clone();
                         glib::spawn_future_local(clone!(
                             #[weak]
                             obj,

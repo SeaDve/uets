@@ -174,7 +174,7 @@ impl Detector {
                 this,
                 move |_, id| {
                     let entity_id = EntityId::new(id);
-                    this.emit_detected(&entity_id, vec![]);
+                    this.emit_detected(&entity_id, &EntityDataFieldVecBoxed(vec![]));
                 }
             ));
             imp.rfid_reader.set(rfid_reader).unwrap();
@@ -194,8 +194,8 @@ impl Detector {
             remote_app.connect_entity_detected(clone!(
                 #[weak]
                 this,
-                move |_, id, data_fields| {
-                    this.emit_detected(id, data_fields.0.clone());
+                move |_, id, data_fields_boxed| {
+                    this.emit_detected(id, data_fields_boxed);
                 }
             ));
             imp.remote_app.set(remote_app).unwrap();
@@ -277,8 +277,8 @@ impl Detector {
         Ok(())
     }
 
-    fn emit_detected(&self, id: &EntityId, data_fields: Vec<EntityDataField>) {
-        self.emit_by_name::<()>("detected", &[id, &EntityDataFieldVecBoxed(data_fields)]);
+    fn emit_detected(&self, id: &EntityId, data_fields_boxed: &EntityDataFieldVecBoxed) {
+        self.emit_by_name::<()>("detected", &[id, data_fields_boxed]);
 
         self.stop_detected_wo_id_alert_timeout();
     }
@@ -361,7 +361,7 @@ impl Detector {
         tracing::debug!("Detected code: {}", code);
 
         if let Some((id, data_fields)) = entity_from_qrcode(code) {
-            self.emit_detected(&id, data_fields);
+            self.emit_detected(&id, &EntityDataFieldVecBoxed(data_fields));
         } else {
             self.emit_by_name::<()>("detected-invalid", &[&code]);
         }
