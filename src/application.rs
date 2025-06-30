@@ -506,17 +506,20 @@ impl Application {
             Ok(item) => {
                 let entity_name = item.entity_data().name();
                 let entity_kind = item.entity_data().kind();
-                let entity_possessor_title = item.entity_data().possessor().map(|possessor| {
-                    let possessor_entity = self
-                        .timeline()
-                        .entity_list()
-                        .get(possessor)
-                        .expect("possessor should exist");
-                    possessor_entity
-                        .data()
-                        .name()
-                        .cloned()
-                        .unwrap_or_else(|| possessor.to_string())
+                let entity_possessor_title = item.entity_data().possessor().and_then(|possessor| {
+                    let Some(possessor_entity) = self.timeline().entity_list().get(possessor)
+                    else {
+                        tracing::warn!("Possessor `{}` not found in timeline", possessor);
+                        return None;
+                    };
+
+                    Some(
+                        possessor_entity
+                            .data()
+                            .name()
+                            .cloned()
+                            .unwrap_or_else(|| possessor.to_string()),
+                    )
                 });
 
                 let welcome_message = match item.kind() {

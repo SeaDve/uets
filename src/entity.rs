@@ -144,17 +144,20 @@ impl Entity {
         for_dt_range: &DateTimeRange,
         use_red_markup_on_entry_to_exit_duration: bool,
     ) -> String {
-        let possessor_title = self.data().possessor().map(|possessor| {
-            let possessor_entity = Application::get()
-                .timeline()
-                .entity_list()
-                .get(possessor)
-                .expect("possessor should exist");
-            possessor_entity
-                .data()
-                .name()
-                .cloned()
-                .unwrap_or_else(|| possessor.to_string())
+        let possessor_title = self.data().possessor().and_then(|possessor| {
+            let Some(possessor_entity) = Application::get().timeline().entity_list().get(possessor)
+            else {
+                tracing::warn!("Possessor `{}` not found in timeline", possessor);
+                return None;
+            };
+
+            Some(
+                possessor_entity
+                    .data()
+                    .name()
+                    .cloned()
+                    .unwrap_or_else(|| possessor.to_string()),
+            )
         });
 
         match self.action_for_dt_range(for_dt_range) {
