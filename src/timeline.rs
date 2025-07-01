@@ -14,6 +14,7 @@ use crate::{
     date_time_boxed::DateTimeBoxed,
     date_time_range::DateTimeRange,
     db::{self, EnvExt},
+    detector::Detector,
     entity::Entity,
     entity_data::{EntityData, EntityDataFieldTy},
     entity_entry_tracker::{EntityEntryTracker, EntityIdSet},
@@ -22,6 +23,7 @@ use crate::{
     entity_kind::EntityKind,
     entity_list::EntityList,
     log::Log,
+    settings::AccessMode,
     stock::{Stock, StockLogs},
     stock_data::StockData,
     stock_id::StockId,
@@ -339,6 +341,7 @@ impl Timeline {
 
     pub fn handle_detected(
         &self,
+        detector: &Detector,
         entity_id: &EntityId,
         entity_data: EntityData,
     ) -> Result<TimelineItem> {
@@ -390,15 +393,38 @@ impl Timeline {
             .last()
             .map_or(true, |(dt, _)| &now_dt > dt));
 
-        entity.set_data(entity_data.clone());
-
         let is_exit = entity.is_inside();
-
         let item_kind = if is_exit {
             TimelineItemKind::Exit
         } else {
             TimelineItemKind::Entry
         };
+
+        if !entity
+            .data()
+            .allowed_dt_range()
+            .copied()
+            .unwrap_or_default()
+            .contains(now_dt)
+            && item_kind.is_entry()
+        {
+            bail!(
+                "“{}” is not allowed at the moment!",
+                entity.name_or_id_display()
+            );
+        }
+
+        match (detector.access_mode(), item_kind) {
+            (AccessMode::EntryOnly, TimelineItemKind::Exit) => {
+                bail!("Cannot exit on an entry-only way!");
+            }
+            (AccessMode::ExitOnly, TimelineItemKind::Entry) => {
+                bail!("Cannot enter on an exit-only way!");
+            }
+            _ => {}
+        }
+
+        entity.set_data(entity_data.clone());
         let item = TimelineItem::new(now_dt, item_kind, entity_id.clone(), entity_data);
 
         let stock = entity.stock_id().map(|stock_id| {

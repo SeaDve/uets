@@ -5,9 +5,20 @@ use gtk::{
     glib::{self, clone},
 };
 
-use crate::{entity_data::EntityDataField, entity_id::EntityId, Application};
+use crate::{
+    detector::Detector,
+    entity_data::EntityDataField,
+    entity_id::EntityId,
+    list_model_enum,
+    settings::{AccessMode, DetectorConfig},
+    Application,
+};
+
+list_model_enum!(AccessMode);
 
 mod imp {
+    use std::cell::OnceCell;
+
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate)]
@@ -16,11 +27,15 @@ mod imp {
         #[template_child]
         pub(super) toast_overlay: TemplateChild<adw::ToastOverlay>,
         #[template_child]
+        pub(super) access_mode_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
         pub(super) value_entry: TemplateChild<gtk::Entry>,
         #[template_child]
         pub(super) enter_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub(super) reset_button: TemplateChild<gtk::Button>,
+
+        pub(super) detector: OnceCell<Detector>,
     }
 
     #[glib::object_subclass]
@@ -46,6 +61,27 @@ mod imp {
 
             let obj = self.obj();
 
+            self.access_mode_dropdown
+                .set_expression(Some(&adw::EnumListItem::this_expression("name")));
+            self.access_mode_dropdown
+                .set_model(Some(&AccessMode::new_model()));
+            self.access_mode_dropdown
+                .set_selected(AccessMode::default().model_position());
+            self.access_mode_dropdown
+                .connect_selected_item_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |dropdown| {
+                        let selected_item = dropdown
+                            .selected_item()
+                            .unwrap()
+                            .downcast::<adw::EnumListItem>()
+                            .unwrap();
+                        obj.detector()
+                            .set_access_mode(selected_item.value().try_into().unwrap());
+                    }
+                ));
+
             self.value_entry.connect_activate(clone!(
                 #[weak]
                 obj,
@@ -65,6 +101,18 @@ mod imp {
                     tracing::error!("Failed to reset timeline: {:?}", err);
                 }
             });
+
+            let detector = Detector::new(
+                DetectorConfig {
+                    name: "Test Detector".to_string(),
+                    access_mode: AccessMode::default(),
+                    camera_ip_addr: None,
+                    rfid_reader_ip_addr: None,
+                    remote_app_ip_addr: None,
+                },
+                Application::get().timeline(),
+            );
+            self.detector.set(detector).unwrap();
         }
     }
 
@@ -84,6 +132,10 @@ impl TestWindow {
         glib::Object::builder()
             .property("application", application)
             .build()
+    }
+
+    fn detector(&self) -> &Detector {
+        self.imp().detector.get().unwrap()
     }
 
     fn handle_enter(&self) {
@@ -115,7 +167,7 @@ impl TestWindow {
         imp.value_entry.set_text("");
 
         if let Some(message) = Application::get()
-            .simulate_detected(&entity_id, entity_data)
+            .simulate_detected(self.detector(), &entity_id, entity_data)
             .await
         {
             imp.toast_overlay.add_toast(adw::Toast::new(&message));

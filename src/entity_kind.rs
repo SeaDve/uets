@@ -27,11 +27,11 @@ impl EntityKind {
         }
     }
 
-    pub fn enter_verb_with_possessor(&self, possessor_title: &str) -> String {
+    pub fn enter_verb_with_possessor(&self, possessor_display: &str) -> String {
         match self {
             EntityKind::Person => self.enter_verb().to_string(),
-            EntityKind::Vehicle => format!("is driven in by {possessor_title}"),
-            EntityKind::Item => format!("is added by {possessor_title}"),
+            EntityKind::Vehicle => format!("is driven in by {possessor_display}"),
+            EntityKind::Item => format!("is added by {possessor_display}"),
         }
     }
 
@@ -43,11 +43,11 @@ impl EntityKind {
         }
     }
 
-    pub fn exit_verb_with_possessor(&self, possessor_title: &str) -> String {
+    pub fn exit_verb_with_possessor(&self, possessor_display: &str) -> String {
         match self {
             EntityKind::Person => self.exit_verb().to_string(),
-            EntityKind::Vehicle => format!("is driven out by {possessor_title}"),
-            EntityKind::Item => format!("is removed by {possessor_title}"),
+            EntityKind::Vehicle => format!("is driven out by {possessor_display}"),
+            EntityKind::Item => format!("is removed by {possessor_display}"),
         }
     }
 
@@ -59,11 +59,11 @@ impl EntityKind {
         }
     }
 
-    pub fn enter_status_with_possessor(&self, possessor_title: &str) -> String {
+    pub fn enter_status_with_possessor(&self, possessor_display: &str) -> String {
         match self {
             EntityKind::Person => self.enter_status().to_string(),
-            EntityKind::Vehicle => format!("Driven in by {possessor_title}"),
-            EntityKind::Item => format!("Added by {possessor_title}"),
+            EntityKind::Vehicle => format!("Driven in by {possessor_display}"),
+            EntityKind::Item => format!("Added by {possessor_display}"),
         }
     }
 
@@ -75,11 +75,11 @@ impl EntityKind {
         }
     }
 
-    pub fn exit_status_with_possessor(&self, possessor_title: &str) -> String {
+    pub fn exit_status_with_possessor(&self, possessor_display: &str) -> String {
         match self {
             EntityKind::Person => self.exit_status().to_string(),
-            EntityKind::Vehicle => format!("Driven out by {possessor_title}"),
-            EntityKind::Item => format!("Removed by {possessor_title}"),
+            EntityKind::Vehicle => format!("Driven out by {possessor_display}"),
+            EntityKind::Item => format!("Removed by {possessor_display}"),
         }
     }
 
@@ -91,11 +91,11 @@ impl EntityKind {
         }
     }
 
-    pub fn default_status_with_possessor(&self, possessor_title: &str) -> String {
+    pub fn default_status_with_possessor(&self, possessor_display: &str) -> String {
         match self {
             EntityKind::Person => self.default_status().to_string(),
-            EntityKind::Vehicle => format!("Never driven in by {possessor_title}"),
-            EntityKind::Item => format!("Never added by {possessor_title}"),
+            EntityKind::Vehicle => format!("Never driven in by {possessor_display}"),
+            EntityKind::Item => format!("Never added by {possessor_display}"),
         }
     }
 

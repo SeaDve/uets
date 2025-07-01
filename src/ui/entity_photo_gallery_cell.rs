@@ -126,11 +126,7 @@ impl EntityPhotoGalleryCell {
         let text = self
             .entity()
             .as_ref()
-            .map(|e| {
-                e.data()
-                    .name()
-                    .map_or_else(|| e.id().to_string(), |n| n.clone())
-            })
+            .map(|e| e.name_or_id_display())
             .unwrap_or_default();
         imp.label.set_text(&text);
     }

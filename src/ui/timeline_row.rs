@@ -202,21 +202,14 @@ impl TimelineRow {
                 format!("<a href=\"{entity_uri}\">{entity_display}</a>")
             };
 
-            let possessor_title = item.entity_data().possessor().and_then(|possessor| {
+            let possessor_display = item.entity_data().possessor().and_then(|possessor| {
                 let Some(possessor_entity) =
                     Application::get().timeline().entity_list().get(possessor)
                 else {
                     tracing::warn!("Possessor `{}` not found in timeline", possessor);
                     return None;
                 };
-
-                Some(
-                    possessor_entity
-                        .data()
-                        .name()
-                        .cloned()
-                        .unwrap_or_else(|| possessor.to_string()),
-                )
+                Some(possessor_entity.name_or_id_display())
             });
 
             let entity_kind = item.entity_data().kind();
@@ -224,7 +217,7 @@ impl TimelineRow {
                 TimelineItemKind::Entry => {
                     format!(
                         "<b>{title}</b> {}",
-                        possessor_title.map_or_else(
+                        possessor_display.map_or_else(
                             || entity_kind.enter_verb().to_string(),
                             |p| entity_kind.enter_verb_with_possessor(&p)
                         )
@@ -237,7 +230,7 @@ impl TimelineRow {
                     let entry_to_exit_duration_formatted = format::duration(entry_to_exit_duration);
                     format!(
                         "<b>{title}</b> {} after <i>{}</i> {}",
-                        possessor_title.map_or_else(
+                        possessor_display.map_or_else(
                             || entity_kind.exit_verb().to_string(),
                             |p| entity_kind.exit_verb_with_possessor(&p)
                         ),

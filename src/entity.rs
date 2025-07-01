@@ -78,6 +78,12 @@ impl Entity {
         self.imp().id.get().unwrap()
     }
 
+    pub fn name_or_id_display(&self) -> String {
+        self.data()
+            .name()
+            .map_or_else(|| self.id().to_string(), |name| name.clone())
+    }
+
     pub fn kind(&self) -> EntityKind {
         self.imp().data.borrow().kind()
     }
@@ -144,25 +150,18 @@ impl Entity {
         for_dt_range: &DateTimeRange,
         use_red_markup_on_entry_to_exit_duration: bool,
     ) -> String {
-        let possessor_title = self.data().possessor().and_then(|possessor| {
+        let possessor_display = self.data().possessor().and_then(|possessor| {
             let Some(possessor_entity) = Application::get().timeline().entity_list().get(possessor)
             else {
                 tracing::warn!("Possessor `{}` not found in timeline", possessor);
                 return None;
             };
-
-            Some(
-                possessor_entity
-                    .data()
-                    .name()
-                    .cloned()
-                    .unwrap_or_else(|| possessor.to_string()),
-            )
+            Some(possessor_entity.name_or_id_display())
         });
 
         match self.action_for_dt_range(for_dt_range) {
             Some((dt, TimelineItemKind::Entry)) => {
-                let status = possessor_title.map_or_else(
+                let status = possessor_display.map_or_else(
                     || self.kind().enter_status().to_string(),
                     |p| self.kind().enter_status_with_possessor(&p),
                 );
@@ -195,13 +194,13 @@ impl Entity {
                 )
             }
             Some((dt, TimelineItemKind::Exit)) => {
-                let status = possessor_title.map_or_else(
+                let status = possessor_display.map_or_else(
                     || self.kind().exit_status().to_string(),
                     |p| self.kind().exit_status_with_possessor(&p),
                 );
                 format!("{status} {}", date_time::format::fuzzy(dt))
             }
-            None => possessor_title.map_or_else(
+            None => possessor_display.map_or_else(
                 || self.kind().default_status().to_string(),
                 |p| self.kind().default_status_with_possessor(&p),
             ),

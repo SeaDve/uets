@@ -19,7 +19,7 @@ use crate::{
     jpeg_image::JpegImage,
     remote_app::RemoteApp,
     rfid_reader::RfidReader,
-    settings::DetectorConfig,
+    settings::{AccessMode, DetectorConfig},
     sex::Sex,
     timeline::Timeline,
 };
@@ -29,7 +29,7 @@ const DETECTED_WO_ID_ALERT_DELAY: Duration = Duration::from_secs(5);
 
 mod imp {
     use std::{
-        cell::{OnceCell, RefCell},
+        cell::{Cell, OnceCell, RefCell},
         sync::OnceLock,
     };
 
@@ -40,6 +40,7 @@ mod imp {
     #[derive(Default)]
     pub struct Detector {
         pub(super) name: OnceCell<String>,
+        pub(super) access_mode: Cell<AccessMode>,
 
         pub(super) camera: OnceCell<Camera>,
         pub(super) camera_last_detected: RefCell<Option<String>>,
@@ -114,6 +115,7 @@ impl Detector {
 
         let imp = this.imp();
         imp.name.set(config.name).unwrap();
+        imp.access_mode.set(config.access_mode);
 
         if let Some(ip_addr) = config.camera_ip_addr {
             let camera = Camera::new(ip_addr);
@@ -247,6 +249,14 @@ impl Detector {
 
     pub fn name(&self) -> &str {
         self.imp().name.get().unwrap()
+    }
+
+    pub fn set_access_mode(&self, access_mode: AccessMode) {
+        self.imp().access_mode.set(access_mode);
+    }
+
+    pub fn access_mode(&self) -> AccessMode {
+        self.imp().access_mode.get()
     }
 
     pub fn camera(&self) -> Option<Camera> {

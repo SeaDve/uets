@@ -16,7 +16,6 @@ use crate::{
     detected_wo_id_item::DetectedWoIdItem,
     detected_wo_id_list::DetectedWoIdList,
     detector::Detector,
-    entity::Entity,
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_entry_tracker::EntityIdSet,
     entity_id::EntityId,
@@ -204,7 +203,7 @@ mod imp {
 
                                 obj.add_message_toast(&format!(
                                     "“{}” overstayed",
-                                    id_or_name(&entity)
+                                    entity.name_or_id_display()
                                 ));
                             }
                             [id1, id2] => {
@@ -221,8 +220,8 @@ mod imp {
 
                                 obj.add_message_toast(&format!(
                                     "“{}” and “{}” overstayed",
-                                    id_or_name(&entity1),
-                                    id_or_name(&entity2),
+                                    entity1.name_or_id_display(),
+                                    entity2.name_or_id_display(),
                                 ));
                             }
                             ids => {
@@ -351,10 +350,12 @@ impl Application {
 
     pub async fn simulate_detected(
         &self,
+        detector: &Detector,
         entity_id: &EntityId,
         entity_data_fields: Vec<EntityDataField>,
     ) -> Option<String> {
-        self.handle_detected(entity_id, entity_data_fields).await
+        self.handle_detected(detector, entity_id, entity_data_fields)
+            .await
     }
 
     pub fn reconfigure_detectors(&self) -> Result<()> {
@@ -386,8 +387,9 @@ impl Application {
                             #[strong]
                             entity_id,
                             async move {
-                                if let Some(message) =
-                                    obj.handle_detected(&entity_id, entity_data_fields).await
+                                if let Some(message) = obj
+                                    .handle_detected(&detector, &entity_id, entity_data_fields)
+                                    .await
                                 {
                                     if let Err(err) = detector.return_message(&message).await {
                                         tracing::error!("Failed to return message: {:?}", err);
@@ -443,6 +445,7 @@ impl Application {
 
     async fn handle_detected(
         &self,
+        detector: &Detector,
         detected_entity_id: &EntityId,
         detected_entity_data_fields: Vec<EntityDataField>,
     ) -> Option<String> {
@@ -502,25 +505,19 @@ impl Application {
 
         // TODO If the mode is inventory, don't handle the detected entity
         // if it doesn't have a stock id.
-        match timeline.handle_detected(detected_entity_id, entity_data) {
+        match timeline.handle_detected(detector, detected_entity_id, entity_data) {
             Ok(item) => {
                 let entity_name = item.entity_data().name();
                 let entity_kind = item.entity_data().kind();
-                let entity_possessor_title = item.entity_data().possessor().and_then(|possessor| {
-                    let Some(possessor_entity) = self.timeline().entity_list().get(possessor)
-                    else {
-                        tracing::warn!("Possessor `{}` not found in timeline", possessor);
-                        return None;
-                    };
-
-                    Some(
-                        possessor_entity
-                            .data()
-                            .name()
-                            .cloned()
-                            .unwrap_or_else(|| possessor.to_string()),
-                    )
-                });
+                let entity_possessor_display =
+                    item.entity_data().possessor().and_then(|possessor| {
+                        let Some(possessor_entity) = self.timeline().entity_list().get(possessor)
+                        else {
+                            tracing::warn!("Possessor `{}` not found in timeline", possessor);
+                            return None;
+                        };
+                        Some(possessor_entity.name_or_id_display())
+                    });
 
                 let welcome_message = match item.kind() {
                     TimelineItemKind::Entry => match entity_name {
@@ -530,7 +527,7 @@ impl Application {
                         Some(name) => {
                             format!(
                                 "{name} {}",
-                                entity_possessor_title.map_or_else(
+                                entity_possessor_display.map_or_else(
                                     || entity_kind.enter_verb().to_string(),
                                     |p| entity_kind.enter_verb_with_possessor(&p),
                                 )
@@ -540,7 +537,7 @@ impl Application {
                             format!(
                                 "{} {}",
                                 item.entity_id(),
-                                entity_possessor_title.map_or_else(
+                                entity_possessor_display.map_or_else(
                                     || entity_kind.enter_verb().to_string(),
                                     |p| entity_kind.enter_verb_with_possessor(&p),
                                 )
@@ -554,7 +551,7 @@ impl Application {
                         Some(name) => {
                             format!(
                                 "{name} {}",
-                                entity_possessor_title.map_or_else(
+                                entity_possessor_display.map_or_else(
                                     || entity_kind.exit_verb().to_string(),
                                     |p| entity_kind.exit_verb_with_possessor(&p),
                                 )
@@ -564,7 +561,7 @@ impl Application {
                             format!(
                                 "{} {}",
                                 item.entity_id(),
-                                entity_possessor_title.map_or_else(
+                                entity_possessor_display.map_or_else(
                                     || entity_kind.exit_verb().to_string(),
                                     |p| entity_kind.exit_verb_with_possessor(&p),
                                 )
@@ -573,35 +570,16 @@ impl Application {
                     },
                 };
 
-                if !item
-                    .entity_data()
-                    .allowed_dt_range()
-                    .copied()
-                    .unwrap_or_default()
-                    .contains(item.dt())
-                    && item.kind().is_entry()
-                {
-                    let message = format!(
-                        "“{}” is not allowed!",
-                        id_or_name_inner(item.entity_id(), item.entity_data())
-                    );
-                    self.add_message_toast_with_id(ToastId::Detected, &message);
+                self.add_message_toast_with_id(ToastId::Detected, &welcome_message);
 
-                    Sound::CriticalAlert.play();
+                Sound::DetectedSuccess.play();
 
-                    Some(message)
-                } else {
-                    self.add_message_toast_with_id(ToastId::Detected, &welcome_message);
-
-                    Sound::DetectedSuccess.play();
-
-                    Some(welcome_message)
-                }
+                Some(welcome_message)
             }
             Err(err) => {
                 tracing::error!("Failed to handle entity: {:?}", err);
 
-                let message = format!("Failed to handle “{}”", detected_entity_id);
+                let message = err.to_string();
                 self.add_message_toast_with_id(ToastId::Detected, &message);
 
                 Sound::DetectedError.play();
@@ -699,14 +677,4 @@ fn init_env() -> Result<(heed::Env, Timeline, DetectedWoIdList)> {
     let detected_wo_id_list = DetectedWoIdList::load_from_env(env.clone())?;
 
     Ok((env, timeline, detected_wo_id_list))
-}
-
-fn id_or_name_inner(entity_id: &EntityId, entity_data: &EntityData) -> String {
-    entity_data
-        .name()
-        .map_or_else(|| entity_id.to_string(), |n| n.clone())
-}
-
-fn id_or_name(entity: &Entity) -> String {
-    id_or_name_inner(entity.id(), &entity.data())
 }
