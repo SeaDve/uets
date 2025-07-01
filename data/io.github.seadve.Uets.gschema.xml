@@ -3,12 +3,14 @@
   <schema path="/io/github/seadve/Uets/" id="io.github.seadve.Uets">
     <key name="detector-config" type="s">
       <default><![CDATA["- name: Door A
+  access_mode: entry-and-exit
   camera: 192.168.100.101
-  rfid_reader: 192.168.100.102
+  remote_app: 192.168.100.102
 
 - name: Door B
+  access_mode: entry-and-exit
   camera: 192.168.100.203
-  rfid_reader: 192.168.100.202"]]></default>
+  remote_app: 192.168.100.202"]]></default>
     </key>
     <key name="camera-ip-addr" type="s">
       <default>"192.168.100.101"</default>
