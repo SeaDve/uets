@@ -12,21 +12,21 @@
             <child>
               <object class="AdwSwitchRow">
                 <property name="title">Detect Entities Without ID</property>
-                <property name="subtitle">Alert when an entity enters without proper registration</property>
+                <property name="subtitle">Alert when an entity enters without a scanned ID</property>
                 <property name="action-name">settings-view.enable-detection-wo-id</property>
               </object>
             </child>
             <child>
               <object class="AdwSwitchRow">
                 <property name="title">Amount Depleted</property>
-                <property name="subtitle">Alert when the amount decreases to the provided lower limit</property>
+                <property name="subtitle">Alert when the amount depletes to the provided lower limit</property>
                 <property name="action-name">settings-view.enable-lower-limit-reached-alert</property>
               </object>
             </child>
             <child>
               <object class="AdwSwitchRow">
                 <property name="title">Capacity Exceeded</property>
-                <property name="subtitle">Alert when the amount reached the provided upper limit</property>
+                <property name="subtitle">Alert when the amount exceeds the provided upper limit</property>
                 <property name="action-name">settings-view.enable-upper-limit-reached-alert</property>
               </object>
             </child>
