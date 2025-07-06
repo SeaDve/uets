@@ -700,7 +700,7 @@ impl EntitiesView {
 
         let entity_field_tys = EntityDataFieldTy::all()
             .iter()
-            .filter(|field_ty| !matches!(field_ty, EntityDataFieldTy::Photo))
+            .filter(|field_ty| !matches!(field_ty, EntityDataFieldTy::Photo)) // TODO Add photos on report
             .collect::<Vec<_>>();
 
         let mut table = report_table::builder("Entities")

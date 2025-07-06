@@ -142,7 +142,7 @@ impl Timeline {
                                 .map(EntityDataField::AllowedDtRange),
                             EntityDataFieldTy::Photo => cell
                                 .as_string()
-                                .map(|s| JpegImage::from_base64(&s))
+                                .map(|s| JpegImage::from_base64(&s)) // TODO support directly getting images from Excel
                                 .map(EntityDataField::Photo),
                             EntityDataFieldTy::Name => cell.as_string().map(EntityDataField::Name),
                             EntityDataFieldTy::Sex => cell
