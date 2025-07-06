@@ -188,10 +188,10 @@ impl TimelineRow {
             let app = Application::get();
 
             let entity_id_escaped = glib::markup_escape_text(&item.entity_id().to_string());
-            let entity_uri = format!("entity:{}", entity_id_escaped);
+            let entity_uri = format!("entity:{entity_id_escaped}");
             let title = if let Some(stock_id) = item.entity_data().stock_id() {
                 let stock_id_escaped = glib::markup_escape_text(&stock_id.to_string());
-                let stock_uri = format!("stock:{}", stock_id_escaped);
+                let stock_uri = format!("stock:{stock_id_escaped}");
                 format!("<a href=\"{stock_uri}\">{stock_id_escaped}</a> (<a href=\"{entity_uri}\">{entity_id_escaped}</a>)")
             } else {
                 let entity_display = &item

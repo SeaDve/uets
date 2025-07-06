@@ -381,8 +381,7 @@ impl Timeline {
 
             debug_assert!(
                 possessor != entity_id,
-                "Entity `{}` cannot be its own possessor",
-                entity_id
+                "Entity `{entity_id}` cannot be its own possessor"
             );
         }
 
@@ -391,7 +390,7 @@ impl Timeline {
             .list
             .borrow()
             .last()
-            .map_or(true, |(dt, _)| &now_dt > dt));
+            .is_none_or(|(dt, _)| &now_dt > dt));
 
         let is_exit = entity.is_inside();
         let item_kind = if is_exit {

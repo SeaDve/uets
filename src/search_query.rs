@@ -53,7 +53,7 @@ impl fmt::Display for SQ {
                 write!(f, "{}:{}", iden, EnquotedIfNeeded(value))
             }
             SQ::Value { value } => {
-                write!(f, "{}", value)
+                write!(f, "{value}")
             }
         }
     }
@@ -67,10 +67,10 @@ impl fmt::Display for SearchQueries {
         let mut iter = self.0.iter();
 
         if let Some(first_query) = iter.next() {
-            write!(f, "{}", first_query)?;
+            write!(f, "{first_query}")?;
 
             for query in iter {
-                write!(f, " {}", query)?;
+                write!(f, " {query}")?;
             }
         }
 

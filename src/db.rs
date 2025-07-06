@@ -43,7 +43,7 @@ pub struct RawDetectedWoIdItem {
 }
 
 pub fn new_env() -> Result<heed::Env> {
-    let path = glib::user_data_dir().join(format!("{}/db", APP_ID));
+    let path = glib::user_data_dir().join(format!("{APP_ID}/db"));
     fs::create_dir_all(&path)
         .with_context(|| format!("Failed to create db dir at {}", path.display()))?;
 

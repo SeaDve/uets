@@ -522,7 +522,7 @@ impl Application {
                 let welcome_message = match item.kind() {
                     TimelineItemKind::Entry => match entity_name {
                         Some(name) if entity_kind == EntityKind::Person => {
-                            format!("Welcome, {}!", name)
+                            format!("Welcome, {name}!")
                         }
                         Some(name) => {
                             format!(
@@ -546,7 +546,7 @@ impl Application {
                     },
                     TimelineItemKind::Exit => match entity_name {
                         Some(name) if entity_kind == EntityKind::Person => {
-                            format!("Goodbye, {}!", name)
+                            format!("Goodbye, {name}!")
                         }
                         Some(name) => {
                             format!(

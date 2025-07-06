@@ -430,7 +430,7 @@ impl AiChatDialog {
                 tracing::trace!("Received {} candidates", response.candidates.len());
             }
             Err(err) => {
-                ai_message.set_loaded(format!("Error: {:?}", err));
+                ai_message.set_loaded(format!("Error: {err:?}"));
             }
         }
 
@@ -456,7 +456,7 @@ impl AiChatDialog {
             && self
                 .message_list()
                 .last()
-                .map_or(true, |message| message.is_loaded());
+                .is_none_or(|message| message.is_loaded());
         self.action_set_enabled("ai-chat-dialog.send-message", is_enabled);
     }
 

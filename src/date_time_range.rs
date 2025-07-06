@@ -26,7 +26,7 @@ impl fmt::Display for DateTimeRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (_, stripped, _) =
             pango::parse_markup(&self.label_markup(), 0 as char).map_err(|_| fmt::Error)?;
-        write!(f, "{}", stripped)
+        write!(f, "{stripped}")
     }
 }
 

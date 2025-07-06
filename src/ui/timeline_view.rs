@@ -633,9 +633,9 @@ impl TimelineView {
 
         let n_total = imp.selection_model.n_items();
         let text = if imp.search_entry.queries().is_empty() {
-            format!("Total: {}", n_total)
+            format!("Total: {n_total}")
         } else {
-            format!("Results: {}", n_total)
+            format!("Results: {n_total}")
         };
 
         imp.n_results_label.set_text(&text);
