@@ -85,7 +85,7 @@ impl Relay {
         let response = surf::RequestBuilder::new(
             surf::http::Method::Get,
             uri.parse()
-                .with_context(|| format!("Failed to parse URI: {}", uri))?,
+                .with_context(|| format!("Failed to parse URI: {uri}"))?,
         )
         .send()
         .await

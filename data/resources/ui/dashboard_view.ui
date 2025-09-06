@@ -16,7 +16,9 @@
                   <object class="GtkBox">
                     <property name="orientation">vertical</property>
                     <child>
-                      <object class="GtkLabel" id="n_inside_title_label"/>
+                      <object class="GtkLabel">
+                        <property name="label">Total Inside Count</property>
+                      </object>
                     </child>
                     <child>
                       <object class="GtkLabel" id="n_inside_label">
@@ -166,7 +168,7 @@
               </object>
             </child>
             <child>
-              <object class="AdwActionRow">
+              <object class="AdwActionRow" id="show_ai_chat_dialog_row">
                 <property name="title">Show Data Analyzer and Assistant</property>
                 <property name="activatable">True</property>
                 <property name="action-name">dashboard-view.show-ai-chat-dialog</property>

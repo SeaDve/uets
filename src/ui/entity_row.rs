@@ -5,7 +5,8 @@ use gtk::{
 };
 
 use crate::{
-    date_time_range::DateTimeRange, entity::Entity, entity_entry_tracker::EntityIdSet, Application,
+    date_time_range::DateTimeRange, entity::Entity, entity_entry_tracker::EntityIdSet,
+    entity_kind::EntityKind, Application,
 };
 
 mod imp {
@@ -64,6 +65,7 @@ mod imp {
                     obj,
                     move |_, _| {
                         obj.update_title_label_and_avatar();
+                        obj.update_subtitle_label();
                     }
                 ),
             );
@@ -80,14 +82,6 @@ mod imp {
             self.entity_signals.set(entity_signals).unwrap();
 
             let app = Application::get();
-            app.settings().connect_operation_mode_changed(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.update_subtitle_label();
-                    obj.update_avatar_icon_name();
-                }
-            ));
             app.timeline()
                 .entity_entry_tracker()
                 .connect_overstayed_changed(clone!(
@@ -109,7 +103,6 @@ mod imp {
 
             obj.update_title_label_and_avatar();
             obj.update_subtitle_label();
-            obj.update_avatar_icon_name();
         }
 
         fn dispose(&self) {
@@ -183,12 +176,18 @@ impl EntityRow {
                         .inspect_err(|err| tracing::error!("Failed to load texture: {:?}", err))
                         .ok()
                 }));
+
+            imp.avatar
+                .set_icon_name(Some(entity.kind().entities_view_icon_name()));
         } else {
             imp.title_label.set_text("");
 
             imp.avatar.set_text(None);
             imp.avatar.set_custom_image(gdk::Paintable::NONE);
             imp.avatar.set_show_initials(false);
+
+            imp.avatar
+                .set_icon_name(Some(EntityKind::default().entities_view_icon_name()));
         }
     }
 
@@ -197,28 +196,15 @@ impl EntityRow {
 
         if let Some(entity) = self.entity() {
             let app = Application::get();
-            let operation_mode = app.settings().operation_mode();
             let is_overstayed = app
                 .timeline()
                 .entity_entry_tracker()
                 .is_overstayed(entity.id());
 
-            let status_markup =
-                entity.status_markup(&imp.dt_range.borrow(), operation_mode, is_overstayed);
+            let status_markup = entity.status_markup(&imp.dt_range.borrow(), is_overstayed);
             imp.subtitle_label.set_markup(&status_markup);
         } else {
             imp.subtitle_label.set_text("");
         }
-    }
-
-    fn update_avatar_icon_name(&self) {
-        let imp = self.imp();
-
-        imp.avatar.set_icon_name(Some(
-            Application::get()
-                .settings()
-                .operation_mode()
-                .entities_view_icon_name(),
-        ));
     }
 }

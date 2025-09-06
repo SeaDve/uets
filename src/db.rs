@@ -33,15 +33,17 @@ pub const DETECTED_WO_ID_DB_NAME: &str = "detected_wo_id";
 pub struct RawTimelineItem {
     pub is_entry: bool,
     pub entity_id: EntityId,
+    pub entity_data: EntityData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RawDetectedWoIdItem {
+    pub detector_name: String,
     pub image: Option<JpegImage>,
 }
 
 pub fn new_env() -> Result<heed::Env> {
-    let path = glib::user_data_dir().join(format!("{}/db", APP_ID));
+    let path = glib::user_data_dir().join(format!("{APP_ID}/db"));
     fs::create_dir_all(&path)
         .with_context(|| format!("Failed to create db dir at {}", path.display()))?;
 

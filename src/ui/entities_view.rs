@@ -9,9 +9,10 @@ use crate::{
     date_time,
     date_time_range::DateTimeRange,
     entity::Entity,
-    entity_data::{EntityDataField, EntityDataFieldTy, ValidEntityFields},
+    entity_data::{EntityDataField, EntityDataFieldTy},
     entity_expiration::{EntityExpiration, EntityExpirationEntityExt},
     entity_id::EntityId,
+    entity_kind::EntityKind,
     entity_list::EntityList,
     fuzzy_filter::FuzzyFilter,
     list_model_enum,
@@ -32,6 +33,11 @@ struct S;
 
 impl S {
     const IS: &str = "is";
+
+    const ENTITY_KIND_VALUES: &[&str] = &[Self::PERSON, Self::VEHICLE, Self::ITEM];
+    const PERSON: &str = "person";
+    const VEHICLE: &str = "vehicle";
+    const ITEM: &str = "item";
 
     const ENTITY_ZONE_VALUES: &[&str] = &[Self::INSIDE, Self::OUTSIDE];
     const INSIDE: &str = "inside";
@@ -78,6 +84,37 @@ impl S {
     const STOCK_DESC: &str = "stock-desc";
     const UPDATED_ASC: &str = "updated-asc";
     const UPDATED_DESC: &str = "updated-desc";
+}
+
+#[derive(Debug, Clone, Copy, glib::Enum)]
+#[enum_type(name = "UetsEntityKindFilter")]
+enum EntityKindFilter {
+    All,
+    Person,
+    Vehicle,
+    Item,
+}
+
+list_model_enum!(EntityKindFilter);
+
+impl EntityKindFilter {
+    fn display(&self) -> &'static str {
+        match self {
+            Self::All => "All",
+            Self::Person => "Person",
+            Self::Vehicle => "Vehicle",
+            Self::Item => "Item",
+        }
+    }
+
+    fn entity_kind(&self) -> Option<EntityKind> {
+        match self {
+            Self::All => None,
+            Self::Person => Some(EntityKind::Person),
+            Self::Vehicle => Some(EntityKind::Vehicle),
+            Self::Item => Some(EntityKind::Item),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, glib::Enum)]
@@ -187,6 +224,8 @@ mod imp {
         #[template_child]
         pub(super) search_entry: TemplateChild<SearchEntry>,
         #[template_child]
+        pub(super) entity_kind_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
         pub(super) entity_zone_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
         pub(super) entity_overstayed_dropdown: TemplateChild<gtk::DropDown>,
@@ -213,6 +252,7 @@ mod imp {
 
         pub(super) dt_range: RefCell<DateTimeRange>,
 
+        pub(super) entity_kind_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) entity_zone_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) entity_overstayed_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
         pub(super) entity_expiration_dropdown_selected_item_id: OnceCell<glib::SignalHandlerId>,
@@ -266,17 +306,6 @@ mod imp {
 
             let obj = self.obj();
 
-            Application::get()
-                .settings()
-                .connect_operation_mode_changed(clone!(
-                    #[weak]
-                    obj,
-                    move |_| {
-                        obj.update_entity_expiration_dropdown_visibility();
-                        obj.update_entity_sex_dropdown_visibility();
-                    }
-                ));
-
             self.search_entry.connect_search_changed(clone!(
                 #[weak]
                 obj,
@@ -284,6 +313,30 @@ mod imp {
                     obj.handle_search_entry_search_changed(entry);
                 }
             ));
+
+            self.entity_kind_dropdown
+                .set_expression(Some(&gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|list_item: adw::EnumListItem| {
+                        EntityKindFilter::try_from(list_item.value())
+                            .unwrap()
+                            .display()
+                    }),
+                )));
+            self.entity_kind_dropdown
+                .set_model(Some(&EntityKindFilter::new_model()));
+            let entity_kind_dropdown_selected_item_notify_id = self
+                .entity_kind_dropdown
+                .connect_selected_item_notify(clone!(
+                    #[weak]
+                    obj,
+                    move |dropdown| {
+                        obj.handle_entity_kind_dropdown_selected_item_notify(dropdown);
+                    }
+                ));
+            self.entity_kind_dropdown_selected_item_id
+                .set(entity_kind_dropdown_selected_item_notify_id)
+                .unwrap();
 
             self.entity_zone_dropdown
                 .set_expression(Some(&adw::EnumListItem::this_expression("name")));
@@ -459,6 +512,13 @@ mod imp {
                     let entity = details_pane.entity().expect("entity must exist");
                     let stock_id = entity.stock_id().expect("stock must exist");
                     obj.emit_by_name::<()>("show-stock-request", &[&stock_id]);
+                }
+            ));
+            self.details_pane.connect_show_other_entity_request(clone!(
+                #[weak]
+                obj,
+                move |_, entity_id| {
+                    obj.show_entity(entity_id);
                 }
             ));
             self.details_pane.connect_show_timeline_request(clone!(
@@ -638,17 +698,16 @@ impl EntitiesView {
             .map(|o| o.unwrap().downcast::<Entity>().unwrap())
             .collect::<Vec<_>>();
 
-        let operation_mode = Application::get().settings().operation_mode();
-        let valid_entity_field_tys = ValidEntityFields::for_operation_mode(operation_mode)
+        let entity_field_tys = EntityDataFieldTy::all()
             .iter()
-            .filter(|field_ty| !matches!(field_ty, EntityDataFieldTy::Photo))
+            .filter(|field_ty| !matches!(field_ty, EntityDataFieldTy::Photo)) // TODO Add photos on report
             .collect::<Vec<_>>();
 
         let mut table = report_table::builder("Entities")
             .column("ID")
             .column("Status")
             .rows(entities.iter().map(|entity| {
-                let status_text = entity.status_text(&imp.dt_range.borrow(), operation_mode);
+                let status_text = entity.status_text(&imp.dt_range.borrow());
 
                 let mut cells = report_table::row_builder()
                     .cell(entity.id().to_string())
@@ -656,11 +715,13 @@ impl EntitiesView {
                     .build();
 
                 let data = entity.data();
-                for field_ty in &valid_entity_field_tys {
-                    match data.get(*field_ty) {
+                for field_ty in &entity_field_tys {
+                    match data.get(**field_ty) {
                         Some(field) => {
                             let string = match field {
+                                EntityDataField::Kind(k) => k.to_string(),
                                 EntityDataField::StockId(i) => i.to_string(),
+                                EntityDataField::Possessor(p) => p.to_string(),
                                 EntityDataField::Location(l) => l.to_owned(),
                                 EntityDataField::ExpirationDt(dt) => {
                                     date_time::format::human_readable_date(*dt)
@@ -687,7 +748,7 @@ impl EntitiesView {
             }))
             .build();
 
-        for field_ty in valid_entity_field_tys {
+        for field_ty in entity_field_tys {
             table.columns.push(field_ty.to_string());
         }
 
@@ -714,6 +775,22 @@ impl EntitiesView {
         let imp = self.imp();
 
         let queries = entry.queries();
+
+        let entity_kind = match queries.find_last_with_values(S::IS, S::ENTITY_KIND_VALUES) {
+            Some(S::PERSON) => EntityKindFilter::Person,
+            Some(S::VEHICLE) => EntityKindFilter::Vehicle,
+            Some(S::ITEM) => EntityKindFilter::Item,
+            None => EntityKindFilter::All,
+            Some(_) => unreachable!(),
+        };
+
+        let selected_item_notify_id = imp.entity_kind_dropdown_selected_item_id.get().unwrap();
+        imp.entity_kind_dropdown
+            .block_signal(selected_item_notify_id);
+        imp.entity_kind_dropdown
+            .set_selected(entity_kind.model_position());
+        imp.entity_kind_dropdown
+            .unblock_signal(selected_item_notify_id);
 
         let entity_zone = match queries.find_last_with_values(S::IS, S::ENTITY_ZONE_VALUES) {
             Some(S::INSIDE) => EntityZoneFilter::Inside,
@@ -814,6 +891,25 @@ impl EntitiesView {
                 .join(" "),
         );
         every_filter.append(fuzzy_filter.clone());
+
+        match entity_kind {
+            EntityKindFilter::All => {}
+            EntityKindFilter::Person => {
+                every_filter.append(new_filter(|entity: &Entity| {
+                    entity.data().kind() == EntityKind::Person
+                }));
+            }
+            EntityKindFilter::Vehicle => {
+                every_filter.append(new_filter(|entity: &Entity| {
+                    entity.data().kind() == EntityKind::Vehicle
+                }));
+            }
+            EntityKindFilter::Item => {
+                every_filter.append(new_filter(|entity: &Entity| {
+                    entity.data().kind() == EntityKind::Item
+                }));
+            }
+        }
 
         match entity_zone {
             EntityZoneFilter::All => {}
@@ -929,6 +1025,52 @@ impl EntitiesView {
         }
 
         imp.search_entry.set_queries(queries);
+    }
+
+    fn handle_entity_kind_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
+        let imp = self.imp();
+
+        let selected_item = dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+        let entity_kind_filter = EntityKindFilter::try_from(selected_item.value()).unwrap();
+
+        let mut queries = imp.search_entry.queries();
+
+        match entity_kind_filter {
+            EntityKindFilter::All => {
+                queries.remove_all(S::IS, S::ENTITY_KIND_VALUES);
+            }
+            EntityKindFilter::Person => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_KIND_VALUES, S::PERSON);
+            }
+            EntityKindFilter::Vehicle => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_KIND_VALUES, S::VEHICLE);
+            }
+            EntityKindFilter::Item => {
+                queries.replace_all_or_insert(S::IS, S::ENTITY_KIND_VALUES, S::ITEM);
+            }
+        }
+
+        if entity_kind_filter.entity_kind().is_some_and(|kind| {
+            !kind.is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt)
+        }) {
+            queries.remove_all(S::IS, S::ENTITY_EXPIRATION_VALUES);
+        }
+
+        if entity_kind_filter
+            .entity_kind()
+            .is_some_and(|kind| !kind.is_valid_entity_data_field_ty(EntityDataFieldTy::Sex))
+        {
+            queries.remove_all(S::IS, S::ENTITY_SEX_VALUES);
+        }
+
+        imp.search_entry.set_queries(queries);
+
+        self.update_entity_expiration_dropdown_visibility();
+        self.update_entity_sex_dropdown_visibility();
     }
 
     fn handle_entity_zone_dropdown_selected_item_notify(&self, dropdown: &gtk::DropDown) {
@@ -1114,21 +1256,37 @@ impl EntitiesView {
     fn update_entity_expiration_dropdown_visibility(&self) {
         let imp = self.imp();
 
-        let is_visible = Application::get()
-            .settings()
-            .operation_mode()
-            .is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt);
-        imp.entity_expiration_dropdown.set_visible(is_visible);
+        let selected_item = imp
+            .entity_kind_dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+        imp.entity_expiration_dropdown.set_visible(
+            EntityKindFilter::try_from(selected_item.value())
+                .unwrap()
+                .entity_kind()
+                .is_none_or(|kind| {
+                    kind.is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt)
+                }),
+        );
     }
 
     fn update_entity_sex_dropdown_visibility(&self) {
         let imp = self.imp();
 
-        let is_visible = Application::get()
-            .settings()
-            .operation_mode()
-            .is_valid_entity_data_field_ty(EntityDataFieldTy::Sex);
-        imp.entity_sex_dropdown.set_visible(is_visible);
+        let selected_item = imp
+            .entity_kind_dropdown
+            .selected_item()
+            .unwrap()
+            .downcast::<adw::EnumListItem>()
+            .unwrap();
+        imp.entity_sex_dropdown.set_visible(
+            EntityKindFilter::try_from(selected_item.value())
+                .unwrap()
+                .entity_kind()
+                .is_none_or(|kind| kind.is_valid_entity_data_field_ty(EntityDataFieldTy::Sex)),
+        );
     }
 
     fn update_stack(&self) {
@@ -1146,9 +1304,9 @@ impl EntitiesView {
 
         let n_total = imp.selection_model.n_items();
         let text = if imp.search_entry.queries().is_empty() {
-            format!("Total: {}", n_total)
+            format!("Total: {n_total}")
         } else {
-            format!("Results: {}", n_total)
+            format!("Results: {n_total}")
         };
 
         imp.n_results_label.set_text(&text);

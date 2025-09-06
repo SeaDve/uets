@@ -7,13 +7,11 @@ use inflections::case;
 
 use crate::{
     ai_chat_message_list::AiChatMessageList,
-    date_time,
+    config, date_time,
     date_time_range::DateTimeRange,
-    entity_data::EntityDataFieldTy,
     entity_id::EntityId,
     limit_reached::{LimitReached, LimitReachedLabelExt, LimitReachedSettingsExt},
     report::ReportKind,
-    settings::OperationMode,
     stock_id::StockId,
     timeline_item_kind::TimelineItemKind,
     ui::{
@@ -45,7 +43,7 @@ Take note of the following instructions:
 - Use markdown format for the response.
 - Use short sentences and avoid long paragraphs, breakdown into bullet points for each information.
 - All given csv data are connected to each other, so make sure to consider all of them.
-- Don't refer to the entity as "entities", refer to them as "people", "item", "foods", "vehicles", "animals", or "objects", depending on the context or operation mode.
+- Don't refer to the entity as "entities", refer to them as "people/person", "item", "foods", "vehicles", or "objects", depending on that entity's kind.
 - When mentioning any entity ids or stock ids, always make them a link via markdown format: `<a href="entity:entity_id">entity_id</a>` or `<a href="stock:stock_id">stock_id</a>`.
 - If the user asked about what can you do, provide a list of suggestions that you can do and always make them a link via markdown format: `<a href="suggestion:suggestion_in_snake_case">Suggestion in sentence case</a>`.
 "#;
@@ -75,8 +73,6 @@ mod imp {
         #[template_child]
         pub(super) page: TemplateChild<adw::PreferencesPage>, // Unused
         #[template_child]
-        pub(super) n_inside_title_label: TemplateChild<gtk::Label>,
-        #[template_child]
         pub(super) n_inside_label: TemplateChild<gtk::Label>,
         #[template_child]
         pub(super) max_n_inside_row: TemplateChild<InformationRow>,
@@ -96,6 +92,8 @@ mod imp {
         pub(super) n_upper_limit_reached_stocks_row: TemplateChild<InformationRow>,
         #[template_child]
         pub(super) n_expired_entities_row: TemplateChild<InformationRow>,
+        #[template_child]
+        pub(super) show_ai_chat_dialog_row: TemplateChild<adw::ActionRow>,
         #[template_child]
         pub(super) n_inside_graph: TemplateChild<TimeGraph>,
         #[template_child]
@@ -164,8 +162,14 @@ mod imp {
                 |obj, _, _| {
                     let dialog = CameraLiveFeedDialog::new();
 
-                    let camera = Application::get().camera().clone();
-                    dialog.set_camera(Some(camera));
+                    let app = Application::get();
+                    let mut cameras = vec![("Main".to_string(), app.camera().clone())];
+                    cameras.extend(app.detectors().iter().filter_map(|detector| {
+                        detector
+                            .camera()
+                            .map(|camera| (detector.name().to_string(), camera.clone()))
+                    }));
+                    dialog.set_cameras(cameras);
 
                     dialog.present(Some(obj));
                 },
@@ -221,14 +225,8 @@ mod imp {
                     .await;
 
                     let settings = app.settings();
-                    let operation_mode = settings.operation_mode();
                     let instruction = vec![
                         Some(AI_CHAT_SYSTEM_INSTRUCTION.to_string()),
-                        Some(format!(
-                            "For addition context, the system is now currently operating as {} ({}),",
-                            operation_mode,
-                            operation_mode.description()
-                        )),
                         Some(format!(
                             "The lower and upper limit reached thresholds are now {} and {}, respectively.",
                             settings.lower_limit_reached_threshold(),
@@ -240,29 +238,21 @@ mod imp {
                         ),
                         csv_bytes_res_to_string("Timeline Data", timeline_csv),
                         csv_bytes_res_to_string("Entities Data", entities_csv),
-                        operation_mode
-                            .is_valid_entity_data_field_ty(EntityDataFieldTy::StockId)
-                            .then(|| csv_bytes_res_to_string("Stocks Data", stocks_csv))
-                            .flatten(),
+                        csv_bytes_res_to_string("Stocks Data", stocks_csv),
                     ];
 
-                    let mut suggestions = vec![
+                    let suggestions = vec![
                         "What can you do?",
                         "Summarize all data",
                         "Provide useful insights",
                         "Provide current data trends",
                         "Predict future trends",
+                        "Suggest snacks I can eat based on stocks",
+                        "Suggest recipes I can make based on stocks",
+                        "Which should now be consumed or disposed immediately?",
+                        "Provide suggestions on replenishments",
+                        "Provide suggestions on stock management",
                     ];
-                    if operation_mode == OperationMode::Refrigerator {
-                        suggestions.push("Suggest snacks I can eat based on stocks");
-                        suggestions.push("Suggest recipes I can make based on stocks");
-                        suggestions.push("Which should now be consumed or disposed immediately?");
-                    }
-                    if operation_mode.is_valid_entity_data_field_ty(EntityDataFieldTy::StockId) {
-                        suggestions.push("Provide suggestions on replenishments");
-                        suggestions.push("Provide suggestions on stock management");
-                    }
-
                     let dialog = AiChatDialog::new(
                         &imp.ai_chat_message_list,
                         Some(
@@ -283,12 +273,16 @@ mod imp {
                             match uri.split_once(":") {
                                 Some(("entity", raw_id)) => {
                                     let entity_id = EntityId::new(raw_id);
-                                    obj.emit_show_request(DashboardViewShowRequest::Entity(entity_id));
+                                    obj.emit_show_request(DashboardViewShowRequest::Entity(
+                                        entity_id,
+                                    ));
                                     glib::Propagation::Stop
                                 }
                                 Some(("stock", raw_id)) => {
                                     let stock_id = StockId::new(raw_id);
-                                    obj.emit_show_request(DashboardViewShowRequest::Stock(stock_id));
+                                    obj.emit_show_request(DashboardViewShowRequest::Stock(
+                                        stock_id,
+                                    ));
                                     glib::Propagation::Stop
                                 }
                                 Some(("suggestion", raw_suggestion)) => {
@@ -352,15 +346,6 @@ mod imp {
             let app = Application::get();
 
             let settings = app.settings();
-            settings.connect_operation_mode_changed(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.update_n_inside_title_label();
-                    obj.update_n_limit_reached_stocks_rows_visibility();
-                    obj.update_n_expired_entities_row_visibility();
-                }
-            ));
             settings.connect_limit_reached_threshold_changed(clone!(
                 #[weak]
                 obj,
@@ -458,7 +443,6 @@ mod imp {
                 ));
 
             obj.update_graphs_data();
-            obj.update_n_inside_title_label();
             obj.update_n_inside_label();
             obj.update_max_n_inside_row();
             obj.update_n_entries_label();
@@ -468,9 +452,10 @@ mod imp {
             obj.update_n_overstayed_entities_row();
             obj.update_n_lower_limit_reached_stocks_row();
             obj.update_n_upper_limit_reached_stocks_row();
-            obj.update_n_limit_reached_stocks_rows_visibility();
             obj.update_n_expired_entities_row();
-            obj.update_n_expired_entities_row_visibility();
+
+            self.show_ai_chat_dialog_row
+                .set_visible(!config::ai_chat_api_key().is_empty());
         }
 
         fn dispose(&self) {
@@ -548,14 +533,6 @@ impl DashboardView {
             .map(|item| (item.dt(), timeline.n_exits_for_dt(item.dt())))
             .collect::<Vec<_>>();
         imp.n_exits_graph.set_data(data);
-    }
-
-    fn update_n_inside_title_label(&self) {
-        let imp = self.imp();
-
-        let operation_mode = Application::get().settings().operation_mode();
-        imp.n_inside_title_label
-            .set_text(operation_mode.n_inside_term());
     }
 
     fn update_n_inside_label(&self) {
@@ -644,17 +621,6 @@ impl DashboardView {
             .set_text(n_upper_limit_reached.to_string());
     }
 
-    fn update_n_limit_reached_stocks_rows_visibility(&self) {
-        let imp = self.imp();
-
-        let is_visible = Application::get()
-            .settings()
-            .operation_mode()
-            .is_valid_entity_data_field_ty(EntityDataFieldTy::StockId);
-        imp.n_lower_limit_reached_stocks_row.set_visible(is_visible);
-        imp.n_upper_limit_reached_stocks_row.set_visible(is_visible);
-    }
-
     fn update_n_expired_entities_row(&self) {
         let imp = self.imp();
 
@@ -663,16 +629,6 @@ impl DashboardView {
             .entity_expired_tracker()
             .n_expired();
         imp.n_expired_entities_row.set_text(n_expired.to_string());
-    }
-
-    fn update_n_expired_entities_row_visibility(&self) {
-        let imp = self.imp();
-
-        let is_visible = Application::get()
-            .settings()
-            .operation_mode()
-            .is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt);
-        imp.n_expired_entities_row.set_visible(is_visible);
     }
 }
 

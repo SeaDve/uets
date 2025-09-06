@@ -74,13 +74,6 @@ mod imp {
 
             let app = Application::get();
 
-            app.settings().connect_operation_mode_changed(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.update_avatar_icon_name();
-                }
-            ));
             app.settings()
                 .connect_limit_reached_threshold_changed(clone!(
                     #[weak]
@@ -91,7 +84,6 @@ mod imp {
                 ));
 
             obj.update_n_inside_label();
-            obj.update_avatar_icon_name();
         }
 
         fn dispose(&self) {
@@ -154,16 +146,5 @@ impl StockRow {
         } else {
             imp.n_inside_label.set_text("");
         }
-    }
-
-    fn update_avatar_icon_name(&self) {
-        let imp = self.imp();
-
-        imp.avatar.set_icon_name(
-            Application::get()
-                .settings()
-                .operation_mode()
-                .stocks_view_icon_name(),
-        );
     }
 }

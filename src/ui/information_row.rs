@@ -66,7 +66,7 @@ mod imp {
 
 glib::wrapper! {
     pub struct InformationRow(ObjectSubclass<imp::InformationRow>)
-        @extends gtk::Widget, adw::PreferencesRow, adw::ActionRow;
+        @extends gtk::Widget, gtk::ListBoxRow, adw::PreferencesRow, adw::ActionRow;
 }
 
 impl InformationRow {

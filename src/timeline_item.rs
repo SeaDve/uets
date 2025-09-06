@@ -1,7 +1,9 @@
 use chrono::{DateTime, TimeDelta, Utc};
 use gtk::{glib, subclass::prelude::*};
 
-use crate::{db, entity_id::EntityId, timeline_item_kind::TimelineItemKind};
+use crate::{
+    db, entity_data::EntityData, entity_id::EntityId, timeline_item_kind::TimelineItemKind,
+};
 
 mod imp {
     use std::cell::OnceCell;
@@ -15,6 +17,7 @@ mod imp {
         pub(super) dt: OnceCell<DateTime<Utc>>,
         pub(super) kind: OnceCell<TimelineItemKind>,
         pub(super) entity_id: OnceCell<EntityId>,
+        pub(super) entity_data: OnceCell<EntityData>,
 
         pub(super) pair: WeakRef<super::TimelineItem>,
     }
@@ -33,13 +36,19 @@ glib::wrapper! {
 }
 
 impl TimelineItem {
-    pub fn new(dt: DateTime<Utc>, kind: TimelineItemKind, entity_id: EntityId) -> Self {
+    pub fn new(
+        dt: DateTime<Utc>,
+        kind: TimelineItemKind,
+        entity_id: EntityId,
+        entity_data: EntityData,
+    ) -> Self {
         let this = glib::Object::new::<Self>();
 
         let imp = this.imp();
         imp.dt.set(dt).unwrap();
         imp.kind.set(kind).unwrap();
         imp.entity_id.set(entity_id).unwrap();
+        imp.entity_data.set(entity_data).unwrap();
 
         this
     }
@@ -50,13 +59,14 @@ impl TimelineItem {
         } else {
             TimelineItemKind::Exit
         };
-        Self::new(dt, kind, raw.entity_id)
+        Self::new(dt, kind, raw.entity_id, raw.entity_data)
     }
 
     pub fn to_db(&self) -> db::RawTimelineItem {
         db::RawTimelineItem {
             is_entry: self.kind().is_entry(),
             entity_id: self.entity_id().clone(),
+            entity_data: self.entity_data().clone(),
         }
     }
 
@@ -70,6 +80,10 @@ impl TimelineItem {
 
     pub fn entity_id(&self) -> &EntityId {
         self.imp().entity_id.get().unwrap()
+    }
+
+    pub fn entity_data(&self) -> &EntityData {
+        self.imp().entity_data.get().unwrap()
     }
 
     pub fn pair(&self) -> Option<TimelineItem> {

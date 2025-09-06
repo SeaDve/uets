@@ -1,3 +1,5 @@
+use std::iter;
+
 use adw::{prelude::*, subclass::prelude::*};
 use anyhow::Result;
 use futures_channel::oneshot;
@@ -14,15 +16,14 @@ use crate::{
     detected_wo_id_item::DetectedWoIdItem,
     detected_wo_id_list::DetectedWoIdList,
     detector::Detector,
-    entity::Entity,
-    entity_data::EntityData,
+    entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_entry_tracker::EntityIdSet,
     entity_id::EntityId,
+    entity_kind::EntityKind,
     jpeg_image::JpegImage,
     limit_reached::{LimitReached, LimitReachedSettingsExt},
     relay::{Relay, RelayState},
-    rfid_reader::RfidReader,
-    settings::{OperationMode, Settings},
+    settings::Settings,
     sound::Sound,
     timeline::Timeline,
     timeline_item_kind::TimelineItemKind,
@@ -31,7 +32,7 @@ use crate::{
 };
 
 mod imp {
-    use std::cell::OnceCell;
+    use std::cell::{OnceCell, RefCell};
 
     use super::*;
 
@@ -42,9 +43,7 @@ mod imp {
         pub(super) date_time_updater: DateTimeUpdater,
 
         pub(super) camera: OnceCell<Camera>,
-        pub(super) rfid_reader: OnceCell<RfidReader>,
-        pub(super) detector: Detector,
-
+        pub(super) detectors: RefCell<Vec<(Detector, Vec<glib::SignalHandlerId>)>>,
         pub(super) relay: OnceCell<Relay>,
 
         pub(super) env: OnceCell<heed::Env>,
@@ -104,6 +103,16 @@ mod imp {
                     }
                 ));
 
+            self.settings.connect_detector_config_changed(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    if let Err(err) = obj.reconfigure_detectors() {
+                        tracing::error!("Failed to reconfigure detectors: {:?}", err);
+                    }
+                }
+            ));
+
             self.settings.connect_camera_ip_addr_changed(clone!(
                 #[weak]
                 obj,
@@ -114,20 +123,6 @@ mod imp {
                     }
                 }
             ));
-            self.settings.connect_aux_camera_ip_addrs_changed(clone!(
-                #[weak]
-                obj,
-                move |settings| {
-                    obj.detector().unbind_aux_cameras();
-
-                    let cameras = settings
-                        .aux_camera_ip_addrs()
-                        .into_iter()
-                        .map(Camera::new)
-                        .collect::<Vec<_>>();
-                    obj.detector().bind_aux_cameras(&cameras);
-                }
-            ));
             self.settings.connect_relay_ip_addr_changed(clone!(
                 #[weak]
                 obj,
@@ -136,20 +131,13 @@ mod imp {
                     obj.relay().set_ip_addr(ip_addr);
                 }
             ));
-            self.settings.connect_rfid_reader_ip_addr_changed(clone!(
-                #[weak]
-                obj,
-                move |settings| {
-                    let ip_addr = settings.rfid_reader_ip_addr();
-                    obj.rfid_reader().set_ip_addr(ip_addr);
-                }
-            ));
             self.settings.connect_enable_detection_wo_id_changed(clone!(
                 #[weak]
                 obj,
                 move |settings| {
-                    obj.detector()
-                        .set_enable_detection_wo_id(settings.enable_detection_wo_id());
+                    for detector in obj.detectors() {
+                        detector.set_enable_detection_wo_id(settings.enable_detection_wo_id());
+                    }
                 }
             ));
             self.settings.connect_enable_n_inside_hook_changed(clone!(
@@ -170,55 +158,6 @@ mod imp {
 
             let camera = Camera::new(self.settings.camera_ip_addr());
             self.camera.set(camera).unwrap();
-
-            let aux_cameras = self
-                .settings
-                .aux_camera_ip_addrs()
-                .into_iter()
-                .filter(|ip_addr| !ip_addr.is_empty())
-                .map(Camera::new)
-                .collect::<Vec<_>>();
-
-            let rfid_reader = RfidReader::new(self.settings.rfid_reader_ip_addr());
-            self.rfid_reader.set(rfid_reader).unwrap();
-
-            self.detector.bind_camera(obj.camera());
-            self.detector.bind_aux_cameras(&aux_cameras);
-            self.detector.bind_rfid_reader(obj.rfid_reader());
-
-            self.detector
-                .set_enable_detection_wo_id(self.settings.enable_detection_wo_id());
-            self.detector.connect_detected(clone!(
-                #[weak]
-                obj,
-                move |_, entity_id, entity_data| {
-                    glib::spawn_future_local(clone!(
-                        #[strong]
-                        entity_id,
-                        #[strong]
-                        entity_data,
-                        async move {
-                            obj.handle_detected(&entity_id, entity_data).await;
-                        }
-                    ));
-                }
-            ));
-            self.detector.connect_detected_invalid(clone!(
-                #[weak]
-                obj,
-                move |_, code| {
-                    obj.handle_detected_invalid(code);
-                }
-            ));
-            self.detector.connect_detected_wo_id(clone!(
-                #[weak]
-                obj,
-                move |_, dt, image| {
-                    if let Err(err) = obj.handle_detected_wo_id(dt, image) {
-                        tracing::error!("Failed to handle detected wo id: {:?}", err);
-                    }
-                }
-            ));
 
             let relay = Relay::new(self.settings.relay_ip_addr());
             self.relay.set(relay).unwrap();
@@ -264,7 +203,7 @@ mod imp {
 
                                 obj.add_message_toast(&format!(
                                     "“{}” overstayed",
-                                    id_or_name(&entity)
+                                    entity.name_or_id_display()
                                 ));
                             }
                             [id1, id2] => {
@@ -281,8 +220,8 @@ mod imp {
 
                                 obj.add_message_toast(&format!(
                                     "“{}” and “{}” overstayed",
-                                    id_or_name(&entity1),
-                                    id_or_name(&entity2),
+                                    entity1.name_or_id_display(),
+                                    entity2.name_or_id_display(),
                                 ));
                             }
                             ids => {
@@ -302,19 +241,19 @@ mod imp {
 
             obj.alert_if_limit_reached();
 
+            if let Err(err) = obj.reconfigure_detectors() {
+                tracing::error!("Failed to reconfigure detectors: {:?}", err);
+            }
+
             obj.update_relay_state();
         }
 
         fn shutdown(&self) {
-            let obj = self.obj();
-
             if let Some(env) = self.env.get() {
                 if let Err(err) = env.force_sync() {
                     tracing::error!("Failed to sync db env on shutdown: {:?}", err);
                 }
             }
-
-            obj.camera().stop();
 
             tracing::info!("Shutting down");
 
@@ -361,12 +300,13 @@ impl Application {
         self.imp().camera.get().unwrap()
     }
 
-    pub fn rfid_reader(&self) -> &RfidReader {
-        self.imp().rfid_reader.get().unwrap()
-    }
-
-    pub fn detector(&self) -> &Detector {
-        &self.imp().detector
+    pub fn detectors(&self) -> Vec<Detector> {
+        self.imp()
+            .detectors
+            .borrow()
+            .iter()
+            .map(|(d, _)| d.clone())
+            .collect()
     }
 
     pub fn relay(&self) -> &Relay {
@@ -385,6 +325,13 @@ impl Application {
         self.imp().detected_wo_id_list.get().unwrap()
     }
 
+    pub fn window(&self) -> Window {
+        self.windows()
+            .into_iter()
+            .find_map(|w| w.downcast::<Window>().ok())
+            .unwrap_or_else(|| Window::new(self))
+    }
+
     pub fn present_test_window(&self) {
         TestWindow::new(self).present();
     }
@@ -401,11 +348,79 @@ impl Application {
         self.window().remove_message_toast_with_id(id);
     }
 
-    pub fn window(&self) -> Window {
-        self.windows()
-            .into_iter()
-            .find_map(|w| w.downcast::<Window>().ok())
-            .unwrap_or_else(|| Window::new(self))
+    pub async fn simulate_detected(
+        &self,
+        detector: &Detector,
+        entity_id: &EntityId,
+        entity_data_fields: Vec<EntityDataField>,
+    ) -> Option<String> {
+        self.handle_detected(detector, entity_id, entity_data_fields)
+            .await
+    }
+
+    pub fn reconfigure_detectors(&self) -> Result<()> {
+        let imp = self.imp();
+
+        let settings = self.settings();
+
+        for (detector, handler_ids) in imp.detectors.take() {
+            for handler_id in handler_ids {
+                detector.disconnect(handler_id);
+            }
+        }
+
+        for config in settings.detector_config_parsed()? {
+            let detector = Detector::new(config, self.timeline());
+            detector.set_enable_detection_wo_id(settings.enable_detection_wo_id());
+
+            let handler_ids = vec![
+                detector.connect_detected(clone!(
+                    #[weak(rename_to = obj)]
+                    self,
+                    move |detector, entity_id, entity_data_fields_boxed| {
+                        let entity_data_fields = entity_data_fields_boxed.0.clone();
+                        glib::spawn_future_local(clone!(
+                            #[weak]
+                            obj,
+                            #[weak]
+                            detector,
+                            #[strong]
+                            entity_id,
+                            async move {
+                                if let Some(message) = obj
+                                    .handle_detected(&detector, &entity_id, entity_data_fields)
+                                    .await
+                                {
+                                    if let Err(err) = detector.return_message(&message).await {
+                                        tracing::error!("Failed to return message: {:?}", err);
+                                    }
+                                }
+                            }
+                        ));
+                    }
+                )),
+                detector.connect_detected_invalid(clone!(
+                    #[weak(rename_to = obj)]
+                    self,
+                    move |detector, code| {
+                        obj.handle_detected_invalid(detector, code);
+                    }
+                )),
+                detector.connect_detected_wo_id(clone!(
+                    #[weak(rename_to = obj)]
+                    self,
+                    move |detector, dt, image| {
+                        if let Err(err) = obj.handle_detected_wo_id(detector, dt, image) {
+                            tracing::error!("Failed to handle detected wo id: {:?}", err);
+                        }
+                    }
+                )),
+            ];
+
+            imp.detectors.borrow_mut().push((detector, handler_ids));
+        }
+
+        Ok(())
     }
 
     fn alert_if_limit_reached(&self) {
@@ -428,124 +443,179 @@ impl Application {
         }
     }
 
-    async fn handle_detected(&self, entity_id: &EntityId, entity_data: Option<EntityData>) {
+    async fn handle_detected(
+        &self,
+        detector: &Detector,
+        detected_entity_id: &EntityId,
+        detected_entity_data_fields: Vec<EntityDataField>,
+    ) -> Option<String> {
         let timeline = self.timeline();
-        let operation_mode = self.settings().operation_mode();
 
-        let data = if let Some(data) = entity_data {
-            tracing::debug!("Using entity data from detector");
+        let entity_data = match timeline.entity_list().get(detected_entity_id) {
+            Some(entity) => {
+                tracing::debug!("Retrieved entity data from timeline");
 
-            data
-        } else if let Some(entity) = timeline.entity_list().get(entity_id) {
-            tracing::debug!("Retrieved entity data from timeline");
+                entity.data().clone().extended(detected_entity_data_fields)
+            }
+            None if !detected_entity_data_fields.is_empty() => {
+                tracing::debug!("Using entity data from detector");
 
-            entity.data().clone()
-        } else if operation_mode != OperationMode::Counter {
-            tracing::debug!("Gathering entity data from user");
+                if detected_entity_data_fields
+                    .iter()
+                    .any(|f| f.ty() == EntityDataFieldTy::Kind)
+                {
+                    EntityData::from_fields(detected_entity_data_fields)
+                } else {
+                    tracing::debug!("Detected entity data has no `kind` field; using default kind");
 
-            match EntityDataDialog::gather_data(
-                entity_id,
-                &EntityData::new(),
-                [],
-                Some(&self.window()),
-            )
-            .await
-            {
-                Ok(data) => data,
-                Err(oneshot::Canceled) => {
-                    tracing::debug!("Gathering entity data was canceled; ignoring detected entity");
-                    return;
+                    EntityData::from_fields(
+                        detected_entity_data_fields
+                            .into_iter()
+                            .chain(iter::once(EntityDataField::Kind(EntityKind::default()))),
+                    )
                 }
             }
-        } else {
-            tracing::debug!("Using empty entity data for counter mode");
+            None => {
+                tracing::debug!("Gathering entity data from user");
 
-            EntityData::new()
+                match EntityDataDialog::gather_data(
+                    detected_entity_id,
+                    &EntityData::from_fields([EntityDataField::Kind(EntityKind::default())]),
+                    [],
+                    Some(&self.window()),
+                )
+                .await
+                {
+                    Ok(data) => data.extended(detected_entity_data_fields),
+                    Err(oneshot::Canceled) => {
+                        tracing::debug!(
+                            "Gathering entity data was canceled; ignoring detected entity"
+                        );
+                        return None;
+                    }
+                }
+            }
         };
 
-        tracing::debug!(?data, "Handling detected entity `{}`", entity_id);
+        tracing::debug!(
+            ?entity_data,
+            "Handling detected entity `{}`",
+            detected_entity_id
+        );
 
-        // TODO If the mode is inventory or refrigerator, don't handle the detected entity
+        // TODO If the mode is inventory, don't handle the detected entity
         // if it doesn't have a stock id.
-        let entity_name = data.name().cloned();
-        match timeline.handle_detected(entity_id, data) {
+        match timeline.handle_detected(detector, detected_entity_id, entity_data) {
             Ok(item) => {
-                match item.kind() {
-                    TimelineItemKind::Entry => {
-                        let message = match entity_name {
-                            Some(name) if operation_mode.is_for_person() => {
-                                format!("Welcome, {}!", name)
-                            }
-                            Some(name) => {
-                                format!("{name} {}", operation_mode.enter_verb())
-                            }
-                            None => {
-                                format!("{entity_id} {}", operation_mode.enter_verb())
-                            }
+                let entity_name = item.entity_data().name();
+                let entity_kind = item.entity_data().kind();
+                let entity_possessor_display =
+                    item.entity_data().possessor().and_then(|possessor| {
+                        let Some(possessor_entity) = self.timeline().entity_list().get(possessor)
+                        else {
+                            tracing::warn!("Possessor `{}` not found in timeline", possessor);
+                            return None;
                         };
-                        self.add_message_toast_with_id(ToastId::Detected, &message);
-                    }
-                    TimelineItemKind::Exit => {
-                        let message = match entity_name {
-                            Some(name) if operation_mode.is_for_person() => {
-                                format!("Goodbye, {}!", name)
-                            }
-                            Some(name) => {
-                                format!("{name} {}", operation_mode.exit_verb())
-                            }
-                            None => {
-                                format!("{entity_id} {}", operation_mode.exit_verb())
-                            }
-                        };
-                        self.add_message_toast_with_id(ToastId::Detected, &message);
-                    }
-                }
+                        Some(possessor_entity.name_or_id_display())
+                    });
 
-                let entity = timeline
-                    .entity_list()
-                    .get(item.entity_id())
-                    .expect("entity must exist");
+                let welcome_message = match item.kind() {
+                    TimelineItemKind::Entry => match entity_name {
+                        Some(name) if entity_kind == EntityKind::Person => {
+                            format!("Welcome, {name}!")
+                        }
+                        Some(name) => {
+                            format!(
+                                "{name} {}",
+                                entity_possessor_display.map_or_else(
+                                    || entity_kind.enter_verb().to_string(),
+                                    |p| entity_kind.enter_verb_with_possessor(&p),
+                                )
+                            )
+                        }
+                        None => {
+                            format!(
+                                "{} {}",
+                                item.entity_id(),
+                                entity_possessor_display.map_or_else(
+                                    || entity_kind.enter_verb().to_string(),
+                                    |p| entity_kind.enter_verb_with_possessor(&p),
+                                )
+                            )
+                        }
+                    },
+                    TimelineItemKind::Exit => match entity_name {
+                        Some(name) if entity_kind == EntityKind::Person => {
+                            format!("Goodbye, {name}!")
+                        }
+                        Some(name) => {
+                            format!(
+                                "{name} {}",
+                                entity_possessor_display.map_or_else(
+                                    || entity_kind.exit_verb().to_string(),
+                                    |p| entity_kind.exit_verb_with_possessor(&p),
+                                )
+                            )
+                        }
+                        None => {
+                            format!(
+                                "{} {}",
+                                item.entity_id(),
+                                entity_possessor_display.map_or_else(
+                                    || entity_kind.exit_verb().to_string(),
+                                    |p| entity_kind.exit_verb_with_possessor(&p),
+                                )
+                            )
+                        }
+                    },
+                };
 
-                if !entity
-                    .data()
-                    .allowed_dt_range()
-                    .copied()
-                    .unwrap_or_default()
-                    .contains(item.dt())
-                    && item.kind().is_entry()
-                {
-                    self.add_message_toast_with_id(
-                        ToastId::Detected,
-                        &format!("“{}” is not allowed!", id_or_name(&entity)),
-                    );
+                self.add_message_toast_with_id(ToastId::Detected, &welcome_message);
 
-                    Sound::CriticalAlert.play();
-                } else {
-                    Sound::DetectedSuccess.play();
-                }
+                Sound::DetectedSuccess.play();
+
+                Some(welcome_message)
             }
             Err(err) => {
                 tracing::error!("Failed to handle entity: {:?}", err);
 
-                self.add_message_toast("Can't handle entity");
+                let message = err.to_string();
+                self.add_message_toast_with_id(ToastId::Detected, &message);
 
                 Sound::DetectedError.play();
+
+                Some(message)
             }
         }
     }
 
-    fn handle_detected_invalid(&self, _code: &str) {
+    fn handle_detected_invalid(&self, detector: &Detector, _code: &str) {
         Sound::DetectedError.play();
 
-        self.add_message_toast("Invalid code detected");
+        self.add_message_toast(&format!("Invalid code detected on {}", detector.name()));
+
+        glib::spawn_future_local(clone!(
+            #[weak]
+            detector,
+            async move {
+                if let Err(err) = detector.return_message("Invalid code detected").await {
+                    tracing::error!("Failed to return message: {:?}", err);
+                }
+            }
+        ));
     }
 
-    fn handle_detected_wo_id(&self, dt: &DateTimeBoxed, image: Option<&JpegImage>) -> Result<()> {
+    fn handle_detected_wo_id(
+        &self,
+        detector: &Detector,
+        dt: &DateTimeBoxed,
+        image: Option<&JpegImage>,
+    ) -> Result<()> {
         Sound::CriticalAlert.play();
 
         self.add_message_toast("Detected unregistered entity!");
 
-        let item = DetectedWoIdItem::new(dt.0, image.cloned());
+        let item = DetectedWoIdItem::new(dt.0, detector.name().to_string(), image.cloned());
         self.detected_wo_id_list().insert(item)?;
 
         Ok(())
@@ -607,11 +677,4 @@ fn init_env() -> Result<(heed::Env, Timeline, DetectedWoIdList)> {
     let detected_wo_id_list = DetectedWoIdList::load_from_env(env.clone())?;
 
     Ok((env, timeline, detected_wo_id_list))
-}
-
-fn id_or_name(entity: &Entity) -> String {
-    entity
-        .data()
-        .name()
-        .map_or_else(|| entity.id().to_string(), |n| n.clone())
 }

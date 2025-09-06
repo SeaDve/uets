@@ -2,7 +2,6 @@ use adw::{prelude::*, subclass::prelude::*};
 use gtk::glib::{self, clone};
 
 use crate::{
-    entity_data::EntityDataFieldTy,
     ui::{
         dashboard_view::{DashboardView, DashboardViewShowRequest},
         entities_view::EntitiesView,
@@ -72,14 +71,6 @@ mod imp {
 
             let app = Application::get();
             let timeline = app.timeline();
-
-            app.settings().connect_operation_mode_changed(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.update_stocks_entities_stack_pages_display();
-                }
-            ));
 
             self.dashboard_view.connect_show_request(clone!(
                 #[weak]
@@ -180,8 +171,6 @@ mod imp {
             self.stocks_view.bind_stock_list(timeline.stock_list());
             self.timeline_view.bind_timeline(timeline);
 
-            obj.update_stocks_entities_stack_pages_display();
-
             match rppal::system::DeviceInfo::new() {
                 Ok(device_info) => {
                     tracing::debug!("Running on {}", device_info.model());
@@ -263,19 +252,5 @@ impl Window {
 
     pub fn stocks_view(&self) -> &StocksView {
         &self.imp().stocks_view
-    }
-
-    fn update_stocks_entities_stack_pages_display(&self) {
-        let imp = self.imp();
-
-        let mode = Application::get().settings().operation_mode();
-
-        imp.entities_stack_page
-            .set_icon_name(Some(mode.entities_view_icon_name()));
-
-        imp.stocks_stack_page
-            .set_visible(mode.is_valid_entity_data_field_ty(EntityDataFieldTy::StockId));
-        imp.stocks_stack_page
-            .set_icon_name(mode.stocks_view_icon_name());
     }
 }

@@ -1,5 +1,5 @@
 use adw::subclass::prelude::*;
-use gtk::glib;
+use gtk::{glib, prelude::*};
 
 use crate::{camera::Camera, ui::camera_viewfinder::CameraViewfinder};
 
@@ -10,7 +10,7 @@ mod imp {
     #[template(resource = "/io/github/seadve/Uets/ui/camera_live_feed_dialog.ui")]
     pub struct CameraLiveFeedDialog {
         #[template_child]
-        pub(super) viewfinder: TemplateChild<CameraViewfinder>,
+        pub(super) list_box: TemplateChild<gtk::ListBox>,
     }
 
     #[glib::object_subclass]
@@ -48,9 +48,37 @@ impl CameraLiveFeedDialog {
         glib::Object::new()
     }
 
-    pub fn set_camera(&self, camera: Option<Camera>) {
+    pub fn set_cameras(&self, cameras: Vec<(String, Camera)>) {
         let imp = self.imp();
 
-        imp.viewfinder.set_camera(camera);
+        for (name, camera) in cameras {
+            let label = gtk::Label::builder().xalign(0.0).label(name).build();
+
+            let vf = CameraViewfinder::new();
+            vf.set_width_request(240);
+            vf.set_height_request(150);
+            vf.set_overflow(gtk::Overflow::Hidden);
+            vf.set_camera(Some(camera.clone()));
+            vf.add_css_class("card");
+
+            let vbox = gtk::Box::builder()
+                .orientation(gtk::Orientation::Vertical)
+                .margin_top(6)
+                .margin_bottom(6)
+                .margin_start(6)
+                .margin_end(6)
+                .spacing(6)
+                .build();
+            vbox.append(&label);
+            vbox.append(&vf);
+
+            let row = gtk::ListBoxRow::builder()
+                .activatable(false)
+                .selectable(false)
+                .child(&vbox)
+                .build();
+
+            imp.list_box.append(&row);
+        }
     }
 }

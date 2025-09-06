@@ -8,6 +8,7 @@ use crate::{
     date_time_range::DateTimeRange,
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_id::EntityId,
+    entity_kind::EntityKind,
     jpeg_image::JpegImage,
     sex::Sex,
     stock_data::StockData,
@@ -31,8 +32,14 @@ impl Timeline {
             .iter()
             .filter_map(|field_ty| {
                 let col_idx = match field_ty {
+                    EntityDataFieldTy::Kind => find_position(col_title_row, |s| {
+                        s.to_lowercase().as_str().contains("kind")
+                    }),
                     EntityDataFieldTy::StockId => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("stock")
+                    }),
+                    EntityDataFieldTy::Possessor => find_position(col_title_row, |s| {
+                        s.to_lowercase().as_str().contains("possessor")
                     }),
                     EntityDataFieldTy::Location => find_position(col_title_row, |s| {
                         s.to_lowercase().as_str().contains("location")
@@ -69,66 +76,108 @@ impl Timeline {
         let mut stock_data = HashMap::new();
         for row in rows {
             if let Some(entity_id_col_idx) = entity_id_col_idx {
-                let Some(entity_id) = row[entity_id_col_idx].as_string().map(EntityId::new) else {
+                let entity_id_cell = &row[entity_id_col_idx];
+
+                if entity_id_cell.is_empty() {
+                    continue;
+                }
+
+                let Some(entity_id) = entity_id_cell.as_string().map(EntityId::new) else {
                     continue;
                 };
 
                 let fields = col_idxs
                     .iter()
-                    .filter_map(|(field_ty, &idx)| match field_ty {
-                        EntityDataFieldTy::StockId => row[idx]
-                            .as_string()
-                            .map(StockId::new)
-                            .map(EntityDataField::StockId),
-                        EntityDataFieldTy::Location => {
-                            row[idx].as_string().map(EntityDataField::Location)
-                        }
-                        EntityDataFieldTy::ExpirationDt => row[idx]
-                            .as_string()
-                            .and_then(|s| {
-                                date_time::parse(&s)
-                                    .inspect_err(|err| {
-                                        tracing::warn!("Failed to parse date time: {:?}", err)
-                                    })
-                                    .ok()
-                            })
-                            .map(EntityDataField::ExpirationDt),
-                        EntityDataFieldTy::AllowedDtRange => row[idx]
-                            .as_string()
-                            .and_then(|s| {
-                                s.parse::<DateTimeRange>()
-                                    .inspect_err(|err| {
-                                        tracing::warn!("Failed to parse date time range: {:?}", err)
-                                    })
-                                    .ok()
-                            })
-                            .map(EntityDataField::AllowedDtRange),
-                        EntityDataFieldTy::Photo => row[idx]
-                            .as_string()
-                            .map(|s| JpegImage::from_base64(&s))
-                            .map(EntityDataField::Photo),
-                        EntityDataFieldTy::Name => row[idx].as_string().map(EntityDataField::Name),
-                        EntityDataFieldTy::Sex => row[idx]
-                            .as_string()
-                            .and_then(|s| {
-                                s.parse::<Sex>()
-                                    .inspect_err(|err| {
-                                        tracing::warn!("Failed to parse sex: {:?}", err)
-                                    })
-                                    .ok()
-                            })
-                            .map(EntityDataField::Sex),
-                        EntityDataFieldTy::Email => {
-                            row[idx].as_string().map(EntityDataField::Email)
-                        }
-                        EntityDataFieldTy::Program => {
-                            row[idx].as_string().map(EntityDataField::Program)
-                        }
-                    });
+                    .filter_map(|(field_ty, &idx)| {
+                        let cell = &row[idx];
 
-                entity_data.insert(entity_id, EntityData::from_fields(fields));
+                        if cell.is_empty() {
+                            return None;
+                        }
+
+                        match field_ty {
+                            EntityDataFieldTy::Kind => cell
+                                .as_string()
+                                .and_then(|s| {
+                                    s.parse::<EntityKind>()
+                                        .inspect_err(|err| {
+                                            tracing::warn!("Failed to parse entity kind: {:?}", err)
+                                        })
+                                        .ok()
+                                })
+                                .map(EntityDataField::Kind),
+                            EntityDataFieldTy::StockId => cell
+                                .as_string()
+                                .map(StockId::new)
+                                .map(EntityDataField::StockId),
+                            EntityDataFieldTy::Possessor => cell
+                                .as_string()
+                                .map(EntityId::new)
+                                .map(EntityDataField::Possessor),
+                            EntityDataFieldTy::Location => {
+                                cell.as_string().map(EntityDataField::Location)
+                            }
+                            EntityDataFieldTy::ExpirationDt => cell
+                                .as_string()
+                                .and_then(|s| {
+                                    date_time::parse(&s)
+                                        .inspect_err(|err| {
+                                            tracing::warn!("Failed to parse date time: {:?}", err)
+                                        })
+                                        .ok()
+                                })
+                                .map(EntityDataField::ExpirationDt),
+                            EntityDataFieldTy::AllowedDtRange => cell
+                                .as_string()
+                                .and_then(|s| {
+                                    s.parse::<DateTimeRange>()
+                                        .inspect_err(|err| {
+                                            tracing::warn!(
+                                                "Failed to parse date time range: {:?}",
+                                                err
+                                            )
+                                        })
+                                        .ok()
+                                })
+                                .map(EntityDataField::AllowedDtRange),
+                            EntityDataFieldTy::Photo => cell
+                                .as_string()
+                                .map(|s| JpegImage::from_base64(&s)) // TODO support directly getting images from Excel
+                                .map(EntityDataField::Photo),
+                            EntityDataFieldTy::Name => cell.as_string().map(EntityDataField::Name),
+                            EntityDataFieldTy::Sex => cell
+                                .as_string()
+                                .and_then(|s| {
+                                    s.parse::<Sex>()
+                                        .inspect_err(|err| {
+                                            tracing::warn!("Failed to parse sex: {:?}", err)
+                                        })
+                                        .ok()
+                                })
+                                .map(EntityDataField::Sex),
+                            EntityDataFieldTy::Email => {
+                                cell.as_string().map(EntityDataField::Email)
+                            }
+                            EntityDataFieldTy::Program => {
+                                cell.as_string().map(EntityDataField::Program)
+                            }
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                if fields.iter().any(|f| f.ty() == EntityDataFieldTy::Kind) {
+                    entity_data.insert(entity_id, EntityData::from_fields(fields));
+                } else {
+                    tracing::warn!("Entity `{}` has no `kind` field; skipping", entity_id);
+                }
             } else if let Some(stock_id_col_idx) = stock_id_col_idx {
-                let Some(stock_id) = row[stock_id_col_idx].as_string().map(StockId::new) else {
+                let stock_id_cell = &row[stock_id_col_idx];
+
+                if stock_id_cell.is_empty() {
+                    continue;
+                }
+
+                let Some(stock_id) = stock_id_cell.as_string().map(StockId::new) else {
                     continue;
                 };
 

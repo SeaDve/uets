@@ -152,7 +152,7 @@ mod pdf {
         doc.push(p_bold(b.title).styled(style::Style::new().with_font_size(24)));
 
         for (key, value) in b.props.iter() {
-            doc.push(p(format!("{}: {}", key, value)));
+            doc.push(p(format!("{key}: {value}")));
         }
 
         if let Some(t) = b.table {
@@ -222,7 +222,7 @@ mod pdf {
 
     fn font_data_from_resource(file_name: &str) -> Result<fonts::FontData> {
         let bytes = gio::resources_lookup_data(
-            &format!("{}fonts/{}", GRESOURCE_PREFIX, file_name),
+            &format!("{GRESOURCE_PREFIX}fonts/{file_name}"),
             gio::ResourceLookupFlags::NONE,
         )?;
         let data = fonts::FontData::new(bytes.to_vec(), None)?;

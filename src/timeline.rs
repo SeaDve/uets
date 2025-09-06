@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Instant};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use chrono::{DateTime, Utc};
 use gtk::{
     gio,
@@ -14,13 +14,16 @@ use crate::{
     date_time_boxed::DateTimeBoxed,
     date_time_range::DateTimeRange,
     db::{self, EnvExt},
+    detector::Detector,
     entity::Entity,
-    entity_data::EntityData,
+    entity_data::{EntityData, EntityDataFieldTy},
     entity_entry_tracker::{EntityEntryTracker, EntityIdSet},
     entity_expired_tracker::EntityExpiredTracker,
     entity_id::EntityId,
+    entity_kind::EntityKind,
     entity_list::EntityList,
     log::Log,
+    settings::AccessMode,
     stock::{Stock, StockLogs},
     stock_data::StockData,
     stock_id::StockId,
@@ -264,13 +267,8 @@ impl Timeline {
         dt_range: &'a DateTimeRange,
         stock_id: &'a StockId,
     ) -> impl DoubleEndedIterator<Item = TimelineItem> + 'a {
-        self.iter(dt_range).filter(|item| {
-            let entity = self
-                .entity_list()
-                .get(item.entity_id())
-                .expect("entity must be known");
-            entity.stock_id().as_ref() == Some(stock_id)
-        })
+        self.iter(dt_range)
+            .filter(|item| item.entity_data().stock_id() == Some(stock_id))
     }
 
     pub fn n_inside_for_dt(&self, dt: DateTime<Utc>) -> u32 {
@@ -343,6 +341,7 @@ impl Timeline {
 
     pub fn handle_detected(
         &self,
+        detector: &Detector,
         entity_id: &EntityId,
         entity_data: EntityData,
     ) -> Result<TimelineItem> {
@@ -353,7 +352,7 @@ impl Timeline {
             .get(entity_id)
             .unwrap_or_else(|| Entity::new(entity_id.clone(), entity_data.clone()));
 
-        // TODO Should this be allowed instead?
+        // TODO Should this be allowed instead? Should we allow changing the stock id?
         //
         // When exiting, this should not be allowed as an entity cannot enter then exit
         // with different stock id. But if the same entity enters with a different stock id,
@@ -366,27 +365,90 @@ impl Timeline {
             );
         }
 
+        if let Some(possessor) = entity_data.possessor() {
+            let Some(posessor_entity) = self.entity_list().get(possessor) else {
+                bail!("Unknown possessor entity `{}`", possessor);
+            };
+
+            ensure!(
+                posessor_entity.kind() == EntityKind::Person,
+                "Only persons can be possessors"
+            );
+
+            debug_assert!(entity
+                .kind()
+                .is_valid_entity_data_field_ty(EntityDataFieldTy::Possessor));
+
+            debug_assert!(
+                possessor != entity_id,
+                "Entity `{entity_id}` cannot be its own possessor"
+            );
+        }
+
         let now_dt = Utc::now();
         debug_assert!(imp
             .list
             .borrow()
             .last()
-            .map_or(true, |(dt, _)| &now_dt > dt));
+            .is_none_or(|(dt, _)| &now_dt > dt));
 
         let is_exit = entity.is_inside();
-
         let item_kind = if is_exit {
             TimelineItemKind::Exit
         } else {
             TimelineItemKind::Entry
         };
-        let item = TimelineItem::new(now_dt, item_kind, entity_id.clone());
+
+        if !entity
+            .data()
+            .allowed_dt_range()
+            .copied()
+            .unwrap_or_default()
+            .contains(now_dt)
+            && item_kind.is_entry()
+        {
+            bail!(
+                "“{}” is not allowed at the moment!",
+                entity.name_or_id_display()
+            );
+        }
+
+        match (detector.access_mode(), item_kind) {
+            (AccessMode::EntryOnly, TimelineItemKind::Exit) => {
+                bail!("Cannot exit on an entry-only way!");
+            }
+            (AccessMode::ExitOnly, TimelineItemKind::Entry) => {
+                bail!("Cannot enter on an exit-only way!");
+            }
+            _ => {}
+        }
+
+        entity.set_data(entity_data.clone());
+        let item = TimelineItem::new(now_dt, item_kind, entity_id.clone(), entity_data);
 
         let stock = entity.stock_id().map(|stock_id| {
             self.stock_list()
                 .get(&stock_id)
                 .unwrap_or_else(|| Stock::new(stock_id.clone(), StockData {}))
         });
+
+        // TODO: Maybe do this on the client instead, and allow also changing the
+        // possessor of the item whie inside the "storage".
+        //
+        // If the item re-entered the "storage", we automatically set the
+        // possessor to None.
+        //
+        // We do not do the same with vehicles, as the the possessor is the
+        // owner, while in items, the possessor only borrows.
+        //
+        // We do this after timeline item creation, so that the item can display
+        // who "returned" (added back) the item to the "storage".
+        if item_kind.is_entry() && entity.kind() == EntityKind::Item {
+            debug_assert!(entity
+                .kind()
+                .is_valid_entity_data_field_ty(EntityDataFieldTy::Possessor));
+            entity.set_data(entity.data().with_possessor(None));
+        }
 
         let (env, tdb, edb, sdb) = self.db();
         env.with_write_txn(|wtxn| {
@@ -659,11 +721,6 @@ impl Timeline {
         let mut stock_logs: HashMap<StockId, StockLogs> = HashMap::new();
 
         for item in imp.list.borrow().values() {
-            let entity = self
-                .entity_list()
-                .get(item.entity_id())
-                .expect("entity must be known");
-
             if item.kind().is_exit() {
                 n_inside -= 1;
                 n_exits += 1;
@@ -697,7 +754,7 @@ impl Timeline {
                 .or_default()
                 .insert(item.dt(), item.kind());
 
-            if let Some(stock_id) = entity.stock_id() {
+            if let Some(stock_id) = item.entity_data().stock_id() {
                 let logs = stock_logs.entry(stock_id.clone()).or_default();
 
                 let prev_n_inside = logs.n_inside.latest().copied().unwrap_or(0);

@@ -13,6 +13,7 @@
           <object class="AdwAvatar" id="avatar">
             <property name="size">32</property>
             <property name="show-initials">True</property>
+            <property name="icon-name">preferences-desktop-apps-symbolic</property>
           </object>
         </child>
         <child>

@@ -5,16 +5,13 @@ use gtk::{
 };
 
 use crate::{
-    date_time, entity::Entity, entity_entry_tracker::EntityEntryTrackerSettingsExt,
-    entity_id::EntityId, format, stock_id::StockId, timeline_item::TimelineItem,
-    timeline_item_kind::TimelineItemKind, Application,
+    date_time, entity_entry_tracker::EntityEntryTrackerSettingsExt, entity_id::EntityId, format,
+    stock_id::StockId, timeline_item::TimelineItem, timeline_item_kind::TimelineItemKind,
+    Application,
 };
 
 mod imp {
-    use std::{
-        cell::{OnceCell, RefCell},
-        sync::OnceLock,
-    };
+    use std::{cell::RefCell, sync::OnceLock};
 
     use glib::subclass::Signal;
 
@@ -35,8 +32,6 @@ mod imp {
         pub(super) dt_label: TemplateChild<gtk::Label>,
         #[template_child]
         pub(super) status_label: TemplateChild<gtk::Label>,
-
-        pub(super) entity_signals: OnceCell<glib::SignalGroup>,
     }
 
     #[glib::object_subclass]
@@ -64,13 +59,6 @@ mod imp {
             let app = Application::get();
             let settings = app.settings();
 
-            settings.connect_operation_mode_changed(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.update_status_label();
-                }
-            ));
             settings.connect_max_entry_to_exit_duration_secs_changed(clone!(
                 #[weak]
                 obj,
@@ -78,19 +66,6 @@ mod imp {
                     obj.update_status_label();
                 }
             ));
-
-            let entity_signals = glib::SignalGroup::new::<Entity>();
-            entity_signals.connect_notify_local(
-                Some("data"),
-                clone!(
-                    #[weak]
-                    obj,
-                    move |_, _| {
-                        obj.update_status_label();
-                    }
-                ),
-            );
-            self.entity_signals.set(entity_signals).unwrap();
 
             self.status_label.connect_activate_link(clone!(
                 #[weak]
@@ -167,18 +142,6 @@ mod imp {
                 self.dt_label.set_text("");
             }
 
-            let entity = item.as_ref().map(|item| {
-                Application::get()
-                    .timeline()
-                    .entity_list()
-                    .get(item.entity_id())
-                    .expect("entity must be known")
-            });
-            self.entity_signals
-                .get()
-                .unwrap()
-                .set_target(entity.as_ref());
-
             self.item.replace(item);
             obj.update_status_label();
             obj.notify_item();
@@ -222,37 +185,43 @@ impl TimelineRow {
         let imp = self.imp();
 
         if let Some(item) = &self.item() {
-            let entity_id = item.entity_id();
-
             let app = Application::get();
 
-            let entity = app
-                .timeline()
-                .entity_list()
-                .get(entity_id)
-                .expect("entity must be known");
-
-            let entity_id_escaped = glib::markup_escape_text(&entity_id.to_string());
-            let entity_uri = format!("entity:{}", entity_id_escaped);
-            let title = if let Some(stock_id) = entity.stock_id() {
+            let entity_id_escaped = glib::markup_escape_text(&item.entity_id().to_string());
+            let entity_uri = format!("entity:{entity_id_escaped}");
+            let title = if let Some(stock_id) = item.entity_data().stock_id() {
                 let stock_id_escaped = glib::markup_escape_text(&stock_id.to_string());
-                let stock_uri = format!("stock:{}", stock_id_escaped);
+                let stock_uri = format!("stock:{stock_id_escaped}");
                 format!("<a href=\"{stock_uri}\">{stock_id_escaped}</a> (<a href=\"{entity_uri}\">{entity_id_escaped}</a>)")
             } else {
-                let entity_display = &entity
-                    .data()
+                let entity_display = &item
+                    .entity_data()
                     .name()
                     .cloned()
                     .map_or_else(|| entity_id_escaped, |name| glib::markup_escape_text(&name));
                 format!("<a href=\"{entity_uri}\">{entity_display}</a>")
             };
 
-            let settings = app.settings();
-            let operation_mode = settings.operation_mode();
+            let possessor_display = item.entity_data().possessor().and_then(|possessor| {
+                let Some(possessor_entity) =
+                    Application::get().timeline().entity_list().get(possessor)
+                else {
+                    tracing::warn!("Possessor `{}` not found in timeline", possessor);
+                    return None;
+                };
+                Some(possessor_entity.name_or_id_display())
+            });
 
+            let entity_kind = item.entity_data().kind();
             let text = match item.kind() {
                 TimelineItemKind::Entry => {
-                    format!("<b>{}</b> {}", title, operation_mode.enter_verb())
+                    format!(
+                        "<b>{title}</b> {}",
+                        possessor_display.map_or_else(
+                            || entity_kind.enter_verb().to_string(),
+                            |p| entity_kind.enter_verb_with_possessor(&p)
+                        )
+                    )
                 }
                 TimelineItemKind::Exit => {
                     let entry_to_exit_duration = item
@@ -260,15 +229,17 @@ impl TimelineRow {
                         .expect("entry to exit duration must have been set on exit");
                     let entry_to_exit_duration_formatted = format::duration(entry_to_exit_duration);
                     format!(
-                        "<b>{}</b> {} after <i>{}</i> {}",
-                        title,
-                        operation_mode.exit_verb(),
-                        if settings.compute_overstayed(entry_to_exit_duration) {
+                        "<b>{title}</b> {} after <i>{}</i> {}",
+                        possessor_display.map_or_else(
+                            || entity_kind.exit_verb().to_string(),
+                            |p| entity_kind.exit_verb_with_possessor(&p)
+                        ),
+                        if app.settings().compute_overstayed(entry_to_exit_duration) {
                             format::red_markup(&entry_to_exit_duration_formatted)
                         } else {
                             entry_to_exit_duration_formatted
                         },
-                        operation_mode.entry_to_exit_duration_suffix(),
+                        entity_kind.entry_to_exit_duration_suffix(),
                     )
                 }
             };

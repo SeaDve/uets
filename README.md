@@ -2,11 +2,7 @@
 
 UETS is a universal system that tracks entities using RFID tags. It is designed to be used in a variety of applications, such as inventory management, establishment access control, and more.
 
-## 🕹️ Operation Modes
-
-### 🔢 Counter
-
-This is used for entities that don't have any specific data (e.g., mall entry counter).
+## 🕹️ Supported Modes
 
 ### 🕒 Attendance
 
@@ -21,12 +17,6 @@ This is useful for tracking how long a vehicle has been parked and whether it is
 ### 📦 Inventory
 
 This is used for entities that have lifetime, location, and quantity (e.g., stock room, department store, medicine storage).
-
-### 🧊 Refrigerator
-
-This is used for entities that have lifetime and quantity (e.g., food storage).
-
-This is experimental as it is labor-intensive to tag entities with this kind.
 
 ## ✨ Features
 

@@ -49,6 +49,12 @@ label.n-inside  {
     padding: 6px;
 }
 
+/* EntityDataDialog */
+
+.entity-data-dialog-possessor-dropdown label {
+    font-size: 0.8em;
+}
+
 /* EntityPhotoGalleryCell */
 
 .entity-photo-gallery-cell-picture {

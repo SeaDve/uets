@@ -19,6 +19,15 @@
         <property name="content">
           <object class="AdwPreferencesPage">
             <child>
+              <object class="AdwPreferencesGroup" id="entity_kind_group">
+                <child>
+                  <object class="AdwComboRow" id="entity_kind_row">
+                    <property name="title">Kind</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
               <object class="AdwPreferencesGroup" id="stock_id_group">
                 <child>
                   <object class="AdwComboRow" id="stock_id_row">
@@ -34,7 +43,23 @@
               </object>
             </child>
             <child>
-              <object class="AdwPreferencesGroup">
+              <!-- NOTE: Adding a row on this group must also update entity_data_dialog.rs -->
+              <object class="AdwPreferencesGroup" id="other_data_group">
+                <!-- XXX: We use a DropDown here since AdwComboRow somehow causes segfault from the model -->
+                <child>
+                  <object class="AdwActionRow" id="possessor_row">
+                    <property name="title">Possessor</property>
+                    <child type="suffix">
+                      <object class="GtkDropDown" id="possessor_dropdown">
+                        <property name="valign">center</property>
+                        <property name="enable-search">True</property>
+                        <style>
+                          <class name="entity-data-dialog-possessor-dropdown"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
                 <child>
                   <object class="AdwEntryRow" id="location_row">
                     <property name="title">Location</property>

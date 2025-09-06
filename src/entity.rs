@@ -2,8 +2,8 @@ use chrono::{DateTime, Utc};
 use gtk::{glib, prelude::*, subclass::prelude::*};
 
 use crate::{
-    date_time, date_time_range::DateTimeRange, entity_data::EntityData, entity_id::EntityId,
-    format, log::Log, settings::OperationMode, stock_id::StockId,
+    application::Application, date_time, date_time_range::DateTimeRange, entity_data::EntityData,
+    entity_id::EntityId, entity_kind::EntityKind, format, log::Log, stock_id::StockId,
     timeline_item_kind::TimelineItemKind,
 };
 
@@ -78,6 +78,16 @@ impl Entity {
         self.imp().id.get().unwrap()
     }
 
+    pub fn name_or_id_display(&self) -> String {
+        self.data()
+            .name()
+            .map_or_else(|| self.id().to_string(), |name| name.clone())
+    }
+
+    pub fn kind(&self) -> EntityKind {
+        self.imp().data.borrow().kind()
+    }
+
     pub fn stock_id(&self) -> Option<StockId> {
         self.imp().data.borrow().stock_id().cloned()
     }
@@ -131,31 +141,34 @@ impl Entity {
         }
     }
 
-    pub fn status_text(
-        &self,
-        for_dt_range: &DateTimeRange,
-        operation_mode: OperationMode,
-    ) -> String {
-        self.status_markup(for_dt_range, operation_mode, false)
+    pub fn status_text(&self, for_dt_range: &DateTimeRange) -> String {
+        self.status_markup(for_dt_range, false)
     }
 
     pub fn status_markup(
         &self,
         for_dt_range: &DateTimeRange,
-        operation_mode: OperationMode,
         use_red_markup_on_entry_to_exit_duration: bool,
     ) -> String {
+        let possessor_display = self.data().possessor().and_then(|possessor| {
+            let Some(possessor_entity) = Application::get().timeline().entity_list().get(possessor)
+            else {
+                tracing::warn!("Possessor `{}` not found in timeline", possessor);
+                return None;
+            };
+            Some(possessor_entity.name_or_id_display())
+        });
+
         match self.action_for_dt_range(for_dt_range) {
             Some((dt, TimelineItemKind::Entry)) => {
-                let verb = match operation_mode {
-                    OperationMode::Counter | OperationMode::Attendance => "Entered",
-                    OperationMode::Parking => "Drove in",
-                    OperationMode::Inventory | OperationMode::Refrigerator => "Added",
-                };
-                let entry_to_exit_duration_prefix = match operation_mode {
-                    OperationMode::Counter | OperationMode::Attendance => "stayed",
-                    OperationMode::Parking => "parked",
-                    OperationMode::Inventory | OperationMode::Refrigerator => "kept",
+                let status = possessor_display.map_or_else(
+                    || self.kind().enter_status().to_string(),
+                    |p| self.kind().enter_status_with_possessor(&p),
+                );
+                let entry_to_exit_duration_prefix = match self.kind() {
+                    EntityKind::Person => "stayed",
+                    EntityKind::Vehicle => "parked",
+                    EntityKind::Item => "kept",
                 };
 
                 let duration_start = if let Some(start) = for_dt_range.start {
@@ -171,7 +184,7 @@ impl Entity {
                 let formatted_duration = format::duration(duration_end - duration_start);
 
                 format!(
-                    "{verb} {} and {entry_to_exit_duration_prefix} for {}",
+                    "{status} {} and {entry_to_exit_duration_prefix} for {}",
                     date_time::format::fuzzy(dt),
                     if use_red_markup_on_entry_to_exit_duration {
                         format::red_markup(&formatted_duration)
@@ -181,18 +194,16 @@ impl Entity {
                 )
             }
             Some((dt, TimelineItemKind::Exit)) => {
-                let verb = match operation_mode {
-                    OperationMode::Counter | OperationMode::Attendance => "Exited",
-                    OperationMode::Parking => "Drove out",
-                    OperationMode::Inventory | OperationMode::Refrigerator => "Removed",
-                };
-                format!("{verb} {}", date_time::format::fuzzy(dt))
+                let status = possessor_display.map_or_else(
+                    || self.kind().exit_status().to_string(),
+                    |p| self.kind().exit_status_with_possessor(&p),
+                );
+                format!("{status} {}", date_time::format::fuzzy(dt))
             }
-            None => match operation_mode {
-                OperationMode::Counter | OperationMode::Attendance => "Never entered".into(),
-                OperationMode::Parking => "Never drove in".into(),
-                OperationMode::Inventory | OperationMode::Refrigerator => "Never added".into(),
-            },
+            None => possessor_display.map_or_else(
+                || self.kind().default_status().to_string(),
+                |p| self.kind().default_status_with_possessor(&p),
+            ),
         }
     }
 }

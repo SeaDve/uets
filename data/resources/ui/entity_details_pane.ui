@@ -62,7 +62,7 @@
               <object class="AdwPreferencesGroup" id="data_group">
                 <property name="title">Data</property>
                 <property name="header-suffix">
-                  <object class="GtkButton">
+                  <object class="GtkButton" id="edit_data_button">
                     <property name="icon-name">edit-symbolic</property>
                     <property name="action-name">entity-details-pane.edit-data</property>
                     <style>

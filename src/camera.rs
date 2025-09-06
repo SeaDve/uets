@@ -238,6 +238,7 @@ impl Camera {
     pub fn stop(&self) {
         self.dispose_pipeline();
         self.set_state(CameraState::Idle);
+        self.set_enable_motion_detection(false);
     }
 
     pub fn restart(&self) -> Result<()> {
@@ -289,7 +290,7 @@ impl Camera {
         let response = surf::RequestBuilder::new(
             surf::http::Method::Get,
             uri.parse()
-                .with_context(|| format!("Failed to parse URI: {}", uri))?,
+                .with_context(|| format!("Failed to parse URI: {uri}"))?,
         )
         .send()
         .await
@@ -339,7 +340,7 @@ impl Camera {
 
         tracing::debug!(motion_active);
 
-        if motion_active && imp.motion_active.get().map_or(true, |(_, active)| !active) {
+        if motion_active && imp.motion_active.get().is_none_or(|(_, active)| !active) {
             self.emit_by_name::<()>("motion-detected", &[]);
         }
 

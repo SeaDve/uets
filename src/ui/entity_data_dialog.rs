@@ -6,8 +6,10 @@ use gtk::glib::{self, clone, closure};
 
 use crate::{
     date_time_boxed::DateTimeBoxed,
+    entity::Entity,
     entity_data::{EntityData, EntityDataField, EntityDataFieldTy},
     entity_id::EntityId,
+    entity_kind::EntityKind,
     list_model_enum,
     sex::Sex,
     stock::Stock,
@@ -20,6 +22,7 @@ use crate::{
 };
 
 list_model_enum!(Sex);
+list_model_enum!(EntityKind);
 
 mod imp {
     use std::cell::RefCell;
@@ -32,11 +35,21 @@ mod imp {
         #[template_child]
         pub(super) window_title: TemplateChild<adw::WindowTitle>,
         #[template_child]
+        pub(super) entity_kind_group: TemplateChild<adw::PreferencesGroup>,
+        #[template_child]
+        pub(super) entity_kind_row: TemplateChild<adw::ComboRow>,
+        #[template_child]
         pub(super) stock_id_group: TemplateChild<adw::PreferencesGroup>,
         #[template_child]
         pub(super) stock_id_row: TemplateChild<adw::ComboRow>,
         #[template_child]
         pub(super) stock_id_custom_row: TemplateChild<adw::EntryRow>,
+        #[template_child]
+        pub(super) possessor_row: TemplateChild<adw::ActionRow>,
+        #[template_child]
+        pub(super) possessor_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
+        pub(super) other_data_group: TemplateChild<adw::PreferencesGroup>,
         #[template_child]
         pub(super) location_row: TemplateChild<adw::EntryRow>,
         #[template_child]
@@ -60,6 +73,7 @@ mod imp {
         #[template_child]
         pub(super) photo_viewfinder: TemplateChild<CameraViewfinder>,
 
+        pub(super) ignored_data_field_ty: RefCell<HashSet<EntityDataFieldTy>>,
         pub(super) result_tx: RefCell<Option<oneshot::Sender<()>>>,
     }
 
@@ -95,6 +109,24 @@ mod imp {
 
             let obj = self.obj();
 
+            self.entity_kind_row
+                .set_expression(Some(&gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|list_item: adw::EnumListItem| {
+                        EntityKind::try_from(list_item.value()).unwrap().to_string()
+                    }),
+                )));
+            self.entity_kind_row
+                .set_model(Some(&EntityKind::new_model()));
+
+            self.entity_kind_row.connect_selected_notify(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.update_rows_visibility();
+                }
+            ));
+
             let stock_sorter = utils::new_sorter::<Stock>(false, |a, b| a.id().cmp(b.id()));
             let sorted_stock_model = gtk::SortListModel::new(
                 Some(Application::get().timeline().stock_list().clone()),
@@ -107,6 +139,7 @@ mod imp {
                     closure!(|stock: &Stock| stock.id().to_string()),
                 )));
             self.stock_id_row.set_model(Some(&sorted_stock_model));
+            self.stock_id_row.set_selected(gtk::INVALID_LIST_POSITION);
 
             self.stock_id_custom_row.connect_text_notify(clone!(
                 #[weak]
@@ -116,13 +149,46 @@ mod imp {
                 }
             ));
 
+            let possessor_filter =
+                utils::new_filter::<Entity>(|entity| entity.kind() == EntityKind::Person);
+            let filtered_possessor_model = gtk::FilterListModel::new(
+                Some(Application::get().timeline().entity_list().clone()),
+                Some(possessor_filter),
+            );
+
+            let possessor_sorter = utils::new_sorter::<Entity>(false, |a, b| a.id().cmp(b.id()));
+            let sorted_filtered_possessor_model =
+                gtk::SortListModel::new(Some(filtered_possessor_model), Some(possessor_sorter));
+
+            self.possessor_dropdown
+                .set_expression(Some(gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|entity: &Entity| {
+                        if let Some(entity_name) = entity.data().name() {
+                            format!("{} ({})", entity_name, entity.id())
+                        } else {
+                            entity.id().to_string()
+                        }
+                    }),
+                )));
+            self.possessor_dropdown
+                .set_model(Some(&sorted_filtered_possessor_model));
+            self.possessor_dropdown
+                .set_selected(gtk::INVALID_LIST_POSITION);
+
             self.sex_row
-                .set_expression(Some(&adw::EnumListItem::this_expression("name")));
+                .set_expression(Some(&gtk::ClosureExpression::new::<String>(
+                    &[] as &[gtk::Expression],
+                    closure!(|list_item: adw::EnumListItem| {
+                        Sex::try_from(list_item.value()).unwrap().to_string()
+                    }),
+                )));
             self.sex_row.set_model(Some(&Sex::new_model()));
 
             self.photo_viewfinder
                 .set_camera(Some(Application::get().camera().clone()));
 
+            obj.update_rows_visibility();
             obj.update_stock_id_row_sensitivity();
         }
 
@@ -152,28 +218,15 @@ impl EntityDataDialog {
         let imp = this.imp();
         imp.window_title.set_subtitle(&entity_id.to_string());
 
-        let operation_mode = Application::get().settings().operation_mode();
-        let ignored_data_field_tys = ignored_data_field_ty.into_iter().collect::<HashSet<_>>();
-        for field_ty in EntityDataFieldTy::all() {
-            let widget = match field_ty {
-                EntityDataFieldTy::StockId => imp.stock_id_group.upcast_ref::<gtk::Widget>(),
-                EntityDataFieldTy::Location => imp.location_row.upcast_ref(),
-                EntityDataFieldTy::ExpirationDt => imp.expiration_dt_row.upcast_ref(),
-                EntityDataFieldTy::AllowedDtRange => imp.allowed_dt_range_row.upcast_ref(),
-                EntityDataFieldTy::Photo => imp.photo_viewfinder_group.upcast_ref(),
-                EntityDataFieldTy::Name => imp.name_row.upcast_ref(),
-                EntityDataFieldTy::Sex => imp.sex_row.upcast_ref(),
-                EntityDataFieldTy::Email => imp.email_row.upcast_ref(),
-                EntityDataFieldTy::Program => imp.program_row.upcast_ref(),
-            };
-            widget.set_visible(
-                operation_mode.is_valid_entity_data_field_ty(*field_ty)
-                    && !ignored_data_field_tys.contains(field_ty),
-            );
-        }
+        imp.ignored_data_field_ty
+            .replace(ignored_data_field_ty.into_iter().collect());
+        this.update_rows_visibility();
 
         for field in initial_data.fields() {
             match field {
+                EntityDataField::Kind(kind) => {
+                    imp.entity_kind_row.set_selected(kind.model_position());
+                }
                 EntityDataField::StockId(stock_id) => {
                     if let Some(position) = imp
                         .stock_id_row
@@ -188,6 +241,25 @@ impl EntityDataDialog {
                         imp.stock_id_row.set_selected(position as u32);
                     } else {
                         imp.stock_id_custom_row.set_text(&stock_id.to_string());
+                    }
+                }
+                EntityDataField::Possessor(possessor) => {
+                    if let Some(position) = imp
+                        .possessor_dropdown
+                        .model()
+                        .unwrap()
+                        .iter::<glib::Object>()
+                        .position(|o| {
+                            let entity = o.unwrap().downcast::<Entity>().unwrap();
+                            entity.id() == possessor
+                        })
+                    {
+                        imp.possessor_dropdown.set_selected(position as u32);
+                    } else {
+                        imp.possessor_dropdown
+                            .set_selected(gtk::INVALID_LIST_POSITION);
+
+                        tracing::error!(?possessor, "Possessor not found in model");
                     }
                 }
                 EntityDataField::Location(location) => {
@@ -227,19 +299,33 @@ impl EntityDataDialog {
             return Err(err);
         }
 
+        let data = this.gather_data_inner();
+
         this.close();
 
-        Ok(this.gather_data_inner())
+        Ok(data)
+    }
+
+    fn selected_entity_kind(&self) -> EntityKind {
+        let imp = self.imp();
+
+        imp.entity_kind_row
+            .selected_item()
+            .map(|item| {
+                EntityKind::try_from(item.downcast::<adw::EnumListItem>().unwrap().value()).unwrap()
+            })
+            .unwrap_or_default()
     }
 
     fn gather_data_inner(&self) -> EntityData {
         let imp = self.imp();
 
-        let operation_mode = Application::get().settings().operation_mode();
+        let entity_kind = self.selected_entity_kind();
 
-        let data = EntityData::from_fields(
+        EntityData::from_fields(
             [
-                operation_mode
+                Some(EntityDataField::Kind(entity_kind)),
+                entity_kind
                     .is_valid_entity_data_field_ty(EntityDataFieldTy::StockId)
                     .then(|| {
                         let raw_stock_id_custom = imp.stock_id_custom_row.text();
@@ -253,10 +339,19 @@ impl EntityDataDialog {
                         }
                     })
                     .flatten(),
+                entity_kind
+                    .is_valid_entity_data_field_ty(EntityDataFieldTy::Possessor)
+                    .then(|| {
+                        imp.possessor_dropdown
+                            .selected_item()
+                            .map(|entity| entity.downcast::<Entity>().unwrap().id().clone())
+                            .map(EntityDataField::Possessor)
+                    })
+                    .flatten(),
                 Some(imp.location_row.text().to_string())
                     .filter(|t| !t.is_empty())
                     .map(EntityDataField::Location),
-                operation_mode
+                entity_kind
                     .is_valid_entity_data_field_ty(EntityDataFieldTy::ExpirationDt)
                     .then(|| {
                         imp.expiration_dt_button
@@ -264,7 +359,7 @@ impl EntityDataDialog {
                             .map(|dt| EntityDataField::ExpirationDt(dt.0))
                     })
                     .flatten(),
-                operation_mode
+                entity_kind
                     .is_valid_entity_data_field_ty(EntityDataFieldTy::AllowedDtRange)
                     .then(|| {
                         Some(imp.allowed_dt_range_button.range())
@@ -278,7 +373,7 @@ impl EntityDataDialog {
                 Some(imp.name_row.text().to_string())
                     .filter(|t| !t.is_empty())
                     .map(EntityDataField::Name),
-                operation_mode
+                entity_kind
                     .is_valid_entity_data_field_ty(EntityDataFieldTy::Sex)
                     .then(|| {
                         imp.sex_row
@@ -302,13 +397,50 @@ impl EntityDataDialog {
             ]
             .into_iter()
             .flatten(),
-        );
+        )
+    }
 
-        if !operation_mode.is_valid_entity_data(&data) {
-            tracing::warn!(?operation_mode, "Invalid entity data: {:?}", data);
+    fn update_rows_visibility(&self) {
+        let imp = self.imp();
+
+        for field_ty in EntityDataFieldTy::all() {
+            let widget = match field_ty {
+                EntityDataFieldTy::Kind => imp.entity_kind_group.upcast_ref::<gtk::Widget>(),
+                EntityDataFieldTy::StockId => imp.stock_id_group.upcast_ref(),
+                EntityDataFieldTy::Possessor => imp.possessor_row.upcast_ref(),
+                EntityDataFieldTy::Location => imp.location_row.upcast_ref(),
+                EntityDataFieldTy::ExpirationDt => imp.expiration_dt_row.upcast_ref(),
+                EntityDataFieldTy::AllowedDtRange => imp.allowed_dt_range_row.upcast_ref(),
+                EntityDataFieldTy::Photo => imp.photo_viewfinder_group.upcast_ref(),
+                EntityDataFieldTy::Name => imp.name_row.upcast_ref(),
+                EntityDataFieldTy::Sex => imp.sex_row.upcast_ref(),
+                EntityDataFieldTy::Email => imp.email_row.upcast_ref(),
+                EntityDataFieldTy::Program => imp.program_row.upcast_ref(),
+            };
+            widget.set_visible(
+                self.selected_entity_kind()
+                    .is_valid_entity_data_field_ty(*field_ty)
+                    && !imp.ignored_data_field_ty.borrow().contains(field_ty),
+            );
         }
 
-        data
+        // This must be in sync with the rows in the other_data_group.
+        let other_data_field_ty = [
+            EntityDataFieldTy::Possessor,
+            EntityDataFieldTy::Location,
+            EntityDataFieldTy::ExpirationDt,
+            EntityDataFieldTy::AllowedDtRange,
+            EntityDataFieldTy::Name,
+            EntityDataFieldTy::Sex,
+            EntityDataFieldTy::Email,
+            EntityDataFieldTy::Program,
+        ];
+        imp.other_data_group
+            .set_visible(other_data_field_ty.iter().any(|field_ty| {
+                self.selected_entity_kind()
+                    .is_valid_entity_data_field_ty(*field_ty)
+                    && !imp.ignored_data_field_ty.borrow().contains(field_ty)
+            }))
     }
 
     fn update_stock_id_row_sensitivity(&self) {

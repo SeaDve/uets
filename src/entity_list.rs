@@ -62,6 +62,10 @@ impl EntityList {
         self.imp().list.borrow().len()
     }
 
+    pub fn contains(&self, id: &EntityId) -> bool {
+        self.imp().list.borrow().contains_key(id)
+    }
+
     pub fn get(&self, id: &EntityId) -> Option<Entity> {
         self.imp().list.borrow().get(id).cloned()
     }
